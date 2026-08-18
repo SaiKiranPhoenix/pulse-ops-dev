@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { OAuthCallbackPage } from "@/pages/auth/OAuthCallbackPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
@@ -8,13 +8,14 @@ import { MetricsPage } from "@/pages/dashboard/MetricsPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
 import { VaultPage } from "@/pages/dashboard/VaultPage";
+import { LandingPage } from "@/pages/LandingPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "./ProtectedRoute";
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />

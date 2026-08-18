@@ -1,4 +1,4 @@
-import { Slot } from "@radix-ui/react-slot";
+import { Slot, Slottable } from "@radix-ui/react-slot";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export function Button({
       {...props}
     >
       {icon}
-      {children}
+      <Slottable>{children}</Slottable>
     </Component>
   );
 }
