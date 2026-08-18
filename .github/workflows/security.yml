@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - master
+      - development
   push:
     branches:
       - main
       - master
+      - development
   schedule:
     - cron: "21 4 * * 1"
   workflow_dispatch:

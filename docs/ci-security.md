@@ -15,7 +15,7 @@ Configure these manually in GitHub after pushing:
 - Require status checks to pass before merging.
 - Require status checks to pass.
 - Require branches to be up to date before merging.
-- Block force pushes and branch deletion on `main`.
+- Block force pushes and branch deletion on `main`, `master`, and `development`.
 
 Recommended required checks:
 

@@ -58,7 +58,7 @@ Only services without host-bound ports can be scaled this way. `po-ui`, `po-api-
 The `Container Images` GitHub Actions workflow builds every service image separately.
 
 - Pull requests build images without pushing.
-- Pushes to `main` or `master` publish images to GitHub Container Registry using `GITHUB_TOKEN`.
+- Pushes to `main`, `master`, or `development` publish images to GitHub Container Registry using `GITHUB_TOKEN`.
 - No paid deployment provider is required.
 
 ## Production Direction
