@@ -1,1 +1,1 @@
-// Service-specific application error type for po-auth-project-service will live here.
+export { AppError } from "@pulseops/shared";
