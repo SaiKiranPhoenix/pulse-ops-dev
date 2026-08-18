@@ -49,4 +49,7 @@ jobs:
         run: pnpm security:secrets
 
       - name: Compose config check
-        run: docker compose config --quiet
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: App Compose profile check
+        run: docker compose --env-file .env.example --profile apps config --quiet

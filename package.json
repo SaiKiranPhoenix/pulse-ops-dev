@@ -20,7 +20,7 @@
     "security:secrets": "node scripts/security/scan-secrets.mjs",
     "security:audit": "pnpm audit --audit-level moderate",
     "pr:check-title": "node scripts/ci/check-pr-title.mjs",
-    "ci:local": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm security:secrets && pnpm security:audit",
+    "ci:local": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm security:secrets && pnpm security:audit",
     "infra:up": "docker compose up -d mongodb redis rabbitmq mailhog",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v",

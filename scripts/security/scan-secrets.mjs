@@ -5,14 +5,12 @@ const root = process.cwd();
 
 const ignoredDirectories = new Set([
   ".git",
-  ".github",
   ".pnpm-store",
   ".vite",
   ".turbo",
   "coverage",
   "dist",
   "node_modules",
-  "planning",
 ]);
 
 const ignoredFiles = new Set(["pnpm-lock.yaml"]);
