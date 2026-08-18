@@ -12,7 +12,7 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 
 - Language: TypeScript.
 - Backend: Express.
-- Frontend: React/Next.js, Tailwind CSS, Socket.IO client, Recharts.
+- Frontend: Vite React, React Router, Tailwind CSS, ShadCN UI, Socket.IO client, Recharts.
 - Monorepo: pnpm workspaces using top-level `po-*` folders.
 - Database: MongoDB.
 - Cache/hot state: Redis.
@@ -30,6 +30,9 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 - Each service owns its writes and collections.
 - Shared utilities should live in a top-level `po-shared` folder only if/when needed; do not recreate `apps/`, `services/`, or `packages/` directories.
 - Do not put service-specific database models in shared utilities.
+- Each backend `po-*` service uses the requested Express structure: `config`, `routes`, `controllers`, `services`, `repositories`, `models`, `middlewares`, `validators`, `events`, `sockets`, `utils`, `types`, `errors`, `app.ts`, and `server.ts`.
+- `po-ui` uses the requested Vite structure: `pages`, `routes`, `components`, `features`, `hooks`, `lib`, `store`, `types`, `utils`, `styles`, `App.tsx`, and `main.tsx`.
+- Use ShadCN components for reusable UI primitives instead of hand-building buttons, inputs, dialogs, tables, tabs, forms, and dropdowns.
 
 ## MVP Must-Haves
 
