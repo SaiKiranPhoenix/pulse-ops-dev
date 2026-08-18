@@ -42,7 +42,7 @@ The MVP should prove the full architecture works end-to-end:
 
 ### Refined Planning Decision
 
-The MVP will standardize on TypeScript and Express for backend services. Service boundaries remain microservices-first, but early implementation may group compatible HTTP services into one API process and compatible workers into one worker process to keep the first vertical slice buildable.
+The MVP will standardize on TypeScript and Express for backend services. Service boundaries remain microservices-first, and every `po-*` runtime is deployed separately from the start so load can be managed per service.
 
 ### Frontend
 

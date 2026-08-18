@@ -22,6 +22,14 @@ jobs:
     name: Workspace checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb:27017/pulseops
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_DEFAULT_USER: pulseops_ci
+      RABBITMQ_DEFAULT_PASS: set-local-rabbitmq-password
+      RABBITMQ_URL: amqp://pulseops_ci:set-local-rabbitmq-password@rabbitmq:5672
+      JWT_SECRET: set-local-jwt-secret-minimum-32-characters
 
     steps:
       - name: Checkout
@@ -55,3 +63,6 @@ jobs:
 
       - name: Validate Docker Compose
         run: docker compose config --quiet
+
+      - name: Validate app Compose profile
+        run: docker compose --profile apps config --quiet

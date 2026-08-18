@@ -19,13 +19,13 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 - Queue: RabbitMQ.
 - Realtime: Socket.IO.
 - Load testing: k6.
-- Infrastructure: Docker Compose, local-first, zero-cost.
+- Infrastructure: Docker Compose, local-first, zero-cost, with each app service independently deployable/scalable.
 
 ## Architecture Rules
 
-- Microservices-first boundaries, even if MVP starts with grouped runtime processes.
-- API Gateway, Auth/Project, Dashboard Query, and Incident HTTP APIs may start in one Express process.
-- Event workers, incident worker, audit worker, and heartbeat may start in one worker process.
+- Microservices-first boundaries with separate runtime deployment for every `po-*` service.
+- Do not group API Gateway, Auth/Project, Ingestion, Incident, Vault, Audit, Ops, Realtime, or Worker runtimes.
+- Each deployable service has its own Dockerfile and Compose service so load can be managed independently.
 - Vault logic must stay security-isolated in code structure.
 - Each service owns its writes and collections.
 - Shared utilities should live in a top-level `po-shared` folder only if/when needed; do not recreate `apps/`, `services/`, or `packages/` directories.

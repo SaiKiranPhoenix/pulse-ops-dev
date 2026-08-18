@@ -25,6 +25,12 @@
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v",
     "infra:logs": "docker compose logs -f",
+    "apps:build": "docker compose --profile apps build",
+    "apps:up": "docker compose --profile apps up -d",
+    "apps:down": "docker compose --profile apps down",
+    "apps:logs": "docker compose --profile apps logs -f",
+    "stack:up": "docker compose --profile apps up -d",
+    "stack:down": "docker compose --profile apps down",
     "workspace:list": "pnpm -r list --depth -1"
   },
   "devDependencies": {

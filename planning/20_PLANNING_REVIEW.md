@@ -5,7 +5,7 @@
 | Area | Status | Notes |
 | --- | --- | --- |
 | Product scope | Approved | MVP, V1.5, and V2 separated |
-| Microservice boundaries | Approved | logical ownership defined even if runtimes merge |
+| Microservice boundaries | Approved | logical ownership and separate runtime deployment defined |
 | Data ownership | Approved | every collection has owner |
 | Redis strategy | Approved | cache, rate limits, idempotency, counters, locks defined |
 | RabbitMQ strategy | Approved | exchanges, queues, retries, DLQ, ack rules defined |
@@ -29,8 +29,8 @@
 
 ## Things To Simplify
 
-- Run API Gateway, Auth/Project, Dashboard Query, and Incident HTTP API in one Express process for the first vertical slice.
-- Run event, incident, audit, and heartbeat workers in one worker process first.
+- Keep each runtime separately deployable even during the first vertical slice.
+- Start only the subset of services needed for a slice, rather than merging runtimes.
 - Use one `events` collection with type discriminator in MVP.
 - Use manual dashboard refresh plus Socket.IO updates before adding complex realtime replay.
 - Keep incident resolution manual in MVP.

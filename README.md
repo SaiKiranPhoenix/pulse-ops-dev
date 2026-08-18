@@ -17,8 +17,11 @@ Use `pnpm.cmd` on Windows if PowerShell blocks `pnpm.ps1`.
 
 ```powershell
 pnpm.cmd install
+Copy-Item .env.example .env
 pnpm.cmd workspace:list
 pnpm.cmd infra:up
 ```
+
+Replace the placeholder values in `.env` before starting infra or app containers.
 
 RabbitMQ management UI will be available at `http://localhost:15672` after infra starts.

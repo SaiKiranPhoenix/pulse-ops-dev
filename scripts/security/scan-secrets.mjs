@@ -34,8 +34,8 @@ const scannedExtensions = new Set([
 ]);
 
 const allowlistedFragments = [
-  "replace-with-local-demo-value",
-  "pulseops_demo_password",
+  "set-local-rabbitmq-password",
+  "set-local-jwt-secret-minimum-32-characters",
   "pulseops.accessToken",
 ];
 

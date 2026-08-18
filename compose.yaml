@@ -1,6 +1,226 @@
 name: pulse-ops
 
 services:
+  po-ui:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-ui/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    depends_on:
+      - po-api-gateway
+      - po-realtime-gateway
+
+  po-api-gateway:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-api-gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${API_GATEWAY_PORT:-4000}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    ports:
+      - "4000:4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-auth-project-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-auth-project-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${AUTH_PROJECT_SERVICE_PORT:-4010}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4010"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-ingestion-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-ingestion-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${INGESTION_SERVICE_PORT:-4100}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4100"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-event-workers:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-event-workers/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${EVENT_WORKERS_PORT:-4110}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4110"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-incident-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-incident-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${INCIDENT_SERVICE_PORT:-4120}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4120"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-realtime-gateway:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-realtime-gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${REALTIME_GATEWAY_PORT:-4130}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    ports:
+      - "4130:4130"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-vault-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-vault-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${VAULT_SERVICE_PORT:-4200}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      VAULT_KDF: ${VAULT_KDF:-argon2id}
+    expose:
+      - "4200"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-audit-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-audit-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${AUDIT_SERVICE_PORT:-4140}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4140"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-ops-service:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-ops-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${OPS_SERVICE_PORT:-4150}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4150"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   mongodb:
     image: mongo:7
     container_name: pulseops-mongodb
@@ -35,8 +255,8 @@ services:
     container_name: pulseops-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: pulseops_demo
-      RABBITMQ_DEFAULT_PASS: pulseops_demo_password
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in .env}
     ports:
       - "5672:5672"
       - "15672:15672"
