@@ -12,8 +12,19 @@ export default [
     languageOptions: {
       sourceType: "commonjs",
       globals: {
+        console: "readonly",
         module: "readonly",
+        process: "readonly",
         require: "readonly",
+      },
+    },
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
       },
     },
   },
