@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 export type IncidentStatus = "open" | "resolved";
@@ -58,4 +58,4 @@ incidentSchema.index(
 );
 
 export const IncidentModel: Model<IncidentRecord> =
-  models.Incident ?? model<IncidentRecord>("Incident", incidentSchema);
+  mongoose.models.Incident ?? model<IncidentRecord>("Incident", incidentSchema);

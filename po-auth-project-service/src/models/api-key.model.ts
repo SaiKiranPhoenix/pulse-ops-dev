@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type ApiKeyStatus = "active" | "disabled";
 
@@ -78,4 +78,4 @@ const apiKeySchema = new Schema<ApiKeyRecord>(
 apiKeySchema.index({ projectId: 1, status: 1 }, { name: "idx_auth_api_keys_project_status" });
 
 export const ApiKeyModel: Model<ApiKeyRecord> =
-  models.ApiKey ?? model<ApiKeyRecord>("ApiKey", apiKeySchema);
+  mongoose.models.ApiKey ?? model<ApiKeyRecord>("ApiKey", apiKeySchema);

@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type IngestedEventType = "log" | "error" | "metric";
 
@@ -55,4 +55,4 @@ ingestedEventSchema.index(
 );
 
 export const IngestedEventModel: Model<IngestedEventRecord> =
-  models.IngestedEvent ?? model<IngestedEventRecord>("IngestedEvent", ingestedEventSchema);
+  mongoose.models.IngestedEvent ?? model<IngestedEventRecord>("IngestedEvent", ingestedEventSchema);

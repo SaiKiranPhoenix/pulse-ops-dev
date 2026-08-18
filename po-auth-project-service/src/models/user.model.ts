@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type UserStatus = "active" | "disabled";
 export type OAuthProvider = "google" | "github";
@@ -91,4 +91,5 @@ userSchema.index(
   },
 );
 
-export const UserModel: Model<UserRecord> = models.User ?? model<UserRecord>("User", userSchema);
+export const UserModel: Model<UserRecord> =
+  mongoose.models.User ?? model<UserRecord>("User", userSchema);

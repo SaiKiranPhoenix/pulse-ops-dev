@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import { createLogger } from "@pulseops/shared";
 import { GATEWAY_LIMITS, SERVICE_NAME } from "./config/constants.js";
 import { createErrorMiddleware } from "./middlewares/error.middleware.js";
+import { createCorsMiddleware } from "./middlewares/cors.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
 import { createRoutes, type RouteDependencies } from "./routes/index.js";
 import {
@@ -19,6 +20,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const dependencies = options.dependencies ?? createApiGatewayDependencies();
 
   app.disable("x-powered-by");
+  app.use(createCorsMiddleware(dependencies.corsAllowedOrigins));
   app.use(express.json({ limit: GATEWAY_LIMITS.bodyLimit }));
   app.use(requestIdMiddleware);
   app.use(createRoutes(toRouteDependencies(dependencies)));

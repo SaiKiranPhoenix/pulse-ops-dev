@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type EncryptedSecretValue = {
   ciphertext: string;
@@ -58,4 +58,4 @@ vaultSecretSchema.index(
 );
 
 export const VaultSecretModel: Model<VaultSecretRecord> =
-  models.VaultSecret ?? model<VaultSecretRecord>("VaultSecret", vaultSecretSchema);
+  mongoose.models.VaultSecret ?? model<VaultSecretRecord>("VaultSecret", vaultSecretSchema);

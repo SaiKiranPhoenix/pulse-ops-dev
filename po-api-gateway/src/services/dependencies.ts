@@ -11,6 +11,7 @@ export type ApiGatewayDependencies = {
   readonly proxyController: ProxyController;
   readonly proxyService: ProxyService;
   readonly jwtSecret: string;
+  readonly corsAllowedOrigins: string;
 };
 
 export function createApiGatewayDependencies(): ApiGatewayDependencies {
@@ -42,5 +43,6 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
     proxyController: new ProxyController(proxyService, proxyTargets),
     proxyService,
     jwtSecret: env.JWT_SECRET,
+    corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   };
 }

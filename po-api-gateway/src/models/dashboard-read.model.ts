@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type DashboardEventRecord = {
   projectId: string;
@@ -75,12 +75,13 @@ export type DashboardIncidentDocument = HydratedDocument<DashboardIncidentRecord
 export type DashboardVaultSecretDocument = HydratedDocument<DashboardVaultSecretRecord>;
 
 export const DashboardEventModel: Model<DashboardEventRecord> =
-  models.DashboardEvent ?? model<DashboardEventRecord>("DashboardEvent", dashboardEventSchema);
+  mongoose.models.DashboardEvent ??
+  model<DashboardEventRecord>("DashboardEvent", dashboardEventSchema);
 
 export const DashboardIncidentModel: Model<DashboardIncidentRecord> =
-  models.DashboardIncident ??
+  mongoose.models.DashboardIncident ??
   model<DashboardIncidentRecord>("DashboardIncident", dashboardIncidentSchema);
 
 export const DashboardVaultSecretModel: Model<DashboardVaultSecretRecord> =
-  models.DashboardVaultSecret ??
+  mongoose.models.DashboardVaultSecret ??
   model<DashboardVaultSecretRecord>("DashboardVaultSecret", dashboardVaultSecretSchema);

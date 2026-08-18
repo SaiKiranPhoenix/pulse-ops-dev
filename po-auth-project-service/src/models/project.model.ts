@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type ProjectStatus = "active" | "archived";
 
@@ -54,4 +54,4 @@ projectSchema.index(
 );
 
 export const ProjectModel: Model<ProjectRecord> =
-  models.Project ?? model<ProjectRecord>("Project", projectSchema);
+  mongoose.models.Project ?? model<ProjectRecord>("Project", projectSchema);

@@ -1,4 +1,4 @@
-import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
 
 export type IngestionApiKeyRecord = {
   projectId: string;
@@ -38,4 +38,5 @@ const ingestionApiKeySchema = new Schema<IngestionApiKeyRecord>(
 );
 
 export const IngestionApiKeyModel: Model<IngestionApiKeyRecord> =
-  models.IngestionApiKey ?? model<IngestionApiKeyRecord>("IngestionApiKey", ingestionApiKeySchema);
+  mongoose.models.IngestionApiKey ??
+  model<IngestionApiKeyRecord>("IngestionApiKey", ingestionApiKeySchema);
