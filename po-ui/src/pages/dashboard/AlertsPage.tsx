@@ -1,1 +1,3 @@
-// Alerts/incidents route page.
+export function AlertsPage() {
+  return <main>Alerts</main>;
+}

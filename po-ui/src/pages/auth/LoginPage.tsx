@@ -1,1 +1,3 @@
-// Login route page. Compose auth feature components here.
+export function LoginPage() {
+  return <main>Login</main>;
+}

@@ -1,1 +1,3 @@
-// Vault route page.
+export function VaultPage() {
+  return <main>Vault</main>;
+}

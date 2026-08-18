@@ -1,1 +1,3 @@
-// Not found route page.
+export function NotFoundPage() {
+  return <main>Not found</main>;
+}

@@ -1,1 +1,3 @@
-// Register route page. Compose auth feature components here.
+export function RegisterPage() {
+  return <main>Register</main>;
+}

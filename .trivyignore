@@ -1,0 +1,2 @@
+# PulseOps intentionally uses local-only demo credentials in .env.example and compose.yaml.
+# Real secrets must never be committed. The custom scanner and Gitleaks config still block common live credentials.

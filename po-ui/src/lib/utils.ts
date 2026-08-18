@@ -1,1 +1,6 @@
-// ShadCN utility helpers such as cn() will live here.
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}

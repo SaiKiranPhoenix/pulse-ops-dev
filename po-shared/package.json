@@ -1,0 +1,25 @@
+{
+  "name": "@pulseops/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config/index.ts",
+    "./contracts": "./src/contracts/index.ts",
+    "./crypto": "./src/crypto/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./logger": "./src/logger/index.ts",
+    "./messaging": "./src/messaging/index.ts",
+    "./mongo": "./src/mongo/index.ts",
+    "./redis": "./src/redis/index.ts",
+    "./security": "./src/security/index.ts",
+    "./types": "./src/types/index.ts",
+    "./validation": "./src/validation/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}
