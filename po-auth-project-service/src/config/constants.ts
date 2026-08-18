@@ -23,6 +23,12 @@ export const USER_LIMITS = {
   passwordMaxLength: 128,
 } as const;
 
+export const OAUTH_LIMITS = {
+  providers: ["google", "github"],
+  stateTtlSeconds: 5 * 60,
+  stateNonceBytes: 16,
+} as const;
+
 export const PROJECT_LIMITS = {
   nameMaxLength: 100,
   slugMaxLength: 80,

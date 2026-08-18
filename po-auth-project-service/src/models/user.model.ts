@@ -1,11 +1,19 @@
 import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
 
 export type UserStatus = "active" | "disabled";
+export type OAuthProvider = "google" | "github";
+
+export type UserOAuthAccount = {
+  provider: OAuthProvider;
+  providerUserId: string;
+  linkedAt: Date;
+};
 
 export type UserRecord = {
   email: string;
   name: string | null;
-  passwordHash: string;
+  passwordHash: string | null;
+  oauthAccounts: UserOAuthAccount[];
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -32,8 +40,32 @@ const userSchema = new Schema<UserRecord>(
     },
     passwordHash: {
       type: String,
-      required: true,
+      default: null,
       select: false,
+    },
+    oauthAccounts: {
+      type: [
+        {
+          provider: {
+            type: String,
+            enum: ["google", "github"],
+            required: true,
+          },
+          providerUserId: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 256,
+          },
+          linkedAt: {
+            type: Date,
+            required: true,
+          },
+        },
+      ],
+      default: [],
+      select: false,
+      _id: false,
     },
     status: {
       type: String,
@@ -51,5 +83,12 @@ const userSchema = new Schema<UserRecord>(
 );
 
 userSchema.index({ email: 1 }, { unique: true, name: "uniq_auth_users_email" });
+userSchema.index(
+  { "oauthAccounts.provider": 1, "oauthAccounts.providerUserId": 1 },
+  {
+    sparse: true,
+    name: "idx_auth_users_oauth_account",
+  },
+);
 
 export const UserModel: Model<UserRecord> = models.User ?? model<UserRecord>("User", userSchema);

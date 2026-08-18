@@ -50,6 +50,7 @@ async function fetchUpstream(request: Request, upstreamUrl: URL): Promise<global
     const requestInit: RequestInit = {
       method: request.method,
       headers: buildForwardHeaders(request),
+      redirect: "manual",
       ...(hasBody(request.method) ? { body: JSON.stringify(request.body ?? {}) } : {}),
     };
 

@@ -1,9 +1,26 @@
-import { UserModel, type UserDocument, type UserRecord } from "../models/user.model.js";
+import {
+  UserModel,
+  type OAuthProvider,
+  type UserDocument,
+  type UserOAuthAccount,
+  type UserRecord,
+} from "../models/user.model.js";
 
 export type CreateUserRecordInput = {
   readonly email: string;
   readonly name: string | null;
   readonly passwordHash: string;
+};
+
+export type CreateOAuthUserRecordInput = {
+  readonly email: string;
+  readonly name: string | null;
+  readonly oauthAccount: CreateOAuthAccountInput;
+};
+
+export type CreateOAuthAccountInput = {
+  readonly provider: OAuthProvider;
+  readonly providerUserId: string;
 };
 
 export type SafeUserRecord = {
@@ -16,14 +33,17 @@ export type SafeUserRecord = {
 };
 
 export type UserWithPasswordHashRecord = SafeUserRecord & {
-  readonly passwordHash: string;
+  readonly passwordHash: string | null;
 };
 
 export interface UserRepository {
   findById(id: string): Promise<SafeUserRecord | null>;
   findByEmail(email: string): Promise<SafeUserRecord | null>;
+  findByOAuthAccount(input: CreateOAuthAccountInput): Promise<SafeUserRecord | null>;
   findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHashRecord | null>;
   create(input: CreateUserRecordInput): Promise<SafeUserRecord>;
+  createFromOAuth(input: CreateOAuthUserRecordInput): Promise<SafeUserRecord>;
+  linkOAuthAccount(userId: string, input: CreateOAuthAccountInput): Promise<SafeUserRecord | null>;
 }
 
 export class MongoUserRepository implements UserRepository {
@@ -34,6 +54,19 @@ export class MongoUserRepository implements UserRepository {
 
   async findByEmail(email: string): Promise<SafeUserRecord | null> {
     const user = await UserModel.findOne({ email }).exec();
+    return user === null ? null : toSafeUserRecord(user);
+  }
+
+  async findByOAuthAccount(input: CreateOAuthAccountInput): Promise<SafeUserRecord | null> {
+    const user = await UserModel.findOne({
+      oauthAccounts: {
+        $elemMatch: {
+          provider: input.provider,
+          providerUserId: input.providerUserId,
+        },
+      },
+    }).exec();
+
     return user === null ? null : toSafeUserRecord(user);
   }
 
@@ -50,6 +83,43 @@ export class MongoUserRepository implements UserRepository {
     });
 
     return toSafeUserRecord(user);
+  }
+
+  async createFromOAuth(input: CreateOAuthUserRecordInput): Promise<SafeUserRecord> {
+    const user = await UserModel.create({
+      email: input.email,
+      name: input.name,
+      passwordHash: null,
+      oauthAccounts: [toOAuthAccountRecord(input.oauthAccount)],
+    });
+
+    return toSafeUserRecord(user);
+  }
+
+  async linkOAuthAccount(
+    userId: string,
+    input: CreateOAuthAccountInput,
+  ): Promise<SafeUserRecord | null> {
+    await UserModel.updateOne(
+      {
+        _id: userId,
+        oauthAccounts: {
+          $not: {
+            $elemMatch: {
+              provider: input.provider,
+              providerUserId: input.providerUserId,
+            },
+          },
+        },
+      },
+      {
+        $push: {
+          oauthAccounts: toOAuthAccountRecord(input),
+        },
+      },
+    ).exec();
+
+    return this.findById(userId);
   }
 }
 
@@ -70,5 +140,13 @@ function toSafeUserRecord(user: UserDocument): SafeUserRecord {
     status: user.status,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+  };
+}
+
+function toOAuthAccountRecord(input: CreateOAuthAccountInput): UserOAuthAccount {
+  return {
+    provider: input.provider,
+    providerUserId: input.providerUserId,
+    linkedAt: new Date(),
   };
 }

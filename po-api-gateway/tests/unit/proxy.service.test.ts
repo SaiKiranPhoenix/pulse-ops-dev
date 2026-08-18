@@ -30,6 +30,7 @@ describe("ProxyService", () => {
       "http://po-ingestion-service:4100/ingest/logs?projectId=prj_1",
     );
     expect(init?.method).toBe("POST");
+    expect(init?.redirect).toBe("manual");
     expect(init?.body).toBe(JSON.stringify({ message: "checkout failed" }));
     expect((init?.headers as Headers).get("x-api-key")).toBe("po_live_test");
     expect((init?.headers as Headers).get("x-request-id")).toBe("req_proxy");
@@ -38,6 +39,29 @@ describe("ProxyService", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(response.headers.has("connection")).toBe(false);
     expect(response.body).toBe('{"data":{"ok":true},"requestId":"req_proxy"}');
+  });
+
+  it("forwards upstream redirects without following them inside the gateway", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: "http://localhost:3000/oauth/callback#access_token=token",
+        },
+      }),
+    );
+    const response = createMockResponse();
+
+    await new ProxyService().forward(createMockRequest(), response, {
+      baseUrl: "http://po-auth-project-service:4010",
+      pathPrefix: "",
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3000/oauth/callback#access_token=token",
+    );
+    expect(response.body).toBe("");
   });
 });
 

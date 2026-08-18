@@ -19,6 +19,8 @@ export type LoginInput = {
   readonly password: string;
 };
 
+export type OAuthProvider = "google" | "github";
+
 export type AuthSession = {
   readonly accessToken: string;
   readonly tokenType: "Bearer";
@@ -70,6 +72,10 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   const response =
     await apiClient.get<ApiSuccessResponse<{ readonly user: CurrentUser }>>("/auth/me");
   return response.data.data.user;
+}
+
+export function getOAuthStartUrl(provider: OAuthProvider): string {
+  return `${apiClient.defaults.baseURL ?? ""}/auth/oauth/${provider}/start`;
 }
 
 export async function createProject(input: {

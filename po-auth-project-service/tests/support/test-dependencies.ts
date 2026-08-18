@@ -11,6 +11,8 @@ import type {
   SafeProjectRecord,
 } from "../../src/repositories/project.repository.js";
 import type {
+  CreateOAuthAccountInput,
+  CreateOAuthUserRecordInput,
   CreateUserRecordInput,
   SafeUserRecord,
   UserRepository,
@@ -18,6 +20,12 @@ import type {
 } from "../../src/repositories/user.repository.js";
 import { HmacApiKeyHasher } from "../../src/services/api-key-hasher.service.js";
 import { ApiKeyService } from "../../src/services/api-key.service.js";
+import type {
+  OAuthProfile,
+  OAuthProviderClient,
+} from "../../src/services/oauth-provider.service.js";
+import { OAuthService } from "../../src/services/oauth.service.js";
+import type { OAuthStateService } from "../../src/services/oauth-state.service.js";
 import type { PasswordHasher } from "../../src/services/password-hasher.service.js";
 import { ProjectService } from "../../src/services/project.service.js";
 import { SessionService } from "../../src/services/session.service.js";
@@ -29,7 +37,9 @@ const fixedDate = new Date("2026-08-18T00:00:00.000Z");
 
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, UserWithPasswordHashRecord>();
+  private readonly oauthAccounts = new Map<string, string>();
   readonly createdInputs: CreateUserRecordInput[] = [];
+  readonly createdOAuthInputs: CreateOAuthUserRecordInput[] = [];
 
   seed(user: UserWithPasswordHashRecord): void {
     this.users.set(user.email, user);
@@ -42,6 +52,12 @@ export class InMemoryUserRepository implements UserRepository {
 
   async findByEmail(email: string): Promise<SafeUserRecord | null> {
     const user = this.users.get(email);
+    return user === undefined ? null : toSafeUser(user);
+  }
+
+  async findByOAuthAccount(input: CreateOAuthAccountInput): Promise<SafeUserRecord | null> {
+    const userId = this.oauthAccounts.get(toOAuthAccountKey(input));
+    const user = [...this.users.values()].find((candidate) => candidate.id === userId);
     return user === undefined ? null : toSafeUser(user);
   }
 
@@ -63,6 +79,38 @@ export class InMemoryUserRepository implements UserRepository {
     };
 
     this.users.set(input.email, user);
+    return toSafeUser(user);
+  }
+
+  async createFromOAuth(input: CreateOAuthUserRecordInput): Promise<SafeUserRecord> {
+    this.createdOAuthInputs.push(input);
+
+    const user: UserWithPasswordHashRecord = {
+      id: createObjectId(this.users.size + 1),
+      email: input.email,
+      name: input.name,
+      passwordHash: null,
+      status: "active",
+      createdAt: fixedDate,
+      updatedAt: fixedDate,
+    };
+
+    this.users.set(input.email, user);
+    this.oauthAccounts.set(toOAuthAccountKey(input.oauthAccount), user.id);
+    return toSafeUser(user);
+  }
+
+  async linkOAuthAccount(
+    userId: string,
+    input: CreateOAuthAccountInput,
+  ): Promise<SafeUserRecord | null> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === userId);
+
+    if (user === undefined) {
+      return null;
+    }
+
+    this.oauthAccounts.set(toOAuthAccountKey(input), user.id);
     return toSafeUser(user);
   }
 }
@@ -157,11 +205,49 @@ export class FakePasswordHasher implements PasswordHasher {
   }
 }
 
+export class FakeOAuthStateService implements OAuthStateService {
+  create(provider: OAuthProfile["provider"]): string {
+    return `test-oauth-state:${provider}`;
+  }
+
+  verify(state: string, provider: OAuthProfile["provider"]): void {
+    if (state !== `test-oauth-state:${provider}`) {
+      throw new Error("Invalid OAuth state");
+    }
+  }
+}
+
+export class FakeOAuthProviderClient implements OAuthProviderClient {
+  profile: OAuthProfile = {
+    provider: "github",
+    providerUserId: "123",
+    email: "github@example.com",
+    emailVerified: true,
+    name: "Git Hub",
+  };
+
+  createAuthorizationUrl(input: {
+    readonly provider: OAuthProfile["provider"];
+    readonly redirectUri: string;
+    readonly state: string;
+  }): URL {
+    const url = new URL(`https://${input.provider}.example.test/oauth`);
+    url.searchParams.set("redirect_uri", input.redirectUri);
+    url.searchParams.set("state", input.state);
+    return url;
+  }
+
+  async exchangeCodeForProfile(): Promise<OAuthProfile> {
+    return this.profile;
+  }
+}
+
 export type TestDependencyHarness = {
   readonly dependencies: AuthProjectServiceDependencies;
   readonly users: InMemoryUserRepository;
   readonly projects: InMemoryProjectRepository;
   readonly keys: InMemoryApiKeyRepository;
+  readonly oauthProviders: FakeOAuthProviderClient;
 };
 
 export function createTestDependencies(): TestDependencyHarness {
@@ -172,6 +258,15 @@ export function createTestDependencies(): TestDependencyHarness {
   const tokenService = new HmacJwtTokenService(validJwtSecret(), 3600);
   const userRegistrationService = new UserRegistrationService(users, passwordHasher);
   const sessionService = new SessionService(users, passwordHasher, tokenService);
+  const oauthProviders = new FakeOAuthProviderClient();
+  const oauthService = new OAuthService(
+    "http://localhost:4000",
+    "http://localhost:3000/oauth/callback",
+    "http://localhost:3000/login",
+    new FakeOAuthStateService(),
+    oauthProviders,
+    sessionService,
+  );
   const projectService = new ProjectService(projects);
   const apiKeyService = new ApiKeyService(
     projects,
@@ -181,10 +276,11 @@ export function createTestDependencies(): TestDependencyHarness {
 
   return {
     dependencies: {
-      authController: new AuthController(userRegistrationService, sessionService),
+      authController: new AuthController(userRegistrationService, sessionService, oauthService),
       projectController: new ProjectController(projectService, apiKeyService),
       userRegistrationService,
       sessionService,
+      oauthService,
       projectService,
       apiKeyService,
       tokenService,
@@ -192,6 +288,7 @@ export function createTestDependencies(): TestDependencyHarness {
     users,
     projects,
     keys,
+    oauthProviders,
   };
 }
 
@@ -227,6 +324,10 @@ function toSafeUser(user: UserWithPasswordHashRecord): SafeUserRecord {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+function toOAuthAccountKey(input: CreateOAuthAccountInput): string {
+  return `${input.provider}:${input.providerUserId}`;
 }
 
 function validJwtSecret(): string {

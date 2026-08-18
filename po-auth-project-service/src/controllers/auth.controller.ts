@@ -1,7 +1,13 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
 import { getAuthContext } from "../middlewares/auth.middleware.js";
-import type { LoginUserBody, RegisterUserBody } from "../validators/auth.validator.js";
+import type {
+  LoginUserBody,
+  OAuthCallbackQuery,
+  OAuthProviderParams,
+  RegisterUserBody,
+} from "../validators/auth.validator.js";
+import type { OAuthService } from "../services/oauth.service.js";
 import type { SessionService } from "../services/session.service.js";
 import type { UserRegistrationService } from "../services/user-registration.service.js";
 
@@ -9,6 +15,7 @@ export class AuthController {
   constructor(
     private readonly userRegistration: UserRegistrationService,
     private readonly sessions: SessionService,
+    private readonly oauth: OAuthService,
   ) {}
 
   register = async (_request: Request, response: Response): Promise<void> => {
@@ -44,5 +51,27 @@ export class AuthController {
         String(response.locals.requestId),
       ),
     );
+  };
+
+  oauthStart = async (_request: Request, response: Response): Promise<void> => {
+    const { provider } = response.locals.validatedParams as OAuthProviderParams;
+    response.redirect(302, this.oauth.createProviderRedirectUrl(provider));
+  };
+
+  oauthCallback = async (_request: Request, response: Response): Promise<void> => {
+    const { provider } = response.locals.validatedParams as OAuthProviderParams;
+    const query = response.locals.validatedQuery as OAuthCallbackQuery;
+
+    try {
+      const session = await this.oauth.completeCallback({
+        provider,
+        code: query.code,
+        state: query.state,
+      });
+
+      response.redirect(302, this.oauth.createSuccessRedirectUrl(session));
+    } catch {
+      response.redirect(302, this.oauth.createFailureRedirectUrl());
+    }
   };
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_LIMITS } from "../config/constants.js";
+import { OAUTH_LIMITS, USER_LIMITS } from "../config/constants.js";
 
 export const registerUserBodySchema = z.object({
   email: z.email().trim().toLowerCase().max(320),
@@ -22,3 +22,16 @@ export const loginUserBodySchema = z.object({
 });
 
 export type LoginUserBody = z.infer<typeof loginUserBodySchema>;
+
+export const oauthProviderParamsSchema = z.object({
+  provider: z.enum(OAUTH_LIMITS.providers),
+});
+
+export type OAuthProviderParams = z.infer<typeof oauthProviderParamsSchema>;
+
+export const oauthCallbackQuerySchema = z.object({
+  code: z.string().trim().min(1).max(4096),
+  state: z.string().trim().min(16).max(2048),
+});
+
+export type OAuthCallbackQuery = z.infer<typeof oauthCallbackQuerySchema>;

@@ -15,3 +15,10 @@ export function validateParams<TParams>(schema: ZodType<TParams>) {
     next();
   };
 }
+
+export function validateQuery<TQuery>(schema: ZodType<TQuery>) {
+  return (request: Request, response: Response, next: NextFunction) => {
+    response.locals.validatedQuery = parseWithSchema(schema, request.query);
+    next();
+  };
+}
