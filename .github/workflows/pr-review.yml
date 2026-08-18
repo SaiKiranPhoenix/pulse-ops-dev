@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -40,10 +42,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Verify branch name
+        env:
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: pnpm pr:check-branch-name
+
+      - name: Verify branch flow
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: pnpm pr:check-branch-flow
+
+      - name: Verify PR metadata
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: pnpm pr:check-metadata
+
       - name: Verify PR title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: pnpm pr:check-title
+
+      - name: Verify changed file policy
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: pnpm pr:check-file-policy
 
       - name: Secret scanner
         run: pnpm security:secrets

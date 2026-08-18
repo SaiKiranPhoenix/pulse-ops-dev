@@ -61,6 +61,12 @@ The `Container Images` GitHub Actions workflow builds every service image separa
 - Pushes to `main`, `master`, or `development` publish images to GitHub Container Registry using `GITHUB_TOKEN`.
 - No paid deployment provider is required.
 
+Branch flow is controlled by the `PR Review Guardrails` workflow:
+
+- feature branches merge into `development`
+- only `development` or `hotfix/*` branches merge into `main`/`master`
+- hotfix branches must include a reason and back-merge plan
+
 ## Production Direction
 
 For production-style deployment, run one image per service behind a gateway/load balancer:

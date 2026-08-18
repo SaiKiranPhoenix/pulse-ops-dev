@@ -6,7 +6,58 @@ PulseOps uses free-tier GitHub Actions checks plus local scripts to reduce the c
 
 - `CI`: format, lint, typecheck, build, and Docker Compose config validation.
 - `Security`: local secret scan, Gitleaks, pnpm audit, and Trivy filesystem scan.
-- `PR Review Guardrails`: PR title check, local secret scan, and compose validation.
+- `PR Review Guardrails`: branch naming, branch flow policy, PR metadata, changed-file policy, PR title check, local secret scan, and compose validation.
+
+## Branch Flow Policy
+
+Use this merge flow:
+
+- Feature branches merge into `development`.
+- `development` merges into `main` or `master`.
+- `hotfix` branches may merge directly into `main` or `master`.
+- Hotfixes merged directly into `main` or `master` must be back-merged into `development`.
+
+Allowed working branch prefixes:
+
+- `feature/`
+- `bugfix/`
+- `hotfix/`
+- `hotfix-`
+- `docs/`
+- `chore/`
+- `ci/`
+- `refactor/`
+- `test/`
+- `security/`
+- `dependabot/`
+
+Allowed direct PRs into `main` or `master`:
+
+- `development` -> `main`
+- `development` -> `master`
+- `hotfix/security-issue` -> `main`
+- `hotfix/security-issue` -> `master`
+
+Blocked direct PRs into `main` or `master`:
+
+- `feature/auth-api` -> `main`
+- `feature/auth-api` -> `master`
+- `bugfix/dashboard-cache` -> `main`
+- `bugfix/dashboard-cache` -> `master`
+
+The `Review readiness` job enforces this branch flow automatically for pull requests. To block direct pushes too, configure branch protection manually as described below.
+
+## Pull Request Policy
+
+The `Review readiness` job enforces:
+
+- PR titles must use Conventional Commits, such as `feat(auth): add login endpoint`.
+- PRs targeting `main` or `master` must include meaningful `Release Notes`.
+- Hotfix PRs must include a meaningful `Hotfix Reason`.
+- Hotfix PRs must include a meaningful `Back-Merge Plan`.
+- `.env`, private key, certificate, and secret-like files are blocked.
+- Service boundary or deployment contract changes must include docs or planning updates.
+- Auth, vault, audit, security, or redaction source changes must include tests.
 
 ## Recommended Solo-Developer Branch Protection
 
@@ -15,7 +66,9 @@ Configure these manually in GitHub after pushing:
 - Require status checks to pass before merging.
 - Require status checks to pass.
 - Require branches to be up to date before merging.
+- Require a pull request before merging into `main`, `master`, and `development`.
 - Block force pushes and branch deletion on `main`, `master`, and `development`.
+- Restrict who can push to `main` and `master` if your GitHub plan exposes that option.
 
 Recommended required checks:
 
