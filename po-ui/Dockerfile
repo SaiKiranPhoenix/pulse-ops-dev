@@ -16,4 +16,5 @@ RUN pnpm --filter po-ui build
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 COPY po-ui/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/po-ui/dist /usr/share/nginx/html
+USER nginx
 EXPOSE 8080
