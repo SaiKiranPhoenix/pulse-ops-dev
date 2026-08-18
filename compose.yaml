@@ -49,6 +49,7 @@ services:
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
     expose:
       - "4010"
     depends_on:
@@ -72,6 +73,7 @@ services:
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
     expose:
       - "4100"
     depends_on:
@@ -164,7 +166,7 @@ services:
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      VAULT_KDF: ${VAULT_KDF:-argon2id}
+      VAULT_MASTER_PASSWORD: ${VAULT_MASTER_PASSWORD:?Set VAULT_MASTER_PASSWORD in .env}
     expose:
       - "4200"
     depends_on:

@@ -1,0 +1,58 @@
+import { Schema, model, models, type HydratedDocument, type Model } from "mongoose";
+
+export type IngestedEventType = "log" | "error" | "metric";
+
+export type IngestedEventRecord = {
+  projectId: string;
+  type: IngestedEventType;
+  source: string;
+  level: string | null;
+  message: string | null;
+  name: string | null;
+  value: number | null;
+  unit: string | null;
+  fingerprint: string;
+  attributes: Record<string, unknown>;
+  observedAt: Date;
+  idempotencyKey: string | null;
+  receivedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type IngestedEventDocument = HydratedDocument<IngestedEventRecord>;
+
+const ingestedEventSchema = new Schema<IngestedEventRecord>(
+  {
+    projectId: { type: String, required: true, index: true },
+    type: { type: String, enum: ["log", "error", "metric"], required: true, index: true },
+    source: { type: String, required: true, trim: true, maxlength: 160 },
+    level: { type: String, default: null, trim: true, maxlength: 40 },
+    message: { type: String, default: null, trim: true, maxlength: 4_000 },
+    name: { type: String, default: null, trim: true, maxlength: 160 },
+    value: { type: Number, default: null },
+    unit: { type: String, default: null, trim: true, maxlength: 40 },
+    fingerprint: { type: String, required: true, index: true },
+    attributes: { type: Schema.Types.Mixed, required: true, default: {} },
+    observedAt: { type: Date, required: true, index: true },
+    idempotencyKey: { type: String, default: null, index: true },
+    receivedAt: { type: Date, required: true, default: () => new Date(), index: true },
+  },
+  {
+    collection: "ingested_events",
+    timestamps: true,
+    versionKey: false,
+  },
+);
+
+ingestedEventSchema.index(
+  { projectId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    name: "uniq_ingested_events_project_idempotency",
+    partialFilterExpression: { idempotencyKey: { $type: "string" } },
+  },
+);
+
+export const IngestedEventModel: Model<IngestedEventRecord> =
+  models.IngestedEvent ?? model<IngestedEventRecord>("IngestedEvent", ingestedEventSchema);

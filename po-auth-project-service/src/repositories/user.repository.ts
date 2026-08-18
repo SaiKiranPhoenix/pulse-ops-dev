@@ -15,15 +15,31 @@ export type SafeUserRecord = {
   readonly updatedAt: Date;
 };
 
+export type UserWithPasswordHashRecord = SafeUserRecord & {
+  readonly passwordHash: string;
+};
+
 export interface UserRepository {
+  findById(id: string): Promise<SafeUserRecord | null>;
   findByEmail(email: string): Promise<SafeUserRecord | null>;
+  findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHashRecord | null>;
   create(input: CreateUserRecordInput): Promise<SafeUserRecord>;
 }
 
 export class MongoUserRepository implements UserRepository {
+  async findById(id: string): Promise<SafeUserRecord | null> {
+    const user = await UserModel.findById(id).exec();
+    return user === null ? null : toSafeUserRecord(user);
+  }
+
   async findByEmail(email: string): Promise<SafeUserRecord | null> {
     const user = await UserModel.findOne({ email }).exec();
     return user === null ? null : toSafeUserRecord(user);
+  }
+
+  async findByEmailWithPasswordHash(email: string): Promise<UserWithPasswordHashRecord | null> {
+    const user = await UserModel.findOne({ email }).select("+passwordHash").exec();
+    return user === null ? null : { ...toSafeUserRecord(user), passwordHash: user.passwordHash };
   }
 
   async create(input: CreateUserRecordInput): Promise<SafeUserRecord> {

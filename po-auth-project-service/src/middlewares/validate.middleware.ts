@@ -8,3 +8,10 @@ export function validateBody<TBody>(schema: ZodType<TBody>) {
     next();
   };
 }
+
+export function validateParams<TParams>(schema: ZodType<TParams>) {
+  return (request: Request, response: Response, next: NextFunction) => {
+    response.locals.validatedParams = parseWithSchema(schema, request.params);
+    next();
+  };
+}

@@ -15,3 +15,10 @@ export const registerUserBodySchema = z.object({
 });
 
 export type RegisterUserBody = z.infer<typeof registerUserBodySchema>;
+
+export const loginUserBodySchema = z.object({
+  email: z.email().trim().toLowerCase().max(320),
+  password: z.string().min(1).max(USER_LIMITS.passwordMaxLength),
+});
+
+export type LoginUserBody = z.infer<typeof loginUserBodySchema>;

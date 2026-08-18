@@ -9,5 +9,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server.js",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pulseops/shared": "workspace:*",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2"
   }
 }

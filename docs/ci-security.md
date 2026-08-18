@@ -7,6 +7,7 @@ PulseOps uses free-tier GitHub Actions checks plus local scripts to reduce the c
 - `CI`: format, lint, typecheck, build, and Docker Compose config validation.
 - `Security`: local secret scan, Gitleaks, pnpm audit, and Trivy filesystem scan.
 - `PR Review Guardrails`: branch naming, branch flow policy, PR metadata, changed-file policy, PR title check, local secret scan, and compose validation.
+- `Feature Branch Checks`: branch naming, format, lint, typecheck, build, tests, local secret scan, Gitleaks, pnpm audit, Trivy filesystem scan, Compose validation, and Dockerfile build checks for working branch pushes.
 
 ## Branch Flow Policy
 
@@ -47,6 +48,12 @@ Blocked direct PRs into `main` or `master`:
 
 The `Review readiness` job enforces this branch flow automatically for pull requests. To block direct pushes too, configure branch protection manually as described below.
 
+## Feature Branch Push Policy
+
+Pushes to `feature/**`, `bugfix/**`, `hotfix/**`, `hotfix-*`, `security/**`, `ci/**`, `chore/**`, `docs/**`, `refactor/**`, and `test/**` run the `Feature Branch Checks` workflow.
+
+This workflow is intentionally validation-only. It never publishes container images and never deploys environments from feature branches.
+
 ## Pull Request Policy
 
 The `Review readiness` job enforces:
@@ -75,6 +82,7 @@ Recommended required checks:
 - `Workspace checks`
 - `Secret and dependency checks`
 - `Review readiness`
+- `Feature workspace checks`
 
 Do not require external reviewers for this solo project. Use the PR template as a self-review checklist and let automated checks catch formatting, type, build, dependency, compose, and secret-scan issues.
 

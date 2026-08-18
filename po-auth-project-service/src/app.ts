@@ -30,5 +30,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 function toRouteDependencies(dependencies: AuthProjectServiceDependencies): RouteDependencies {
   return {
     authController: dependencies.authController,
+    projectController: dependencies.projectController,
+    tokenService: dependencies.tokenService,
   };
 }
