@@ -26,6 +26,10 @@ services:
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      AUTH_PROJECT_SERVICE_URL: ${AUTH_PROJECT_SERVICE_URL:-http://po-auth-project-service:4010}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://po-ingestion-service:4100}
+      INCIDENT_SERVICE_URL: ${INCIDENT_SERVICE_URL:-http://po-incident-service:4120}
+      VAULT_SERVICE_URL: ${VAULT_SERVICE_URL:-http://po-vault-service:4200}
     ports:
       - "4000:4000"
     depends_on:

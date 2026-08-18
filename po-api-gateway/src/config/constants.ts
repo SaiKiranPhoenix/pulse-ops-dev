@@ -1,7 +1,7 @@
 export const SERVICE_NAME = "po-api-gateway";
 
 export const GATEWAY_LIMITS = {
-  bodyLimit: "256kb",
+  bodyLimit: "512kb",
   dashboardLimit: 100,
 } as const;
 

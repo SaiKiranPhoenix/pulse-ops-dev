@@ -30,6 +30,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 function toRouteDependencies(dependencies: ApiGatewayDependencies): RouteDependencies {
   return {
     dashboardController: dependencies.dashboardController,
+    proxyController: dependencies.proxyController,
     jwtSecret: dependencies.jwtSecret,
   };
 }

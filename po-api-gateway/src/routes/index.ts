@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { DashboardController } from "../controllers/dashboard.controller.js";
+import type { ProxyController } from "../controllers/proxy.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -7,6 +8,7 @@ import { projectQuerySchema } from "../validators/dashboard.validator.js";
 
 export type RouteDependencies = {
   readonly dashboardController: DashboardController;
+  readonly proxyController: ProxyController;
   readonly jwtSecret: string;
 };
 
@@ -17,6 +19,12 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
   });
+
+  router.use("/auth", asyncHandler(dependencies.proxyController.authProject));
+  router.use("/projects", requireAuth, asyncHandler(dependencies.proxyController.authProject));
+  router.use("/ingest", asyncHandler(dependencies.proxyController.ingestion));
+  router.use("/incidents", requireAuth, asyncHandler(dependencies.proxyController.incident));
+  router.use("/vault", requireAuth, asyncHandler(dependencies.proxyController.vault));
 
   router.use("/dashboard", requireAuth);
   router.get(

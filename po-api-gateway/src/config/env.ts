@@ -5,6 +5,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
   MONGODB_URI: z.string().url().or(z.string().startsWith("mongodb://")),
   JWT_SECRET: z.string().min(32),
+  AUTH_PROJECT_SERVICE_URL: z.string().url().default("http://po-auth-project-service:4010"),
+  INGESTION_SERVICE_URL: z.string().url().default("http://po-ingestion-service:4100"),
+  INCIDENT_SERVICE_URL: z.string().url().default("http://po-incident-service:4120"),
+  VAULT_SERVICE_URL: z.string().url().default("http://po-vault-service:4200"),
 });
 
 export type ApiGatewayEnv = z.infer<typeof envSchema>;
