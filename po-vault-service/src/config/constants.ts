@@ -3,8 +3,12 @@ export const SERVICE_NAME = "po-vault-service";
 export const VAULT_LIMITS = {
   keyMaxLength: 120,
   environmentMaxLength: 80,
+  tokenNameMaxLength: 80,
   secretMaxLength: 32_000,
   bodyLimit: "512kb",
+  rawTokenBytes: 32,
+  tokenPrefixLength: 16,
+  defaultTokenScopes: ["secrets:read"] as const,
 } as const;
 
 export const VAULT_CRYPTO = {

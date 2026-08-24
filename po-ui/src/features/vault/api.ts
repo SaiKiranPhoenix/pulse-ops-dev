@@ -16,6 +16,25 @@ export type RevealedVaultSecret = VaultSecretMetadata & {
   readonly value: string;
 };
 
+export type VaultToken = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly tokenPrefix: string;
+  readonly scopes: string[];
+  readonly environments: string[];
+  readonly status: "active" | "revoked";
+  readonly lastUsedAt: string | null;
+  readonly expiresAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type CreatedVaultToken = {
+  readonly token: VaultToken;
+  readonly rawToken: string;
+};
+
 export type VaultAuditEvent = {
   readonly id: string;
   readonly messageId: string;
@@ -60,11 +79,13 @@ export async function revealSecret(
   projectId: string,
   environment: string,
   key: string,
+  vaultPassword: string,
 ): Promise<RevealedVaultSecret> {
-  const response = await apiClient.get<
+  const response = await apiClient.post<
     ApiSuccessResponse<{ readonly secret: RevealedVaultSecret }>
   >(`/vault/secrets/${encodeURIComponent(environment)}/${encodeURIComponent(key)}/reveal`, {
-    params: { projectId },
+    projectId,
+    vaultPassword,
   });
   return response.data.data.secret;
 }
@@ -110,4 +131,35 @@ export async function listVaultAuditEvents(projectId: string): Promise<VaultAudi
     { params: { projectId } },
   );
   return response.data.data.events;
+}
+
+export async function createVaultToken(input: {
+  readonly projectId: string;
+  readonly name: string;
+  readonly scopes?: string[];
+  readonly environments?: string[];
+  readonly expiresAt?: string | null;
+}): Promise<CreatedVaultToken> {
+  const response = await apiClient.post<ApiSuccessResponse<CreatedVaultToken>>(
+    "/vault/tokens",
+    input,
+  );
+  return response.data.data;
+}
+
+export async function listVaultTokens(projectId: string): Promise<VaultToken[]> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly tokens: VaultToken[] }>>(
+    "/vault/tokens",
+    { params: { projectId } },
+  );
+  return response.data.data.tokens;
+}
+
+export async function revokeVaultToken(projectId: string, tokenId: string): Promise<VaultToken> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly token: VaultToken }>>(
+    `/vault/tokens/${tokenId}/revoke`,
+    undefined,
+    { params: { projectId } },
+  );
+  return response.data.data.token;
 }

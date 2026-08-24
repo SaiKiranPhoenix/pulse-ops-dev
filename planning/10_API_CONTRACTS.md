@@ -113,17 +113,17 @@ Caching:
 
 ## Vault Dashboard APIs
 
-| Method | URL | Auth | Body | Success | Owner |
+| Method | URL | Auth | Body/Query | Success | Owner |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/vault/:projectId/secrets` | JWT | env, key, value, vaultPassword | safe secret metadata | Vault |
-| GET | `/api/vault/:projectId/secrets` | JWT | none | safe metadata list | Vault |
-| POST | `/api/vault/:projectId/secrets/:key/reveal` | JWT | env, vaultPassword | key and value | Vault |
-| PATCH | `/api/vault/:projectId/secrets/:key` | JWT | env, value, vaultPassword | updated metadata | Vault |
-| DELETE | `/api/vault/:projectId/secrets/:key` | JWT | env | deleted metadata | Vault |
-| POST | `/api/vault/:projectId/tokens` | JWT | env, name, scopes, expiresAt | raw token once | Vault |
-| GET | `/api/vault/:projectId/tokens` | JWT | none | token metadata list | Vault |
-| PATCH | `/api/vault/:projectId/tokens/:tokenId/revoke` | JWT | none | revoked metadata | Vault |
-| GET | `/api/vault/:projectId/audit-logs` | JWT | env, cursor | audit logs | Audit |
+| POST | `/api/vault/secrets` | JWT | body: projectId, environment, key, value | safe secret metadata | Vault |
+| GET | `/api/vault/secrets` | JWT | query: projectId, environment optional | safe metadata list | Vault |
+| POST | `/api/vault/secrets/:environment/:key/reveal` | JWT | body: projectId, vaultPassword | key and value | Vault |
+| PUT | `/api/vault/secrets/:environment/:key` | JWT | body: projectId, value | updated metadata | Vault |
+| DELETE | `/api/vault/secrets/:environment/:key` | JWT | query: projectId | deleted metadata | Vault |
+| POST | `/api/vault/tokens` | JWT | body: projectId, name, scopes, environments, expiresAt | raw token once | Vault |
+| GET | `/api/vault/tokens` | JWT | query: projectId | token metadata list | Vault |
+| POST | `/api/vault/tokens/:tokenId/revoke` | JWT | query: projectId | revoked metadata | Vault |
+| GET | `/api/audit/events` | JWT | query: projectId, env/cursor optional | audit logs | Audit |
 
 Security:
 
@@ -136,8 +136,7 @@ Security:
 
 | Method | URL | Auth | Query | Success | Owner |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/v1/secrets` | integration token | projectId, env | decrypted key/value map | Vault |
-| GET | `/api/v1/secrets/:key` | integration token | projectId, env | decrypted single secret | Vault |
+| GET | `/api/integrations/vault/secrets/:environment/:key` | integration token | none | decrypted single secret | Vault |
 
 Rate limits:
 
