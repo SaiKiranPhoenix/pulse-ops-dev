@@ -17,7 +17,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
   const logger = createLogger({ service: SERVICE_NAME });
   const dependencies = options.dependencies ?? createIngestionServiceDependencies();
-  app.locals.ingestionService = dependencies.ingestionService;
+  app.locals.closeDependencies = dependencies.close;
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: INGESTION_LIMITS.bodyLimit }));

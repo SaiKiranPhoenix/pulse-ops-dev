@@ -9,7 +9,10 @@ const env = loadEnv();
 
 await connectMongo(env.MONGODB_URI);
 
-const server = createApp().listen(env.PORT, () => {
+const app = createApp();
+const closeDependencies = app.locals?.closeDependencies as (() => Promise<void>) | undefined;
+
+const server = app.listen(env.PORT, () => {
   logger.info("Auth project service started", {
     port: env.PORT,
     nodeEnv: env.NODE_ENV,
@@ -19,6 +22,7 @@ const server = createApp().listen(env.PORT, () => {
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   logger.info("Auth project service shutting down", { signal });
   server.close(async () => {
+    await closeDependencies?.();
     await disconnectMongo();
     process.exit(0);
   });

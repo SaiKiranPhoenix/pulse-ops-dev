@@ -1,5 +1,6 @@
-import type { TelemetryEventMessage } from "@pulseops/shared";
+import type { IncidentEvaluationMessage, TelemetryEventMessage } from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
+import type { IncidentEvaluationPublisher } from "../../src/events/publishers/incident-evaluation.publisher.js";
 import type {
   EventRepository,
   SafeEventRecord,
@@ -29,10 +30,21 @@ class InMemoryEventRepository implements EventRepository {
   }
 }
 
+class InMemoryIncidentEvaluationPublisher implements IncidentEvaluationPublisher {
+  readonly messages: IncidentEvaluationMessage[] = [];
+
+  async publish(message: IncidentEvaluationMessage): Promise<void> {
+    this.messages.push(message);
+  }
+
+  async close(): Promise<void> {}
+}
+
 describe("EventWorkerService", () => {
   it("validates telemetry messages and persists them", async () => {
     const events = new InMemoryEventRepository();
-    const worker = new EventWorkerService(events);
+    const incidentEvaluations = new InMemoryIncidentEvaluationPublisher();
+    const worker = new EventWorkerService(events, incidentEvaluations);
 
     await worker.process(validMessage());
 
@@ -41,6 +53,25 @@ describe("EventWorkerService", () => {
       messageId: "ing_1",
       type: "log",
       projectId: "project_1",
+      source: "checkout-api",
+    });
+    expect(incidentEvaluations.messages).toHaveLength(0);
+  });
+
+  it("publishes incident evaluations for error telemetry", async () => {
+    const events = new InMemoryEventRepository();
+    const incidentEvaluations = new InMemoryIncidentEvaluationPublisher();
+    const worker = new EventWorkerService(events, incidentEvaluations);
+
+    await worker.process({ ...validMessage(), type: "error", level: "error" });
+
+    expect(incidentEvaluations.messages).toHaveLength(1);
+    expect(incidentEvaluations.messages[0]).toMatchObject({
+      evaluationId: "ing_1:incident",
+      eventId: "event_1",
+      telemetryMessageId: "ing_1",
+      projectId: "project_1",
+      fingerprint: "fingerprint_1",
       source: "checkout-api",
     });
   });

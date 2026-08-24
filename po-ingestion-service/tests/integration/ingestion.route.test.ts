@@ -8,21 +8,41 @@ import type {
   IngestionApiKeyRepository,
   VerifiedIngestionApiKey,
 } from "../../src/repositories/ingestion-api-key.repository.js";
+import type { ApiKeyValidationCacheRepository } from "../../src/repositories/api-key-cache.repository.js";
 import type { TelemetryMessagePublisher } from "../../src/events/publishers/telemetry.publisher.js";
 import type {
   CreateIngestionAcceptanceInput,
   IngestionAcceptanceRepository,
   SafeIngestionAcceptanceRecord,
 } from "../../src/repositories/ingestion-acceptance.repository.js";
+import type {
+  IngestionRateLimiter,
+  RateLimitDecision,
+} from "../../src/repositories/rate-limit.repository.js";
 import { ApiKeyAuthenticatorService } from "../../src/services/api-key-authenticator.service.js";
 import type { IngestionServiceDependencies } from "../../src/services/dependencies.js";
 import { IngestionService } from "../../src/services/ingestion.service.js";
 
 class InMemoryApiKeyRepository implements IngestionApiKeyRepository {
+  lookupCount = 0;
+
   constructor(private readonly apiKeys: Map<string, VerifiedIngestionApiKey>) {}
 
   async findActiveByHash(keyHash: string): Promise<VerifiedIngestionApiKey | null> {
+    this.lookupCount += 1;
     return this.apiKeys.get(keyHash) ?? null;
+  }
+}
+
+class InMemoryApiKeyCache implements ApiKeyValidationCacheRepository {
+  private readonly apiKeys = new Map<string, VerifiedIngestionApiKey>();
+
+  async get(keyHash: string): Promise<VerifiedIngestionApiKey | null> {
+    return this.apiKeys.get(keyHash) ?? null;
+  }
+
+  async set(keyHash: string, apiKey: VerifiedIngestionApiKey): Promise<void> {
+    this.apiKeys.set(keyHash, apiKey);
   }
 }
 
@@ -57,6 +77,23 @@ class InMemoryAcceptanceRepository implements IngestionAcceptanceRepository {
     idempotencyKey: string,
   ): Promise<SafeIngestionAcceptanceRecord | null> {
     return this.acceptances.get(toAcceptanceKey(projectId, idempotencyKey)) ?? null;
+  }
+}
+
+class InMemoryRateLimiter implements IngestionRateLimiter {
+  consumeCount = 0;
+
+  constructor(private readonly limit = 600) {}
+
+  async consume(_projectId: string): Promise<RateLimitDecision> {
+    this.consumeCount += 1;
+
+    return {
+      allowed: this.consumeCount <= this.limit,
+      limit: this.limit,
+      remaining: Math.max(this.limit - this.consumeCount, 0),
+      retryAfterSeconds: 60,
+    };
   }
 }
 
@@ -113,6 +150,8 @@ describe("ingestion routes", () => {
       idempotentReplay: true,
     });
     expect(dependencies.publisher.published).toHaveLength(1);
+    expect(dependencies.rateLimiter.consumeCount).toBe(1);
+    expect(dependencies.apiKeys.lookupCount).toBe(1);
   });
 
   it("rejects requests without an API key", async () => {
@@ -136,10 +175,52 @@ describe("ingestion routes", () => {
       requestId: "req_missing_key",
     });
   });
+
+  it("rate limits new accepted events per project", async () => {
+    const dependencies = createTestDependencies({ rateLimit: 1 });
+    const app = createApp({ dependencies });
+
+    await request(app)
+      .post("/ingest/metrics")
+      .set("x-api-key", validApiKey())
+      .send({
+        source: "checkout-api",
+        name: "checkout_latency_ms",
+        value: 42,
+      })
+      .expect(202);
+
+    const response = await request(app)
+      .post("/ingest/metrics")
+      .set("x-api-key", validApiKey())
+      .set("x-request-id", "req_rate_limited")
+      .send({
+        source: "checkout-api",
+        name: "checkout_latency_ms",
+        value: 84,
+      })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Ingestion rate limit exceeded",
+        details: {
+          limit: 1,
+          remaining: 0,
+          retryAfterSeconds: 60,
+        },
+      },
+      requestId: "req_rate_limited",
+    });
+    expect(dependencies.publisher.published).toHaveLength(1);
+  });
 });
 
-function createTestDependencies(): IngestionServiceDependencies & {
+function createTestDependencies(options: { readonly rateLimit?: number } = {}): IngestionServiceDependencies & {
+  readonly apiKeys: InMemoryApiKeyRepository;
   readonly publisher: InMemoryTelemetryPublisher;
+  readonly rateLimiter: InMemoryRateLimiter;
 } {
   const apiKeys = new Map<string, VerifiedIngestionApiKey>();
   apiKeys.set(hashApiKey(validApiKey()), {
@@ -149,18 +230,30 @@ function createTestDependencies(): IngestionServiceDependencies & {
     status: "active",
     expiresAt: null,
   });
+  const apiKeyRepository = new InMemoryApiKeyRepository(apiKeys);
   const publisher = new InMemoryTelemetryPublisher();
+  const rateLimiter = new InMemoryRateLimiter(options.rateLimit);
 
   const ingestionService = new IngestionService(
-    new ApiKeyAuthenticatorService(new InMemoryApiKeyRepository(apiKeys), validApiKeyPepper()),
+    new ApiKeyAuthenticatorService(
+      apiKeyRepository,
+      validApiKeyPepper(),
+      new InMemoryApiKeyCache(),
+    ),
     publisher,
     new InMemoryAcceptanceRepository(),
+    rateLimiter,
   );
 
   return {
     ingestionController: new IngestionController(ingestionService),
     ingestionService,
+    async close(): Promise<void> {
+      await ingestionService.close();
+    },
+    apiKeys: apiKeyRepository,
     publisher,
+    rateLimiter,
   };
 }
 

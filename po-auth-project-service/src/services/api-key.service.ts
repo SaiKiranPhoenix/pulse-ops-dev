@@ -1,6 +1,8 @@
 import { notFound } from "@pulseops/shared";
 import { API_KEY_LIMITS } from "../config/constants.js";
+import type { ApiKeyCacheInvalidationRepository } from "../repositories/api-key-cache-invalidation.repository.js";
 import type { ApiKeyRepository, SafeApiKeyRecord } from "../repositories/api-key.repository.js";
+import type { IngestionApiKeyReadModelRepository } from "../repositories/ingestion-api-key-read-model.repository.js";
 import type { ProjectRepository } from "../repositories/project.repository.js";
 import type { ApiKeyHasher } from "./api-key-hasher.service.js";
 
@@ -35,6 +37,8 @@ export class ApiKeyService {
     private readonly projects: ProjectRepository,
     private readonly apiKeys: ApiKeyRepository,
     private readonly apiKeyHasher: ApiKeyHasher,
+    private readonly ingestionApiKeys?: IngestionApiKeyReadModelRepository,
+    private readonly cacheInvalidator?: ApiKeyCacheInvalidationRepository,
   ) {}
 
   async create(input: CreateApiKeyInput): Promise<CreatedApiKeyDto> {
@@ -50,6 +54,7 @@ export class ApiKeyService {
       scopes: normalizeScopes(input.scopes),
       expiresAt: input.expiresAt ?? null,
     });
+    await this.syncIngestionApiKey(apiKey);
 
     return {
       apiKey: toApiKeyDto(apiKey),
@@ -65,7 +70,12 @@ export class ApiKeyService {
 
   async rotate(apiKeyId: string, projectId: string, ownerId: string): Promise<CreatedApiKeyDto> {
     const existingApiKey = await this.getExistingApiKey(apiKeyId, projectId, ownerId);
-    await this.apiKeys.disable(existingApiKey.id, projectId);
+    const disabledApiKey = await this.apiKeys.disable(existingApiKey.id, projectId);
+
+    if (disabledApiKey !== null) {
+      await this.syncIngestionApiKey(disabledApiKey);
+      await this.invalidateApiKeyCache(disabledApiKey.keyHash);
+    }
 
     return this.create({
       ownerId,
@@ -84,7 +94,18 @@ export class ApiKeyService {
       throw notFound("API key not found");
     }
 
+    await this.syncIngestionApiKey(disabledApiKey);
+    await this.invalidateApiKeyCache(disabledApiKey.keyHash);
+
     return toApiKeyDto(disabledApiKey);
+  }
+
+  private async syncIngestionApiKey(apiKey: SafeApiKeyRecord): Promise<void> {
+    await this.ingestionApiKeys?.sync(apiKey);
+  }
+
+  private async invalidateApiKeyCache(keyHash: string): Promise<void> {
+    await this.cacheInvalidator?.invalidate(keyHash);
   }
 
   private async getExistingApiKey(

@@ -16,6 +16,7 @@ export type SafeApiKeyRecord = {
   readonly projectId: string;
   readonly name: string;
   readonly keyPrefix: string;
+  readonly keyHash: string;
   readonly scopes: string[];
   readonly status: ApiKeyRecord["status"];
   readonly lastUsedAt: Date | null;
@@ -38,12 +39,17 @@ export class MongoApiKeyRepository implements ApiKeyRepository {
   }
 
   async findByIdForProject(apiKeyId: string, projectId: string): Promise<SafeApiKeyRecord | null> {
-    const apiKey = await ApiKeyModel.findOne({ _id: apiKeyId, projectId }).exec();
+    const apiKey = await ApiKeyModel.findOne({ _id: apiKeyId, projectId })
+      .select("+keyHash")
+      .exec();
     return apiKey === null ? null : toSafeApiKeyRecord(apiKey);
   }
 
   async findByProject(projectId: string): Promise<SafeApiKeyRecord[]> {
-    const apiKeys = await ApiKeyModel.find({ projectId }).sort({ createdAt: -1 }).exec();
+    const apiKeys = await ApiKeyModel.find({ projectId })
+      .select("+keyHash")
+      .sort({ createdAt: -1 })
+      .exec();
     return apiKeys.map(toSafeApiKeyRecord);
   }
 
@@ -52,7 +58,9 @@ export class MongoApiKeyRepository implements ApiKeyRepository {
       { _id: apiKeyId, projectId },
       { $set: { status: "disabled" } },
       { new: true },
-    ).exec();
+    )
+      .select("+keyHash")
+      .exec();
 
     return apiKey === null ? null : toSafeApiKeyRecord(apiKey);
   }
@@ -65,6 +73,7 @@ export function toSafeApiKeyRecord(apiKey: ApiKeyDocument): SafeApiKeyRecord {
     projectId: apiKey.projectId,
     name: apiKey.name,
     keyPrefix: apiKey.keyPrefix,
+    keyHash: apiKey.keyHash,
     scopes: [...apiKey.scopes],
     status: apiKey.status,
     lastUsedAt: apiKey.lastUsedAt,

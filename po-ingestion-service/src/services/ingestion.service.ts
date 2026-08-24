@@ -1,11 +1,17 @@
 import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
-import { TELEMETRY_ROUTING_KEYS, type TelemetryEventType } from "@pulseops/shared";
+import {
+  dependencyUnavailable,
+  rateLimited,
+  TELEMETRY_ROUTING_KEYS,
+  type TelemetryEventType,
+} from "@pulseops/shared";
 import type { TelemetryMessagePublisher } from "../events/publishers/telemetry.publisher.js";
 import {
   isDuplicateKeyError,
   type IngestionAcceptanceRepository,
 } from "../repositories/ingestion-acceptance.repository.js";
+import type { IngestionRateLimiter } from "../repositories/rate-limit.repository.js";
 import type { ApiKeyAuthenticatorService } from "./api-key-authenticator.service.js";
 
 export type IngestionEventInput = {
@@ -45,6 +51,7 @@ export class IngestionService {
     private readonly apiKeyAuthenticator: ApiKeyAuthenticatorService,
     private readonly publisher: TelemetryMessagePublisher,
     private readonly acceptances: IngestionAcceptanceRepository,
+    private readonly rateLimiter: IngestionRateLimiter,
   ) {}
 
   async ingest(input: IngestionEventInput): Promise<IngestedEventDto> {
@@ -62,6 +69,16 @@ export class IngestionService {
       if (existingAcceptance !== null) {
         return toEventDto(apiKey.projectId, existingAcceptance.event, true);
       }
+    }
+
+    const rateLimit = await this.consumeRateLimit(apiKey.projectId);
+
+    if (!rateLimit.allowed) {
+      throw rateLimited("Ingestion rate limit exceeded", {
+        limit: rateLimit.limit,
+        remaining: rateLimit.remaining,
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      });
     }
 
     const acceptedAt = new Date();
@@ -126,6 +143,16 @@ export class IngestionService {
 
   async close(): Promise<void> {
     await this.publisher.close();
+  }
+
+  private async consumeRateLimit(projectId: string) {
+    try {
+      return await this.rateLimiter.consume(projectId);
+    } catch (error) {
+      throw dependencyUnavailable("Rate limiter unavailable", {
+        cause: error instanceof Error ? error.message : "unknown",
+      });
+    }
   }
 }
 

@@ -53,8 +53,16 @@ const incidentSchema = new Schema<IncidentRecord>(
 );
 
 incidentSchema.index(
-  { projectId: 1, fingerprint: 1, status: 1 },
-  { name: "idx_incidents_project_fingerprint_status" },
+  { projectId: 1, fingerprint: 1 },
+  {
+    name: "uniq_incidents_open_project_fingerprint",
+    unique: true,
+    partialFilterExpression: { status: "open" },
+  },
+);
+incidentSchema.index(
+  { projectId: 1, status: 1, lastSeenAt: -1 },
+  { name: "idx_incidents_project_status_last_seen" },
 );
 
 export const IncidentModel: Model<IncidentRecord> =

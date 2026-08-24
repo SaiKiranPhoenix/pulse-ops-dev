@@ -1,7 +1,10 @@
+import { closeRedisClient, createRedisClient } from "@pulseops/shared";
 import { AuthController } from "../controllers/auth.controller.js";
 import { ProjectController } from "../controllers/project.controller.js";
 import { loadEnv } from "../config/env.js";
+import { RedisApiKeyCacheInvalidationRepository } from "../repositories/api-key-cache-invalidation.repository.js";
 import { MongoApiKeyRepository } from "../repositories/api-key.repository.js";
+import { MongoIngestionApiKeyReadModelRepository } from "../repositories/ingestion-api-key-read-model.repository.js";
 import { MongoProjectRepository } from "../repositories/project.repository.js";
 import { MongoUserRepository } from "../repositories/user.repository.js";
 import { HmacApiKeyHasher } from "./api-key-hasher.service.js";
@@ -24,10 +27,12 @@ export type AuthProjectServiceDependencies = {
   readonly projectService: ProjectService;
   readonly apiKeyService: ApiKeyService;
   readonly tokenService: TokenService;
+  close(): Promise<void>;
 };
 
 export function createAuthProjectServiceDependencies(): AuthProjectServiceDependencies {
   const env = loadEnv();
+  const redis = createRedisClient(env.REDIS_URL);
   const userRepository = new MongoUserRepository();
   const projectRepository = new MongoProjectRepository();
   const apiKeyRepository = new MongoApiKeyRepository();
@@ -59,7 +64,13 @@ export function createAuthProjectServiceDependencies(): AuthProjectServiceDepend
     sessionService,
   );
   const projectService = new ProjectService(projectRepository);
-  const apiKeyService = new ApiKeyService(projectRepository, apiKeyRepository, apiKeyHasher);
+  const apiKeyService = new ApiKeyService(
+    projectRepository,
+    apiKeyRepository,
+    apiKeyHasher,
+    new MongoIngestionApiKeyReadModelRepository(),
+    new RedisApiKeyCacheInvalidationRepository(redis),
+  );
   const authController = new AuthController(userRegistrationService, sessionService, oauthService);
   const projectController = new ProjectController(projectService, apiKeyService);
 
@@ -72,5 +83,8 @@ export function createAuthProjectServiceDependencies(): AuthProjectServiceDepend
     projectService,
     apiKeyService,
     tokenService,
+    async close(): Promise<void> {
+      await closeRedisClient(redis);
+    },
   };
 }

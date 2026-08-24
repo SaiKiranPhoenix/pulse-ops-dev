@@ -5,6 +5,11 @@ import type {
   CreateApiKeyRecordInput,
   SafeApiKeyRecord,
 } from "../../src/repositories/api-key.repository.js";
+import type { ApiKeyCacheInvalidationRepository } from "../../src/repositories/api-key-cache-invalidation.repository.js";
+import type {
+  IngestionApiKeyReadModelRepository,
+  SafeIngestionApiKeyReadModelRecord,
+} from "../../src/repositories/ingestion-api-key-read-model.repository.js";
 import type {
   CreateProjectRecordInput,
   ProjectRepository,
@@ -161,6 +166,7 @@ export class InMemoryApiKeyRepository implements ApiKeyRepository {
       projectId: input.projectId,
       name: input.name,
       keyPrefix: input.keyPrefix,
+      keyHash: input.keyHash,
       scopes: [...input.scopes],
       status: "active",
       lastUsedAt: null,
@@ -192,6 +198,38 @@ export class InMemoryApiKeyRepository implements ApiKeyRepository {
     const disabledApiKey = { ...apiKey, status: "disabled" as const, updatedAt: fixedDate };
     this.keys.set(apiKey.id, disabledApiKey);
     return disabledApiKey;
+  }
+}
+
+export class InMemoryIngestionApiKeyReadModelRepository
+  implements IngestionApiKeyReadModelRepository
+{
+  readonly records = new Map<string, SafeIngestionApiKeyReadModelRecord>();
+
+  async sync(apiKey: SafeApiKeyRecord): Promise<SafeIngestionApiKeyReadModelRecord> {
+    const readModel: SafeIngestionApiKeyReadModelRecord = {
+      projectId: apiKey.projectId,
+      ownerId: apiKey.ownerId,
+      keyHash: apiKey.keyHash,
+      keyPrefix: apiKey.keyPrefix,
+      scopes: [...apiKey.scopes],
+      status: apiKey.status,
+      expiresAt: apiKey.expiresAt,
+      updatedAt: fixedDate,
+    };
+
+    this.records.set(apiKey.keyHash, readModel);
+    return readModel;
+  }
+}
+
+export class InMemoryApiKeyCacheInvalidationRepository
+  implements ApiKeyCacheInvalidationRepository
+{
+  readonly invalidatedKeyHashes: string[] = [];
+
+  async invalidate(keyHash: string): Promise<void> {
+    this.invalidatedKeyHashes.push(keyHash);
   }
 }
 
@@ -247,6 +285,8 @@ export type TestDependencyHarness = {
   readonly users: InMemoryUserRepository;
   readonly projects: InMemoryProjectRepository;
   readonly keys: InMemoryApiKeyRepository;
+  readonly ingestionApiKeys: InMemoryIngestionApiKeyReadModelRepository;
+  readonly apiKeyCacheInvalidator: InMemoryApiKeyCacheInvalidationRepository;
   readonly oauthProviders: FakeOAuthProviderClient;
 };
 
@@ -254,6 +294,8 @@ export function createTestDependencies(): TestDependencyHarness {
   const users = new InMemoryUserRepository();
   const projects = new InMemoryProjectRepository();
   const keys = new InMemoryApiKeyRepository();
+  const ingestionApiKeys = new InMemoryIngestionApiKeyReadModelRepository();
+  const apiKeyCacheInvalidator = new InMemoryApiKeyCacheInvalidationRepository();
   const passwordHasher = new FakePasswordHasher();
   const tokenService = new HmacJwtTokenService(validJwtSecret(), 3600);
   const userRegistrationService = new UserRegistrationService(users, passwordHasher);
@@ -272,6 +314,8 @@ export function createTestDependencies(): TestDependencyHarness {
     projects,
     keys,
     new HmacApiKeyHasher(validApiKeyPepper()),
+    ingestionApiKeys,
+    apiKeyCacheInvalidator,
   );
 
   return {
@@ -284,10 +328,13 @@ export function createTestDependencies(): TestDependencyHarness {
       projectService,
       apiKeyService,
       tokenService,
+      async close(): Promise<void> {},
     },
     users,
     projects,
     keys,
+    ingestionApiKeys,
+    apiKeyCacheInvalidator,
     oauthProviders,
   };
 }

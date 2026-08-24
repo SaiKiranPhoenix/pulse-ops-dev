@@ -15,6 +15,8 @@ export type CreateIncidentRecordInput = {
   readonly lastSeenAt: Date;
 };
 
+export type UpsertOpenIncidentRecordInput = CreateIncidentRecordInput;
+
 export type IncidentFilter = {
   readonly projectId: string;
   readonly status?: IncidentStatus | undefined;
@@ -26,6 +28,7 @@ export type SafeIncidentRecord = IncidentRecord & {
 
 export interface IncidentRepository {
   create(input: CreateIncidentRecordInput): Promise<SafeIncidentRecord>;
+  upsertOpen(input: UpsertOpenIncidentRecordInput): Promise<SafeIncidentRecord>;
   findById(projectId: string, incidentId: string): Promise<SafeIncidentRecord | null>;
   findMany(filter: IncidentFilter): Promise<SafeIncidentRecord[]>;
   resolve(
@@ -40,6 +43,66 @@ export class MongoIncidentRepository implements IncidentRepository {
   async create(input: CreateIncidentRecordInput): Promise<SafeIncidentRecord> {
     const incident = await IncidentModel.create(input);
     return toSafeIncidentRecord(incident);
+  }
+
+  async upsertOpen(input: UpsertOpenIncidentRecordInput): Promise<SafeIncidentRecord> {
+    try {
+      const incident = await IncidentModel.findOneAndUpdate(
+        {
+          projectId: input.projectId,
+          fingerprint: input.fingerprint,
+          status: "open",
+        },
+        {
+          $set: {
+            title: input.title,
+            summary: input.summary,
+            severity: input.severity,
+            lastSeenAt: input.lastSeenAt,
+          },
+          $setOnInsert: {
+            projectId: input.projectId,
+            fingerprint: input.fingerprint,
+            firstSeenAt: input.firstSeenAt,
+            resolvedAt: null,
+          },
+          $inc: { eventCount: 1 },
+        },
+        { new: true, setDefaultsOnInsert: true, upsert: true },
+      ).exec();
+
+      if (incident === null) {
+        throw new Error("Failed to upsert incident");
+      }
+
+      return toSafeIncidentRecord(incident);
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        const incidentAfterRace = await IncidentModel.findOneAndUpdate(
+          {
+            projectId: input.projectId,
+            fingerprint: input.fingerprint,
+            status: "open",
+          },
+          {
+            $set: {
+              title: input.title,
+              summary: input.summary,
+              severity: input.severity,
+              lastSeenAt: input.lastSeenAt,
+            },
+            $inc: { eventCount: 1 },
+          },
+          { new: true },
+        ).exec();
+
+        if (incidentAfterRace !== null) {
+          return toSafeIncidentRecord(incidentAfterRace);
+        }
+      }
+
+      throw error;
+    }
   }
 
   async findById(projectId: string, incidentId: string): Promise<SafeIncidentRecord | null> {
@@ -97,4 +160,13 @@ function toSafeIncidentRecord(incident: IncidentDocument): SafeIncidentRecord {
     createdAt: incident.createdAt,
     updatedAt: incident.updatedAt,
   };
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { readonly code?: unknown }).code === 11000
+  );
 }

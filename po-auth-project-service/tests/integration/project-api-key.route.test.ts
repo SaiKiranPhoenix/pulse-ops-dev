@@ -46,6 +46,16 @@ describe("project and API key routes", () => {
       status: "active",
     });
     expect(apiKeyResponse.body.data.rawKey).toMatch(/^po_live_/);
+    expect(JSON.stringify(apiKeyResponse.body)).not.toContain("keyHash");
+
+    const [createdReadModel] = [...harness.ingestionApiKeys.records.values()];
+    expect(createdReadModel).toMatchObject({
+      projectId: "000000000000000000000014",
+      ownerId: "000000000000000000000001",
+      keyPrefix: apiKeyResponse.body.data.apiKey.keyPrefix,
+      scopes: ["errors:write", "logs:write", "metrics:write"],
+      status: "active",
+    });
 
     const listKeysResponse = await request(app)
       .get("/projects/000000000000000000000014/api-keys")
@@ -57,6 +67,52 @@ describe("project and API key routes", () => {
       String(apiKeyResponse.body.data.rawKey),
     );
     expect(listKeysResponse.body.data.apiKeys).toHaveLength(1);
+
+    const rotateResponse = await request(app)
+      .post("/projects/000000000000000000000014/api-keys/000000000000000000000028/rotate")
+      .set("authorization", `Bearer ${accessToken}`)
+      .set("x-request-id", "req_rotate_key")
+      .expect(200);
+
+    expect(rotateResponse.body.data.apiKey).toMatchObject({
+      id: "000000000000000000000029",
+      projectId: "000000000000000000000014",
+      name: "Local ingestion rotated",
+      status: "active",
+    });
+    expect(rotateResponse.body.data.rawKey).toMatch(/^po_live_/);
+
+    const readModelsAfterRotate = [...harness.ingestionApiKeys.records.values()];
+    expect(readModelsAfterRotate).toHaveLength(2);
+    expect(readModelsAfterRotate).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          keyPrefix: apiKeyResponse.body.data.apiKey.keyPrefix,
+          status: "disabled",
+        }),
+        expect.objectContaining({
+          keyPrefix: rotateResponse.body.data.apiKey.keyPrefix,
+          status: "active",
+        }),
+      ]),
+    );
+    expect(harness.apiKeyCacheInvalidator.invalidatedKeyHashes).toHaveLength(1);
+
+    await request(app)
+      .post("/projects/000000000000000000000014/api-keys/000000000000000000000029/disable")
+      .set("authorization", `Bearer ${accessToken}`)
+      .set("x-request-id", "req_disable_key")
+      .expect(200);
+
+    expect([...harness.ingestionApiKeys.records.values()]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          keyPrefix: rotateResponse.body.data.apiKey.keyPrefix,
+          status: "disabled",
+        }),
+      ]),
+    );
+    expect(harness.apiKeyCacheInvalidator.invalidatedKeyHashes).toHaveLength(2);
   });
 
   it("requires authentication for project access", async () => {
