@@ -5,6 +5,7 @@ export type ProxyTargets = {
   readonly authProject: ProxyTarget;
   readonly ingestion: ProxyTarget;
   readonly incident: ProxyTarget;
+  readonly ops: ProxyTarget;
   readonly vault: ProxyTarget;
 };
 
@@ -24,6 +25,10 @@ export class ProxyController {
 
   incident = async (request: Request, response: Response): Promise<void> => {
     await this.proxy.forward(request, response, this.targets.incident);
+  };
+
+  ops = async (request: Request, response: Response): Promise<void> => {
+    await this.proxy.forward(request, response, this.targets.ops);
   };
 
   vault = async (request: Request, response: Response): Promise<void> => {

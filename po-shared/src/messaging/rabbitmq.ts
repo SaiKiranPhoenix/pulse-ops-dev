@@ -8,6 +8,13 @@ export type RabbitQueueBinding = {
   readonly queue: string;
 };
 
+export type RabbitQueueSnapshot = {
+  readonly name: string;
+  readonly status: "available" | "missing";
+  readonly messageCount: number | null;
+  readonly consumerCount: number | null;
+};
+
 export type RabbitPublisherOptions = {
   readonly url: string;
   readonly exchange: string;
@@ -84,6 +91,44 @@ export class ConfirmRabbitJsonPublisher<TMessage> implements JsonMessagePublishe
     }
 
     return this.channel;
+  }
+}
+
+export class RabbitQueueInspector {
+  constructor(private readonly url: string) {}
+
+  async inspect(queueNames: readonly string[]): Promise<RabbitQueueSnapshot[]> {
+    return Promise.all(queueNames.map((queueName) => this.inspectOne(queueName)));
+  }
+
+  private async inspectOne(queueName: string): Promise<RabbitQueueSnapshot> {
+    const connection = await connect(this.url);
+    const channel = await connection.createConfirmChannel();
+
+    try {
+      const status = await channel.checkQueue(queueName);
+      return {
+        name: queueName,
+        status: "available",
+        messageCount: status.messageCount,
+        consumerCount: status.consumerCount,
+      };
+    } catch {
+      return {
+        name: queueName,
+        status: "missing",
+        messageCount: null,
+        consumerCount: null,
+      };
+    } finally {
+      try {
+        await channel.close();
+      } catch {
+        // Missing queues close the channel in RabbitMQ; the connection close below is enough.
+      }
+
+      await connection.close();
+    }
   }
 }
 

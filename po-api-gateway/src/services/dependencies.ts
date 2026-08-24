@@ -31,6 +31,10 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
       baseUrl: env.INCIDENT_SERVICE_URL,
       pathPrefix: "",
     },
+    ops: {
+      baseUrl: env.OPS_SERVICE_URL,
+      pathPrefix: "",
+    },
     vault: {
       baseUrl: env.VAULT_SERVICE_URL,
       pathPrefix: "",

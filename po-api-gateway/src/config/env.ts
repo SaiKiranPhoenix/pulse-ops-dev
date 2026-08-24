@@ -9,6 +9,7 @@ const envSchema = z.object({
   AUTH_PROJECT_SERVICE_URL: z.string().url().default("http://po-auth-project-service:4010"),
   INGESTION_SERVICE_URL: z.string().url().default("http://po-ingestion-service:4100"),
   INCIDENT_SERVICE_URL: z.string().url().default("http://po-incident-service:4120"),
+  OPS_SERVICE_URL: z.string().url().default("http://po-ops-service:4150"),
   VAULT_SERVICE_URL: z.string().url().default("http://po-vault-service:4200"),
 });
 

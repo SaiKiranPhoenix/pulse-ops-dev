@@ -1,1 +1,21 @@
-// Service constants for po-ops-service will live here.
+import {
+  DEAD_LETTER_QUEUE,
+  INCIDENT_EVALUATION_QUEUE,
+  REALTIME_INCIDENT_UPDATES_QUEUE,
+  TELEMETRY_QUEUES,
+} from "@pulseops/shared";
+
+export const SERVICE_NAME = "po-ops-service";
+
+export const OPS_LIMITS = {
+  bodyLimit: "128kb",
+} as const;
+
+export const OBSERVED_QUEUE_NAMES = [
+  TELEMETRY_QUEUES.log,
+  TELEMETRY_QUEUES.error,
+  TELEMETRY_QUEUES.metric,
+  INCIDENT_EVALUATION_QUEUE,
+  REALTIME_INCIDENT_UPDATES_QUEUE,
+  DEAD_LETTER_QUEUE,
+] as const;

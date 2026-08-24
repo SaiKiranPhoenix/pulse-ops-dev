@@ -24,6 +24,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.use("/projects", requireAuth, asyncHandler(dependencies.proxyController.authProject));
   router.use("/ingest", asyncHandler(dependencies.proxyController.ingestion));
   router.use("/incidents", requireAuth, asyncHandler(dependencies.proxyController.incident));
+  router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
   router.use("/vault", requireAuth, asyncHandler(dependencies.proxyController.vault));
 
   router.use("/dashboard", requireAuth);
@@ -42,8 +43,8 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(projectQuerySchema),
     asyncHandler(dependencies.dashboardController.incidents),
   );
-  router.get("/dashboard/workers", asyncHandler(dependencies.dashboardController.workers));
-  router.get("/dashboard/queues", asyncHandler(dependencies.dashboardController.queues));
+  router.get("/dashboard/workers", asyncHandler(dependencies.proxyController.ops));
+  router.get("/dashboard/queues", asyncHandler(dependencies.proxyController.ops));
   router.get(
     "/dashboard/vault-activity",
     validateQuery(projectQuerySchema),
