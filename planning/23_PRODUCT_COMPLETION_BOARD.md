@@ -182,16 +182,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 - [x] Error ingestion endpoint exists.
 - [x] Incident service can evaluate repeated errors.
-- [ ] Partial Incidents page shows incidents, but no error-group product surface exists.
-- [ ] Todo Build Errors page.
-- [ ] Todo Add error grouping by fingerprint.
-- [ ] Todo Add error group table: fingerprint, service, message sample, count, first seen, last seen, linked incident.
-- [ ] Todo Add error detail drawer with stack traces and metadata.
-- [ ] Todo Add related incidents panel.
-- [ ] Todo Add filters for service/environment/status.
-- [ ] Todo Add "send repeated error test" action.
+- [x] Incidents page is complemented by an error-group product surface.
+- [x] Build Errors page.
+- [x] Add error grouping by fingerprint.
+- [x] Add error group table: fingerprint, service, message sample, count, first seen, last seen, linked incident.
+- [ ] Partial Add error detail drawer with stack traces and metadata.
+- [x] Add related incidents panel.
+- [ ] Partial Add filters for service/environment/status.
+- [x] Add "send repeated error test" action.
 - [ ] Todo Add stack trace formatting.
-- [ ] Todo Add sensitive-data redaction display.
+- [ ] Partial Add sensitive-data redaction display.
 
 ## Metrics Experience
 
