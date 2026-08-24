@@ -1,7 +1,8 @@
 import { IngestionController } from "../controllers/ingestion.controller.js";
 import { loadEnv } from "../config/env.js";
+import { createTelemetryMessagePublisher } from "../events/publishers/telemetry.publisher.js";
+import { MongoIngestionAcceptanceRepository } from "../repositories/ingestion-acceptance.repository.js";
 import { MongoIngestionApiKeyRepository } from "../repositories/ingestion-api-key.repository.js";
-import { MongoIngestedEventRepository } from "../repositories/ingested-event.repository.js";
 import { ApiKeyAuthenticatorService } from "./api-key-authenticator.service.js";
 import { IngestionService } from "./ingestion.service.js";
 
@@ -18,7 +19,8 @@ export function createIngestionServiceDependencies(): IngestionServiceDependenci
   );
   const ingestionService = new IngestionService(
     apiKeyAuthenticator,
-    new MongoIngestedEventRepository(),
+    createTelemetryMessagePublisher(env.RABBITMQ_URL),
+    new MongoIngestionAcceptanceRepository(),
   );
 
   return {

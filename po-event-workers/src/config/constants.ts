@@ -1,1 +1,1 @@
-// Service constants for po-event-workers will live here.
+export const SERVICE_NAME = "po-event-workers";

@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import type { TelemetryEventMessage } from "@pulseops/shared";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
@@ -7,16 +8,15 @@ import type {
   IngestionApiKeyRepository,
   VerifiedIngestionApiKey,
 } from "../../src/repositories/ingestion-api-key.repository.js";
+import type { TelemetryMessagePublisher } from "../../src/events/publishers/telemetry.publisher.js";
 import type {
-  CreateIngestedEventRecordInput,
-  IngestedEventRepository,
-  SafeIngestedEventRecord,
-} from "../../src/repositories/ingested-event.repository.js";
+  CreateIngestionAcceptanceInput,
+  IngestionAcceptanceRepository,
+  SafeIngestionAcceptanceRecord,
+} from "../../src/repositories/ingestion-acceptance.repository.js";
 import { ApiKeyAuthenticatorService } from "../../src/services/api-key-authenticator.service.js";
 import type { IngestionServiceDependencies } from "../../src/services/dependencies.js";
 import { IngestionService } from "../../src/services/ingestion.service.js";
-
-const fixedDate = new Date("2026-08-18T00:00:00.000Z");
 
 class InMemoryApiKeyRepository implements IngestionApiKeyRepository {
   constructor(private readonly apiKeys: Map<string, VerifiedIngestionApiKey>) {}
@@ -26,48 +26,46 @@ class InMemoryApiKeyRepository implements IngestionApiKeyRepository {
   }
 }
 
-class InMemoryEventRepository implements IngestedEventRepository {
-  private readonly events = new Map<string, SafeIngestedEventRecord>();
+class InMemoryTelemetryPublisher implements TelemetryMessagePublisher {
+  readonly published: Array<{ routingKey: string; message: TelemetryEventMessage }> = [];
 
-  async create(input: CreateIngestedEventRecordInput): Promise<SafeIngestedEventRecord> {
-    const event: SafeIngestedEventRecord = {
-      id: `evt_${this.events.size + 1}`,
+  async publish(routingKey: string, message: TelemetryEventMessage): Promise<void> {
+    this.published.push({ routingKey, message });
+  }
+
+  async close(): Promise<void> {
+    this.published.length = 0;
+  }
+}
+
+class InMemoryAcceptanceRepository implements IngestionAcceptanceRepository {
+  private readonly acceptances = new Map<string, SafeIngestionAcceptanceRecord>();
+
+  async create(input: CreateIngestionAcceptanceInput): Promise<SafeIngestionAcceptanceRecord> {
+    const acceptance: SafeIngestionAcceptanceRecord = {
       projectId: input.projectId,
-      type: input.type,
-      source: input.source,
-      level: input.level,
-      message: input.message,
-      name: input.name,
-      value: input.value,
-      unit: input.unit,
-      fingerprint: input.fingerprint,
-      attributes: input.attributes,
-      observedAt: input.observedAt,
       idempotencyKey: input.idempotencyKey,
-      receivedAt: fixedDate,
-      createdAt: fixedDate,
+      event: input.event,
+      createdAt: new Date("2026-08-18T00:00:00.000Z"),
     };
-
-    if (input.idempotencyKey !== null) {
-      this.events.set(`${input.projectId}:${input.idempotencyKey}`, event);
-    }
-
-    return event;
+    this.acceptances.set(toAcceptanceKey(input.projectId, input.idempotencyKey), acceptance);
+    return acceptance;
   }
 
   async findByIdempotencyKey(
     projectId: string,
     idempotencyKey: string,
-  ): Promise<SafeIngestedEventRecord | null> {
-    return this.events.get(`${projectId}:${idempotencyKey}`) ?? null;
+  ): Promise<SafeIngestionAcceptanceRecord | null> {
+    return this.acceptances.get(toAcceptanceKey(projectId, idempotencyKey)) ?? null;
   }
 }
 
 describe("ingestion routes", () => {
-  it("accepts authenticated logs and replays idempotent requests", async () => {
-    const app = createApp({ dependencies: createTestDependencies() });
+  it("accepts authenticated logs after publishing to RabbitMQ and replays idempotent requests", async () => {
+    const dependencies = createTestDependencies();
+    const app = createApp({ dependencies });
 
-    const firstResponse = await request(app)
+    const response = await request(app)
       .post("/ingest/logs")
       .set("x-api-key", validApiKey())
       .set("idempotency-key", "idem_log_1")
@@ -79,12 +77,24 @@ describe("ingestion routes", () => {
       })
       .expect(202);
 
-    expect(firstResponse.body.data.event).toMatchObject({
-      id: "evt_1",
+    expect(response.body.data.event).toMatchObject({
       projectId: "project_1",
       type: "log",
       source: "checkout-api",
       idempotentReplay: false,
+    });
+    expect(dependencies.publisher.published).toHaveLength(1);
+    expect(dependencies.publisher.published[0]).toMatchObject({
+      routingKey: "telemetry.log.v1",
+      message: {
+        projectId: "project_1",
+        ownerId: "owner_1",
+        type: "log",
+        source: "checkout-api",
+        level: "error",
+        message: "Payment provider timeout",
+        idempotencyKey: "idem_log_1",
+      },
     });
 
     const replayResponse = await request(app)
@@ -99,9 +109,10 @@ describe("ingestion routes", () => {
       .expect(202);
 
     expect(replayResponse.body.data.event).toMatchObject({
-      id: "evt_1",
+      id: response.body.data.event.id,
       idempotentReplay: true,
     });
+    expect(dependencies.publisher.published).toHaveLength(1);
   });
 
   it("rejects requests without an API key", async () => {
@@ -127,7 +138,9 @@ describe("ingestion routes", () => {
   });
 });
 
-function createTestDependencies(): IngestionServiceDependencies {
+function createTestDependencies(): IngestionServiceDependencies & {
+  readonly publisher: InMemoryTelemetryPublisher;
+} {
   const apiKeys = new Map<string, VerifiedIngestionApiKey>();
   apiKeys.set(hashApiKey(validApiKey()), {
     projectId: "project_1",
@@ -136,15 +149,18 @@ function createTestDependencies(): IngestionServiceDependencies {
     status: "active",
     expiresAt: null,
   });
+  const publisher = new InMemoryTelemetryPublisher();
 
   const ingestionService = new IngestionService(
     new ApiKeyAuthenticatorService(new InMemoryApiKeyRepository(apiKeys), validApiKeyPepper()),
-    new InMemoryEventRepository(),
+    publisher,
+    new InMemoryAcceptanceRepository(),
   );
 
   return {
     ingestionController: new IngestionController(ingestionService),
     ingestionService,
+    publisher,
   };
 }
 
@@ -158,4 +174,8 @@ function validApiKeyPepper(): string {
 
 function hashApiKey(value: string): string {
   return createHmac("sha256", validApiKeyPepper()).update(value).digest("base64url");
+}
+
+function toAcceptanceKey(projectId: string, idempotencyKey: string): string {
+  return `${projectId}:${idempotencyKey}`;
 }

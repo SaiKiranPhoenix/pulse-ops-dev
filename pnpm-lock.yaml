@@ -79,7 +79,17 @@ importers:
         specifier: ^7.2.2
         version: 7.2.2(supports-color@7.2.0)
 
-  po-event-workers: {}
+  po-event-workers:
+    dependencies:
+      '@pulseops/shared':
+        specifier: workspace:*
+        version: link:../po-shared
+      mongoose:
+        specifier: ^9.9.2
+        version: 9.9.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   po-incident-service:
     dependencies:
@@ -131,9 +141,16 @@ importers:
 
   po-shared:
     dependencies:
+      amqplib:
+        specifier: ^0.10.8
+        version: 0.10.9
       zod:
         specifier: ^4.1.5
         version: 4.4.3
+    devDependencies:
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
 
   po-ui:
     dependencies:
@@ -760,6 +777,9 @@ packages:
   '@tweenjs/tween.js@23.1.3':
     resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
 
+  '@types/amqplib@0.10.8':
+    resolution: {integrity: sha512-vtDp8Pk1wsE/AuQ8/Rgtm6KUZYqcnTgNvEHwzCkX8rL7AGsC6zqAfKAAJhUZXFhM/Pp++tbnUHiam/8vVpPztA==}
+
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
 
@@ -994,6 +1014,10 @@ packages:
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
 
+  amqplib@0.10.9:
+    resolution: {integrity: sha512-jwSftI4QjS3mizvnSnOrPGYiUnm1vI2OP1iXeOUz5pb74Ua0nbf6nPyyTzuiCLEE3fMpaJORXh2K/TQ08H5xGA==}
+    engines: {node: '>=10'}
+
   ansi-styles@4.3.0:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
@@ -1070,6 +1094,9 @@ packages:
   bson@7.3.2:
     resolution: {integrity: sha512-1w0ra+ho1cuE+w8jzwgzTFIimFtCfZeCoOsvIPQg6uyFCsp8M29U7bNNf5GrFh88TXbYg1g3TyKUGpd6O7q6zA==}
     engines: {node: '>=20.19.0'}
+
+  buffer-more-ints@1.0.0:
+    resolution: {integrity: sha512-EMetuGFz5SLsT0QTnXzINh4Ksr+oo4i+UGTXEshiGCQWnsgSs7ZhJ8fzlwQ+OzEMs0MpDAMr1hxnblp5a4vcHg==}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -1346,6 +1373,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -2017,6 +2045,9 @@ packages:
     resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
     engines: {node: '>=0.6'}
 
+  querystringify@2.2.0:
+    resolution: {integrity: sha512-FIqgj2EUvTa7R50u0rGsyTftzjYmv/a3hO345bZNrqabNqjtgiDMgmo4mkUjd+nzU5oF3dClKqFIPUKybUyqoQ==}
+
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
@@ -2095,6 +2126,9 @@ packages:
 
   redux@5.0.1:
     resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
+
+  requires-port@1.0.0:
+    resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
   reselect@5.2.0:
     resolution: {integrity: sha512-AgZ3UOZm3YndfrJ4OYjgrT7bmCm/1iqkjvEfH/oYjzh6PD2qw4QuT3jjnXIrpdt4MTpMXclMT3lXbmRY+XRakw==}
@@ -2340,6 +2374,9 @@ packages:
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
+
+  url-parse@1.5.10:
+    resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
@@ -2910,6 +2947,10 @@ snapshots:
 
   '@tweenjs/tween.js@23.1.3': {}
 
+  '@types/amqplib@0.10.8':
+    dependencies:
+      '@types/node': 22.20.1
+
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.29.8
@@ -3221,6 +3262,11 @@ snapshots:
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
 
+  amqplib@0.10.9:
+    dependencies:
+      buffer-more-ints: 1.0.0
+      url-parse: 1.5.10
+
   ansi-styles@4.3.0:
     dependencies:
       color-convert: 2.0.1
@@ -3305,6 +3351,8 @@ snapshots:
       update-browserslist-db: 1.3.1(browserslist@4.28.8)
 
   bson@7.3.2: {}
+
+  buffer-more-ints@1.0.0: {}
 
   bytes@3.1.2: {}
 
@@ -4160,6 +4208,8 @@ snapshots:
       es-define-property: 1.0.1
       side-channel: 1.1.1
 
+  querystringify@2.2.0: {}
+
   queue-microtask@1.2.3: {}
 
   range-parser@1.3.0: {}
@@ -4238,6 +4288,8 @@ snapshots:
       redux: 5.0.1
 
   redux@5.0.1: {}
+
+  requires-port@1.0.0: {}
 
   reselect@5.2.0: {}
 
@@ -4562,6 +4614,11 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
+
+  url-parse@1.5.10:
+    dependencies:
+      querystringify: 2.2.0
+      requires-port: 1.0.0
 
   use-sync-external-store@1.6.0(react@19.2.8):
     dependencies:

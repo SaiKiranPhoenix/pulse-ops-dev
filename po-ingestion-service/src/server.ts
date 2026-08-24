@@ -9,7 +9,10 @@ const env = loadEnv();
 
 await connectMongo(env.MONGODB_URI);
 
-const server = createApp().listen(env.PORT, () => {
+const app = createApp();
+const ingestionService = app.locals?.ingestionService as { close(): Promise<void> } | undefined;
+
+const server = app.listen(env.PORT, () => {
   logger.info("Ingestion service started", {
     port: env.PORT,
     nodeEnv: env.NODE_ENV,
@@ -19,6 +22,7 @@ const server = createApp().listen(env.PORT, () => {
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   logger.info("Ingestion service shutting down", { signal });
   server.close(async () => {
+    await ingestionService?.close();
     await disconnectMongo();
     process.exit(0);
   });

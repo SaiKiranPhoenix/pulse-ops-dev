@@ -1,16 +1,17 @@
 import { createHash } from "node:crypto";
-import type { IngestedEventType } from "../models/ingested-event.model.js";
+import { randomUUID } from "node:crypto";
+import { TELEMETRY_ROUTING_KEYS, type TelemetryEventType } from "@pulseops/shared";
+import type { TelemetryMessagePublisher } from "../events/publishers/telemetry.publisher.js";
 import {
   isDuplicateKeyError,
-  type IngestedEventRepository,
-  type SafeIngestedEventRecord,
-} from "../repositories/ingested-event.repository.js";
+  type IngestionAcceptanceRepository,
+} from "../repositories/ingestion-acceptance.repository.js";
 import type { ApiKeyAuthenticatorService } from "./api-key-authenticator.service.js";
 
 export type IngestionEventInput = {
   readonly rawApiKey: string;
   readonly idempotencyKey: string | null;
-  readonly type: IngestedEventType;
+  readonly type: TelemetryEventType;
   readonly source: string;
   readonly level?: string | undefined;
   readonly message?: string | undefined;
@@ -25,7 +26,7 @@ export type IngestionEventInput = {
 export type IngestedEventDto = {
   readonly id: string;
   readonly projectId: string;
-  readonly type: IngestedEventType;
+  readonly type: TelemetryEventType;
   readonly source: string;
   readonly fingerprint: string;
   readonly observedAt: string;
@@ -33,7 +34,7 @@ export type IngestedEventDto = {
   readonly idempotentReplay: boolean;
 };
 
-const scopeByType: Record<IngestedEventType, string> = {
+const scopeByType: Record<TelemetryEventType, string> = {
   log: "logs:write",
   error: "errors:write",
   metric: "metrics:write",
@@ -42,7 +43,8 @@ const scopeByType: Record<IngestedEventType, string> = {
 export class IngestionService {
   constructor(
     private readonly apiKeyAuthenticator: ApiKeyAuthenticatorService,
-    private readonly events: IngestedEventRepository,
+    private readonly publisher: TelemetryMessagePublisher,
+    private readonly acceptances: IngestionAcceptanceRepository,
   ) {}
 
   async ingest(input: IngestionEventInput): Promise<IngestedEventDto> {
@@ -52,47 +54,78 @@ export class IngestionService {
     );
 
     if (input.idempotencyKey !== null) {
-      const existingEvent = await this.events.findByIdempotencyKey(
+      const existingAcceptance = await this.acceptances.findByIdempotencyKey(
         apiKey.projectId,
         input.idempotencyKey,
       );
 
-      if (existingEvent !== null) {
-        return toEventDto(existingEvent, true);
+      if (existingAcceptance !== null) {
+        return toEventDto(apiKey.projectId, existingAcceptance.event, true);
       }
     }
 
-    try {
-      const event = await this.events.create({
-        projectId: apiKey.projectId,
-        type: input.type,
-        source: input.source,
-        level: input.level ?? null,
-        message: input.message ?? null,
-        name: input.name ?? null,
-        value: input.value ?? null,
-        unit: input.unit ?? null,
-        fingerprint: input.fingerprint ?? createFingerprint(input),
-        attributes: input.attributes ?? {},
-        observedAt: input.timestamp ?? new Date(),
-        idempotencyKey: input.idempotencyKey,
-      });
+    const acceptedAt = new Date();
+    const observedAt = input.timestamp ?? acceptedAt;
+    const fingerprint = input.fingerprint ?? createFingerprint(input);
+    const messageId = `ing_${randomUUID()}`;
 
-      return toEventDto(event, false);
-    } catch (error) {
-      if (input.idempotencyKey !== null && isDuplicateKeyError(error)) {
-        const existingEvent = await this.events.findByIdempotencyKey(
-          apiKey.projectId,
-          input.idempotencyKey,
-        );
+    await this.publisher.publish(TELEMETRY_ROUTING_KEYS[input.type], {
+      messageId,
+      schemaVersion: 1,
+      type: input.type,
+      projectId: apiKey.projectId,
+      ownerId: apiKey.ownerId,
+      correlationId: messageId,
+      idempotencyKey: input.idempotencyKey,
+      source: input.source,
+      level: input.level ?? null,
+      message: input.message ?? null,
+      name: input.name ?? null,
+      value: input.value ?? null,
+      unit: input.unit ?? null,
+      fingerprint,
+      attributes: input.attributes ?? {},
+      observedAt: observedAt.toISOString(),
+      acceptedAt: acceptedAt.toISOString(),
+    });
 
-        if (existingEvent !== null) {
-          return toEventDto(existingEvent, true);
+    const acceptedEvent = {
+      id: messageId,
+      type: input.type,
+      source: input.source,
+      fingerprint,
+      observedAt: observedAt.toISOString(),
+      receivedAt: acceptedAt.toISOString(),
+    };
+
+    if (input.idempotencyKey !== null) {
+      try {
+        await this.acceptances.create({
+          projectId: apiKey.projectId,
+          idempotencyKey: input.idempotencyKey,
+          event: acceptedEvent,
+        });
+      } catch (error) {
+        if (isDuplicateKeyError(error)) {
+          const existingAcceptance = await this.acceptances.findByIdempotencyKey(
+            apiKey.projectId,
+            input.idempotencyKey,
+          );
+
+          if (existingAcceptance !== null) {
+            return toEventDto(apiKey.projectId, existingAcceptance.event, true);
+          }
         }
-      }
 
-      throw error;
+        throw error;
+      }
     }
+
+    return toEventDto(apiKey.projectId, acceptedEvent, false);
+  }
+
+  async close(): Promise<void> {
+    await this.publisher.close();
   }
 }
 
@@ -102,15 +135,15 @@ function createFingerprint(input: IngestionEventInput): string {
     .digest("base64url");
 }
 
-function toEventDto(event: SafeIngestedEventRecord, idempotentReplay: boolean): IngestedEventDto {
+function toEventDto(
+  projectId: string,
+  event: Omit<IngestedEventDto, "projectId" | "idempotentReplay">,
+  idempotentReplay: boolean,
+): IngestedEventDto {
   return {
-    id: event.id,
-    projectId: event.projectId,
-    type: event.type,
-    source: event.source,
-    fingerprint: event.fingerprint,
-    observedAt: event.observedAt.toISOString(),
-    receivedAt: event.receivedAt.toISOString(),
+    ...event,
+    projectId,
     idempotentReplay,
   };
 }
+
