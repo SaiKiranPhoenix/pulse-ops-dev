@@ -11,9 +11,12 @@ import type {
 export class VaultController {
   constructor(private readonly vault: VaultService) {}
 
-  create = async (_request: Request, response: Response): Promise<void> => {
+  create = async (request: Request, response: Response): Promise<void> => {
     const body = response.locals.validatedBody as CreateSecretBody;
-    const secret = await this.vault.create(body);
+    const secret = await this.vault.create({
+      ...body,
+      ...auditContext(request, response),
+    });
 
     response.status(201).json(successResponse({ secret }, String(response.locals.requestId)));
   };
@@ -25,15 +28,20 @@ export class VaultController {
     response.status(200).json(successResponse({ secrets }, String(response.locals.requestId)));
   };
 
-  reveal = async (_request: Request, response: Response): Promise<void> => {
+  reveal = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as SecretQuery;
     const params = response.locals.validatedParams as SecretParams;
-    const secret = await this.vault.reveal(query.projectId, params.environment, params.key);
+    const secret = await this.vault.reveal(
+      query.projectId,
+      params.environment,
+      params.key,
+      auditContext(request, response),
+    );
 
     response.status(200).json(successResponse({ secret }, String(response.locals.requestId)));
   };
 
-  update = async (_request: Request, response: Response): Promise<void> => {
+  update = async (request: Request, response: Response): Promise<void> => {
     const body = response.locals.validatedBody as UpdateSecretBody;
     const params = response.locals.validatedParams as SecretParams;
     const secret = await this.vault.update({
@@ -41,16 +49,32 @@ export class VaultController {
       environment: params.environment,
       key: params.key,
       value: body.value,
+      ...auditContext(request, response),
     });
 
     response.status(200).json(successResponse({ secret }, String(response.locals.requestId)));
   };
 
-  delete = async (_request: Request, response: Response): Promise<void> => {
+  delete = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as SecretQuery;
     const params = response.locals.validatedParams as SecretParams;
-    const secret = await this.vault.delete(query.projectId, params.environment, params.key);
+    const secret = await this.vault.delete(
+      query.projectId,
+      params.environment,
+      params.key,
+      auditContext(request, response),
+    );
 
     response.status(200).json(successResponse({ secret }, String(response.locals.requestId)));
+  };
+}
+
+function auditContext(
+  request: Request,
+  response: Response,
+): { readonly actorId: string; readonly correlationId: string } {
+  return {
+    actorId: String(request.header("x-user-id") ?? "unknown"),
+    correlationId: String(response.locals.requestId ?? "unknown"),
   };
 }

@@ -52,7 +52,24 @@ importers:
         specifier: ^5.0.6
         version: 5.0.6
 
-  po-audit-service: {}
+  po-audit-service:
+    dependencies:
+      '@pulseops/shared':
+        specifier: workspace:*
+        version: link:../po-shared
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1(supports-color@7.2.0)
+      mongoose:
+        specifier: ^9.9.2
+        version: 9.9.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
 
   po-auth-project-service:
     dependencies:

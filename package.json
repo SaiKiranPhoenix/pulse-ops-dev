@@ -33,6 +33,9 @@
     "apps:up": "docker compose --profile apps up -d",
     "apps:down": "docker compose --profile apps down",
     "apps:logs": "docker compose --profile apps logs -f",
+    "load:normal": "k6 run scripts/load/normal-traffic.js",
+    "load:incidents": "k6 run scripts/load/repeated-errors.js",
+    "load:rate-limit": "k6 run scripts/load/rate-limit.js",
     "stack:up": "docker compose --profile apps up -d",
     "stack:down": "docker compose --profile apps down",
     "workspace:list": "pnpm -r list --depth -1"

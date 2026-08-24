@@ -27,18 +27,6 @@ export class DashboardController {
     response.status(200).json(successResponse({ incidents }, String(response.locals.requestId)));
   };
 
-  workers = async (_request: Request, response: Response): Promise<void> => {
-    const workers = await this.dashboard.workers();
-
-    response.status(200).json(successResponse(workers, String(response.locals.requestId)));
-  };
-
-  queues = async (_request: Request, response: Response): Promise<void> => {
-    const queues = await this.dashboard.queues();
-
-    response.status(200).json(successResponse(queues, String(response.locals.requestId)));
-  };
-
   vaultActivity = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as ProjectQuery;
     const vaultActivity = await this.dashboard.vaultActivity(query.projectId);

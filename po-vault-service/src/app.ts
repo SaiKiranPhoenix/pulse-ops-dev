@@ -23,6 +23,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(requestIdMiddleware);
   app.use(createRoutes(toRouteDependencies(dependencies)));
   app.use(createErrorMiddleware(logger));
+  app.locals.closeDependencies = dependencies.close;
 
   return app;
 }

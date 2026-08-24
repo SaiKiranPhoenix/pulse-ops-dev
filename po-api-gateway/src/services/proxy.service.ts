@@ -20,6 +20,7 @@ const forwardedRequestHeaders = new Set([
   "idempotency-key",
   "x-api-key",
   "x-request-id",
+  "x-user-id",
 ]);
 
 export type ProxyTarget = {
@@ -96,7 +97,18 @@ function buildForwardHeaders(request: Request): Headers {
     headers.set("content-type", "application/json");
   }
 
+  const userId = responseUserId(request);
+
+  if (userId !== null) {
+    headers.set("x-user-id", userId);
+  }
+
   return headers;
+}
+
+function responseUserId(request: Request): string | null {
+  const auth = request.res?.locals.auth as { readonly userId?: unknown } | undefined;
+  return typeof auth?.userId === "string" && auth.userId.length > 0 ? auth.userId : null;
 }
 
 async function readUpstreamBody(upstreamResponse: globalThis.Response): Promise<string> {

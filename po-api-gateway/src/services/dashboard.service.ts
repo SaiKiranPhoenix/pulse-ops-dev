@@ -57,20 +57,6 @@ export class DashboardService {
     }));
   }
 
-  async workers() {
-    return {
-      workers: [],
-      status: "not_configured",
-    };
-  }
-
-  async queues() {
-    return {
-      queues: [],
-      status: "not_configured",
-    };
-  }
-
   async vaultActivity(projectId: string): Promise<DashboardVaultActivityDto[]> {
     const activities = await this.dashboard.latestVaultActivity(projectId);
     return activities.map((activity) => ({

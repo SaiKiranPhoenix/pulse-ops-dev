@@ -16,6 +16,24 @@ export type RevealedVaultSecret = VaultSecretMetadata & {
   readonly value: string;
 };
 
+export type VaultAuditEvent = {
+  readonly id: string;
+  readonly messageId: string;
+  readonly projectId: string;
+  readonly actorType: "user" | "integration" | "service";
+  readonly actorId: string;
+  readonly action: string;
+  readonly result: "success" | "failure";
+  readonly environment: string | null;
+  readonly secretKey: string | null;
+  readonly tokenPrefix: string | null;
+  readonly reason: string | null;
+  readonly correlationId: string;
+  readonly occurredAt: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
 export async function createSecret(input: {
   readonly projectId: string;
   readonly environment: string;
@@ -84,4 +102,12 @@ export async function listVaultActivity(projectId: string): Promise<VaultSecretM
     ApiSuccessResponse<{ readonly vaultActivity: VaultSecretMetadata[] }>
   >("/dashboard/vault-activity", { params: { projectId } });
   return response.data.data.vaultActivity;
+}
+
+export async function listVaultAuditEvents(projectId: string): Promise<VaultAuditEvent[]> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly events: VaultAuditEvent[] }>>(
+    "/audit/events",
+    { params: { projectId } },
+  );
+  return response.data.data.events;
 }

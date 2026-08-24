@@ -28,6 +28,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       AUTH_PROJECT_SERVICE_URL: ${AUTH_PROJECT_SERVICE_URL:-http://po-auth-project-service:4010}
+      AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL:-http://po-audit-service:4140}
       INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://po-ingestion-service:4100}
       INCIDENT_SERVICE_URL: ${INCIDENT_SERVICE_URL:-http://po-incident-service:4120}
       OPS_SERVICE_URL: ${OPS_SERVICE_URL:-http://po-ops-service:4150}
@@ -212,6 +213,7 @@ services:
       MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      AUDIT_WORKER_PREFETCH: ${AUDIT_WORKER_PREFETCH:-10}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
     expose:
       - "4140"

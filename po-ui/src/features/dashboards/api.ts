@@ -22,21 +22,52 @@ export type DashboardEvent = {
 
 export type DashboardIncident = {
   readonly id: string;
+  readonly projectId?: string;
+  readonly fingerprint?: string;
   readonly title: string;
+  readonly summary?: string | null;
   readonly severity: "low" | "medium" | "high" | "critical";
   readonly status: "open" | "resolved";
   readonly eventCount: number;
+  readonly firstSeenAt?: string;
   readonly lastSeenAt: string;
+  readonly resolvedAt?: string | null;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
+};
+
+export type WorkerHealth = {
+  readonly workerId: string;
+  readonly service: string;
+  readonly status: "running";
+  readonly queues: string[];
+  readonly startedAt: string;
+  readonly lastSeenAt: string;
+  readonly ageSeconds: number;
 };
 
 export type WorkerStatusResponse = {
-  readonly workers: unknown[];
-  readonly status: "not_configured";
+  readonly workers: WorkerHealth[];
+};
+
+export type QueueStatus = {
+  readonly name: string;
+  readonly status: "available" | "missing";
+  readonly messageCount: number | null;
+  readonly consumerCount: number | null;
 };
 
 export type QueueStatusResponse = {
-  readonly queues: unknown[];
-  readonly status: "not_configured";
+  readonly queues: QueueStatus[];
+};
+
+export type RealtimeIncidentUpdate = {
+  readonly messageId: string;
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly action: "opened" | "updated" | "resolved" | "reopened";
+  readonly incident: DashboardIncident;
+  readonly occurredAt: string;
 };
 
 export async function getDashboardSummary(projectId: string): Promise<DashboardSummary> {

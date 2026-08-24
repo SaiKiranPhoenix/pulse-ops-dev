@@ -21,6 +21,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   });
 
   router.use("/auth", asyncHandler(dependencies.proxyController.authProject));
+  router.use("/audit", requireAuth, asyncHandler(dependencies.proxyController.audit));
   router.use("/projects", requireAuth, asyncHandler(dependencies.proxyController.authProject));
   router.use("/ingest", asyncHandler(dependencies.proxyController.ingestion));
   router.use("/incidents", requireAuth, asyncHandler(dependencies.proxyController.incident));

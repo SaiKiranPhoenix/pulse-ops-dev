@@ -23,6 +23,10 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
       baseUrl: env.AUTH_PROJECT_SERVICE_URL,
       pathPrefix: "",
     },
+    audit: {
+      baseUrl: env.AUDIT_SERVICE_URL,
+      pathPrefix: "",
+    },
     ingestion: {
       baseUrl: env.INGESTION_SERVICE_URL,
       pathPrefix: "",
