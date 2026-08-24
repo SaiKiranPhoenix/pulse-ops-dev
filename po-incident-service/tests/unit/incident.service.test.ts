@@ -1,5 +1,6 @@
 import type { IncidentEvaluationMessage } from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
+import type { IncidentUpdatePublisher } from "../../src/events/publishers/realtime-incident.publisher.js";
 import type {
   CreateIncidentRecordInput,
   IncidentFilter,
@@ -125,7 +126,27 @@ describe("IncidentService", () => {
     });
     expect(incidents.incidents).toHaveLength(1);
   });
+
+  it("does not publish a lifecycle update when incident detail is read", async () => {
+    const incidents = new InMemoryIncidentRepository();
+    const publisher = new CapturingIncidentUpdatePublisher();
+    const service = new IncidentService(incidents, publisher);
+    const incident = await service.evaluateError(validEvaluation());
+
+    publisher.messages = [];
+    await service.detail("project_1", incident.id);
+
+    expect(publisher.messages).toEqual([]);
+  });
 });
+
+class CapturingIncidentUpdatePublisher implements IncidentUpdatePublisher {
+  messages: unknown[] = [];
+
+  async publish(message: unknown): Promise<void> {
+    this.messages.push(message);
+  }
+}
 
 function toRecord(
   input: CreateIncidentRecordInput,

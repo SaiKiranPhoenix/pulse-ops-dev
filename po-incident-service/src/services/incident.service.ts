@@ -64,7 +64,6 @@ export class IncidentService {
       throw notFound("Incident not found");
     }
 
-    await this.publishIncidentUpdate("resolved", incident);
     return toIncidentDto(incident);
   }
 

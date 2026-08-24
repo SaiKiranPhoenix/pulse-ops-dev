@@ -231,16 +231,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Reopen/resolve actions exist in UI.
 - [x] Realtime incident update code exists.
 - [ ] Partial Acknowledge action is planned but not implemented in UI.
-- [ ] Partial Incident page is functional but too thin for Datadog-like triage.
-- [ ] Todo Add incident detail drawer/page.
+- [x] Incident page has a triage workbench with filters, summary metrics, details, timeline, and actions.
+- [x] Add incident detail drawer/page.
 - [ ] Todo Add acknowledge lifecycle.
 - [ ] Todo Add resolution note support.
-- [ ] Todo Add incident timeline.
+- [ ] Partial Add incident timeline.
 - [ ] Todo Add linked event samples.
-- [ ] Todo Add severity filters.
-- [ ] Todo Add status filters.
-- [ ] Todo Add incident creation reason/rule display.
-- [ ] Todo Add copy incident summary action.
+- [x] Add severity filters.
+- [x] Add status filters.
+- [ ] Partial Add incident creation reason/rule display.
+- [x] Add copy incident summary action.
 - [ ] Todo Add queue backlog incident rule.
 - [ ] Todo Add alert delivery later: email/webhook/Slack/Teams.
 
