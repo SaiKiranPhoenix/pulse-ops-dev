@@ -5,6 +5,7 @@ import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { AlertsPage } from "@/pages/dashboard/AlertsPage";
 import { ApiKeysPage } from "@/pages/dashboard/ApiKeysPage";
 import { DashboardLayout } from "@/pages/dashboard/DashboardLayout";
+import { ErrorsPage } from "@/pages/dashboard/ErrorsPage";
 import { LogsPage } from "@/pages/dashboard/LogsPage";
 import { MetricsPage } from "@/pages/dashboard/MetricsPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
@@ -29,6 +30,7 @@ export function AppRoutes() {
           <Route index element={<OverviewPage />} />
           <Route path="setup" element={<SetupPage />} />
           <Route path="logs" element={<LogsPage />} />
+          <Route path="errors" element={<ErrorsPage />} />
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="traces" element={<TracesPage />} />
           <Route path="alerts" element={<AlertsPage />} />

@@ -52,6 +52,7 @@ const navItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/dashboard/setup", label: "Setup", icon: ListPlus },
   { to: "/dashboard/logs", label: "Logs", icon: SearchCode },
+  { to: "/dashboard/errors", label: "Errors", icon: AlertTriangle },
   { to: "/dashboard/metrics", label: "Metrics", icon: BarChart3 },
   { to: "/dashboard/traces", label: "Traces", icon: Activity },
   { to: "/dashboard/alerts", label: "Incidents", icon: AlertTriangle },
