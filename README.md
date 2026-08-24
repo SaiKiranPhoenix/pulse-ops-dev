@@ -12,6 +12,7 @@ PulseOps is a local-first developer operations platform for real-time observabil
 - Socket.IO-ready realtime event fanout.
 - AES-256-GCM vault secrets, password-gated reveal, hashed integration tokens, and audit logs.
 - k6 scripts for normal traffic, repeated errors, and rate-limit behavior.
+- k6 high-latency metrics scenario for the incident/demo matrix.
 
 ## Workspace
 
@@ -93,6 +94,7 @@ pnpm.cmd demo:smoke
 $env:PULSEOPS_API_KEY="<raw-api-key-shown-once>"
 k6 run scripts/load/normal-traffic.js
 k6 run scripts/load/repeated-errors.js
+k6 run scripts/load/high-latency.js
 k6 run scripts/load/rate-limit.js
 ```
 

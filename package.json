@@ -36,6 +36,7 @@
     "demo:smoke": "node scripts/demo/smoke.mjs",
     "load:normal": "k6 run scripts/load/normal-traffic.js",
     "load:incidents": "k6 run scripts/load/repeated-errors.js",
+    "load:latency": "k6 run scripts/load/high-latency.js",
     "load:rate-limit": "k6 run scripts/load/rate-limit.js",
     "stack:up": "docker compose --profile apps up -d",
     "stack:down": "docker compose --profile apps down",
