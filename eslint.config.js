@@ -23,8 +23,21 @@ export default [
     files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {
+        AbortSignal: "readonly",
         console: "readonly",
+        fetch: "readonly",
         process: "readonly",
+        URL: "readonly",
+      },
+    },
+  },
+  {
+    files: ["scripts/load/**/*.js"],
+    languageOptions: {
+      globals: {
+        __ENV: "readonly",
+        __ITER: "readonly",
+        __VU: "readonly",
       },
     },
   },
@@ -45,6 +58,14 @@ export default [
           varsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["**/tests/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+      },
     },
   },
 ];
