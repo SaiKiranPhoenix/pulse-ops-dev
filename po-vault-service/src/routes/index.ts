@@ -4,9 +4,13 @@ import { validateBody, validateParams, validateQuery } from "../middlewares/vali
 import { asyncHandler } from "../utils/async-handler.js";
 import {
   createSecretBodySchema,
+  createVaultTokenBodySchema,
+  revealSecretBodySchema,
   secretParamsSchema,
   secretQuerySchema,
+  tokenFetchParamsSchema,
   updateSecretBodySchema,
+  vaultTokenParamsSchema,
 } from "../validators/vault.validator.js";
 
 export type RouteDependencies = {
@@ -29,10 +33,10 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.list),
   );
-  router.get(
+  router.post(
     "/vault/secrets/:environment/:key/reveal",
     validateParams(secretParamsSchema),
-    validateQuery(secretQuerySchema),
+    validateBody(revealSecretBodySchema),
     asyncHandler(dependencies.vaultController.reveal),
   );
   router.put(
@@ -46,6 +50,27 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateParams(secretParamsSchema),
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.delete),
+  );
+  router.post(
+    "/vault/tokens",
+    validateBody(createVaultTokenBodySchema),
+    asyncHandler(dependencies.vaultController.createToken),
+  );
+  router.get(
+    "/vault/tokens",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listTokens),
+  );
+  router.post(
+    "/vault/tokens/:tokenId/revoke",
+    validateParams(vaultTokenParamsSchema),
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.revokeToken),
+  );
+  router.get(
+    "/integrations/vault/secrets/:environment/:key",
+    validateParams(tokenFetchParamsSchema),
+    asyncHandler(dependencies.vaultController.fetchWithToken),
   );
 
   return router;

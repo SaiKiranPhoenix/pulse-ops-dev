@@ -1,6 +1,7 @@
 import {
   createCipheriv,
   createDecipheriv,
+  timingSafeEqual,
   randomBytes,
   scrypt as scryptCallback,
 } from "node:crypto";
@@ -10,10 +11,17 @@ import type { EncryptedSecretValue } from "../models/vault-secret.model.js";
 export interface SecretCryptoService {
   encrypt(value: string): Promise<EncryptedSecretValue>;
   decrypt(value: EncryptedSecretValue): Promise<string>;
+  verifyVaultPassword(value: string): boolean;
 }
 
 export class AesGcmSecretCryptoService implements SecretCryptoService {
   constructor(private readonly masterPassword: string) {}
+
+  verifyVaultPassword(value: string): boolean {
+    const left = Buffer.from(value);
+    const right = Buffer.from(this.masterPassword);
+    return left.length === right.length && timingSafeEqual(left, right);
+  }
 
   async encrypt(value: string): Promise<EncryptedSecretValue> {
     const salt = randomBytes(VAULT_CRYPTO.saltLength);

@@ -275,20 +275,21 @@ RABBITMQ_URL=...
 ### Dashboard Vault APIs
 
 ```http
-POST /api/vault/:projectId/secrets
-GET /api/vault/:projectId/secrets
-POST /api/vault/:projectId/secrets/:key/reveal
-PATCH /api/vault/:projectId/secrets/:key
-DELETE /api/vault/:projectId/secrets/:key
-POST /api/vault/:projectId/tokens
-GET /api/vault/:projectId/audit-logs
+POST /api/vault/secrets
+GET /api/vault/secrets?projectId=<projectId>
+POST /api/vault/secrets/:environment/:key/reveal
+PUT /api/vault/secrets/:environment/:key
+DELETE /api/vault/secrets/:environment/:key?projectId=<projectId>
+POST /api/vault/tokens
+GET /api/vault/tokens?projectId=<projectId>
+POST /api/vault/tokens/:tokenId/revoke?projectId=<projectId>
+GET /api/audit/events?projectId=<projectId>
 ```
 
 ### Integration APIs
 
 ```http
-GET /api/v1/secrets?projectId=<projectId>&env=production
-GET /api/v1/secrets/:key?projectId=<projectId>&env=production
+GET /api/integrations/vault/secrets/:environment/:key
 ```
 
 ### Integration Header
@@ -492,20 +493,21 @@ PATCH /api/incidents/:incidentId/resolve
 ### Vault
 
 ```http
-POST /api/vault/:projectId/secrets
-GET /api/vault/:projectId/secrets
-POST /api/vault/:projectId/secrets/:key/reveal
-PATCH /api/vault/:projectId/secrets/:key
-DELETE /api/vault/:projectId/secrets/:key
-POST /api/vault/:projectId/tokens
-GET /api/vault/:projectId/audit-logs
+POST /api/vault/secrets
+GET /api/vault/secrets?projectId=<projectId>
+POST /api/vault/secrets/:environment/:key/reveal
+PUT /api/vault/secrets/:environment/:key
+DELETE /api/vault/secrets/:environment/:key?projectId=<projectId>
+POST /api/vault/tokens
+GET /api/vault/tokens?projectId=<projectId>
+POST /api/vault/tokens/:tokenId/revoke?projectId=<projectId>
+GET /api/audit/events?projectId=<projectId>
 ```
 
 ### Vault Integration
 
 ```http
-GET /api/v1/secrets?projectId=<projectId>&env=<environment>
-GET /api/v1/secrets/:key?projectId=<projectId>&env=<environment>
+GET /api/integrations/vault/secrets/:environment/:key
 ```
 
 ## Caching Strategy

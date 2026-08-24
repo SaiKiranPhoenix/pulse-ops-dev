@@ -21,6 +21,7 @@ const forwardedRequestHeaders = new Set([
   "x-api-key",
   "x-request-id",
   "x-user-id",
+  "x-vault-token",
 ]);
 
 export type ProxyTarget = {

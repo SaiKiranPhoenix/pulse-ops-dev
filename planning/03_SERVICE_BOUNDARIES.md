@@ -72,7 +72,7 @@
 | Ingestion | `/api/ingest/logs`, `/api/ingest/errors`, `/api/ingest/metrics` |
 | Dashboard Query | `/api/dashboard/:projectId/*` |
 | Incident | `/api/incidents/:projectId`, `/api/incidents/:incidentId/*` |
-| Vault | `/api/vault/:projectId/*`, `/api/v1/secrets*` |
+| Vault | `/api/vault/*`, `/api/integrations/vault/secrets/*` |
 | Ops | `/api/health`, `/api/admin/workers`, `/api/admin/queues` |
 
 ## Scaling Strategy

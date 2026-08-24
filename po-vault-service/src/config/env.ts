@@ -6,6 +6,7 @@ const envSchema = z.object({
   MONGODB_URI: z.string().url().or(z.string().startsWith("mongodb://")),
   RABBITMQ_URL: z.string().url().or(z.string().startsWith("amqp://")),
   VAULT_MASTER_PASSWORD: z.string().min(16),
+  VAULT_TOKEN_PEPPER: z.string().min(16),
 });
 
 export type VaultServiceEnv = z.infer<typeof envSchema>;

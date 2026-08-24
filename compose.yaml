@@ -191,6 +191,7 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       VAULT_MASTER_PASSWORD: ${VAULT_MASTER_PASSWORD:?Set VAULT_MASTER_PASSWORD in .env}
+      VAULT_TOKEN_PEPPER: ${VAULT_TOKEN_PEPPER:?Set VAULT_TOKEN_PEPPER in .env}
     expose:
       - "4200"
     depends_on:

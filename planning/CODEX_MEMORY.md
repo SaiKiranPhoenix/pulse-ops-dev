@@ -4,9 +4,10 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 
 ## Current Project State
 
-- Repository is planning-only before implementation.
+- Repository now contains the PulseOps monorepo implementation across `po-*` services, `po-ui`, Docker Compose, k6 scripts, and shared utilities.
 - Do not reread every planning file unless a task needs deep detail.
-- Start coding from the vertical-slice roadmap in `planning/16_IMPLEMENTATION_ROADMAP.md` and backlog in `planning/21_CODING_BACKLOG.md`.
+- Start coding from the remaining gaps in `planning/16_IMPLEMENTATION_ROADMAP.md` and backlog in `planning/21_CODING_BACKLOG.md`.
+- Current implemented demo path includes auth/project/API keys, ingestion, Redis rate limits/idempotency/cache, RabbitMQ workers, incidents, realtime dashboard, ops health/queues, encrypted vault, vault audit, and hashed vault integration token fetch.
 
 ## Fixed Decisions
 
@@ -48,6 +49,7 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 - Vault secrets encrypted with AES-256-GCM.
 - Vault password derived key using Argon2id preferred, scrypt fallback acceptable.
 - Vault integration tokens hashed at rest and raw token shown once.
+- Vault integration fetch uses `GET /api/integrations/vault/secrets/:environment/:key` with `Authorization: Bearer <vault_integration_token>` or `x-vault-token`.
 - Audit logs for all sensitive vault operations.
 - k6 scripts for normal traffic, burst, repeated errors, high latency, and rate limiting.
 
