@@ -10,6 +10,7 @@ import { MetricsPage } from "@/pages/dashboard/MetricsPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
 import { SetupPage } from "@/pages/dashboard/SetupPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
+import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
 import { VaultPage } from "@/pages/dashboard/VaultPage";
 import { WorkersPage } from "@/pages/dashboard/WorkersPage";
 import { LandingPage } from "@/pages/LandingPage";
@@ -33,6 +34,7 @@ export function AppRoutes() {
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="workers" element={<WorkersPage />} />
           <Route path="vault" element={<VaultPage />} />
+          <Route path="vault-audit" element={<VaultAuditPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
         </Route>
       </Route>

@@ -11,6 +11,7 @@ import {
   RadioTower,
   SearchCode,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import {
   createContext,
@@ -56,6 +57,7 @@ const navItems = [
   { to: "/dashboard/alerts", label: "Incidents", icon: AlertTriangle },
   { to: "/dashboard/workers", label: "Workers", icon: RadioTower },
   { to: "/dashboard/vault", label: "Vault", icon: LockKeyhole },
+  { to: "/dashboard/vault-audit", label: "Vault Audit", icon: ShieldCheck },
   { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
 ] as const;
 

@@ -28,10 +28,10 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [ ] Todo User sends a test log/error/metric from the UI and sees it arrive.
 - [ ] Todo User connects an external/deployed app by API key and observes telemetry like Datadog.
 - [ ] Todo User sees logs, metrics, errors, incidents, workers, queues, and live updates.
-- [ ] Todo User stores encrypted project secrets like a simplified Vault.
-- [ ] Todo User reveals a secret only with the vault password.
-- [ ] Todo External app fetches allowed secrets using a vault integration token.
-- [ ] Todo User sees vault audit logs without secret values.
+- [x] User stores encrypted project secrets like a simplified Vault.
+- [x] User reveals a secret only with the vault password.
+- [x] External app fetches allowed secrets using a vault integration token.
+- [x] User sees vault audit logs without secret values.
 - [ ] Todo README/demo path proves the full flow in screenshots or GIFs.
 
 ## Product Shell And Navigation
@@ -314,18 +314,18 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [ ] Verify MongoDB never contains raw seeded secret values.
 - [ ] Verify reveal/fetch responses set no-store headers.
 - [ ] Todo Add Vault setup screen for choosing/confirming vault password or clearly define stateless password mode.
-- [ ] Todo Add environment tabs in Vault UI.
-- [ ] Todo Add reveal modal instead of inline reveal.
-- [ ] Todo Clear revealed value when modal closes.
-- [ ] Todo Add copy secret value action inside reveal modal.
-- [ ] Todo Add rotate secret flow.
+- [x] Add environment tabs in Vault UI.
+- [x] Add reveal modal instead of inline reveal.
+- [x] Clear revealed value when modal closes.
+- [x] Add copy secret value action inside reveal modal.
+- [x] Add rotate secret flow.
 - [ ] Todo Add soft-delete confirmation.
 - [ ] Todo Add secret version history if in scope.
 - [ ] Todo Add per-key metadata: created by, updated by, timestamps.
 - [ ] Todo Add integration token scopes UI.
-- [ ] Todo Add integration token expiry UI.
-- [ ] Todo Add last-used token display.
-- [ ] Todo Add external app secret fetch instructions.
+- [x] Add integration token expiry UI.
+- [x] Add last-used token display.
+- [x] Add external app secret fetch instructions.
 - [ ] Todo Add rate limiting for vault reveal/fetch attempts if not complete.
 - [ ] Todo Add wrong-password audit failure verification.
 
@@ -335,13 +335,13 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Audit event model exists.
 - [x] Vault audit publisher exists.
 - [x] Vault page displays audit events.
-- [ ] Partial Audit is embedded in Vault page instead of a dedicated audit product surface.
-- [ ] Todo Build Vault Audit page.
-- [ ] Todo Add filters: action, result, environment, key, actor, time range.
-- [ ] Todo Add request ID display.
-- [ ] Todo Add actor type display: user/integration token/system.
-- [ ] Todo Add audit detail drawer.
-- [ ] Todo Add export/copy audit row action.
+- [x] Audit is available as a dedicated audit product surface.
+- [x] Build Vault Audit page.
+- [ ] Partial Add filters: action, result, environment, key, actor, time range.
+- [x] Add request ID display.
+- [x] Add actor type display: user/integration token/system.
+- [x] Add audit detail drawer.
+- [x] Add export/copy audit row action.
 - [ ] Todo Add realtime audit event updates.
 - [ ] Todo Add tests proving audit never stores raw secret, password, token, or auth header.
 
@@ -927,8 +927,8 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 5. [ ] Todo Replace Metrics placeholder with real charts.
 6. [ ] Todo Build dedicated Workers/Queues page.
 7. [ ] Todo Upgrade Incidents into a full triage workbench.
-8. [ ] Todo Upgrade Vault into setup, secrets, tokens, reveal modal, and integration docs.
-9. [ ] Todo Build Vault Audit page.
+8. [x] Upgrade Vault into setup, secrets, tokens, reveal modal, and integration docs.
+9. [x] Build Vault Audit page.
 10. [ ] Todo Add realtime events beyond incidents.
 11. [ ] Todo Add browser E2E tests for the full demo.
 12. [ ] Todo Write final README and troubleshooting guide.
