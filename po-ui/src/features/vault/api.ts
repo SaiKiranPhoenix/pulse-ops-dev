@@ -163,3 +163,16 @@ export async function revokeVaultToken(projectId: string, tokenId: string): Prom
   );
   return response.data.data.token;
 }
+
+export async function fetchSecretWithIntegrationToken(
+  environment: string,
+  key: string,
+  rawToken: string,
+): Promise<RevealedVaultSecret> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly secret: RevealedVaultSecret }>
+  >(`/integrations/vault/secrets/${encodeURIComponent(environment)}/${encodeURIComponent(key)}`, {
+    headers: { "x-vault-token": rawToken },
+  });
+  return response.data.data.secret;
+}
