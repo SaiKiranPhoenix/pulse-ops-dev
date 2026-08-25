@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listVaultAuditEvents, type VaultAuditEvent } from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import {
+  createPulseOpsSocket,
+  joinProjectRoom,
+  leaveProjectRoom,
+  type RealtimeVaultAuditCreated,
+} from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
@@ -51,6 +57,32 @@ export function VaultAuditPage() {
   useEffect(() => {
     void loadAudit();
   }, [selectedProject?.id]);
+
+  useEffect(() => {
+    if (selectedProject === null) {
+      return;
+    }
+
+    const socket = createPulseOpsSocket();
+
+    if (socket === null) {
+      return;
+    }
+
+    socket.on("connect", () => {
+      void joinProjectRoom(socket, selectedProject.id);
+    });
+    socket.on("vault.audit.created", (update: RealtimeVaultAuditCreated) => {
+      setEvents((current) => upsertAuditEvent(current, update.auditEvent).slice(0, 100));
+      setSelectedEvent((current) => current ?? update.auditEvent);
+    });
+    socket.connect();
+
+    return () => {
+      leaveProjectRoom(socket, selectedProject.id);
+      socket.disconnect();
+    };
+  }, [selectedProject]);
 
   const filteredEvents = useMemo(
     () =>
@@ -289,3 +321,15 @@ const successClass =
 
 const failureClass =
   "w-fit rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium capitalize text-red-700";
+
+function upsertAuditEvent(events: VaultAuditEvent[], incoming: VaultAuditEvent): VaultAuditEvent[] {
+  const eventsById = new Map<string, VaultAuditEvent>();
+
+  for (const event of [incoming, ...events]) {
+    eventsById.set(event.id, event);
+  }
+
+  return [...eventsById.values()].sort(
+    (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
+  );
+}

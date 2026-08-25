@@ -3,6 +3,7 @@ import { z } from "zod";
 export const REALTIME_SOCKET_EVENTS = {
   eventCreated: "event.created",
   incidentUpdated: "incident.updated",
+  vaultAuditCreated: "vault.audit.created",
 } as const;
 
 export const PROJECT_ROOM_PREFIX = "project";
@@ -18,8 +19,22 @@ export const realtimeIncidentSchema = z.object({
   title: z.string().min(1),
   summary: z.string().nullable(),
   severity: z.enum(["low", "medium", "high", "critical"]),
-  status: z.enum(["open", "resolved"]),
+  status: z.enum(["open", "acknowledged", "resolved"]),
   eventCount: z.number().int().min(1),
+  creationReason: z.string().min(1),
+  acknowledgedAt: z.string().datetime().nullable(),
+  resolutionNote: z.string().nullable(),
+  samples: z.array(
+    z.object({
+      eventId: z.string().min(1),
+      telemetryMessageId: z.string().min(1),
+      source: z.string().min(1),
+      level: z.string().min(1).nullable(),
+      message: z.string().min(1).nullable(),
+      observedAt: z.string().datetime(),
+      receivedAt: z.string().datetime(),
+    }),
+  ),
   firstSeenAt: z.string().datetime(),
   lastSeenAt: z.string().datetime(),
   resolvedAt: z.string().datetime().nullable(),
@@ -32,6 +47,7 @@ export type RealtimeIncident = z.infer<typeof realtimeIncidentSchema>;
 export const realtimeIncidentUpdateActionSchema = z.enum([
   "opened",
   "updated",
+  "acknowledged",
   "resolved",
   "reopened",
 ]);
@@ -75,3 +91,35 @@ export const realtimeEventCreatedMessageSchema = z.object({
 });
 
 export type RealtimeEventCreatedMessage = z.infer<typeof realtimeEventCreatedMessageSchema>;
+
+export const realtimeVaultAuditEventSchema = z.object({
+  id: z.string().min(1),
+  messageId: z.string().min(1),
+  projectId: z.string().min(1),
+  actorType: z.enum(["user", "integration", "service"]),
+  actorId: z.string().min(1),
+  action: z.string().min(1),
+  result: z.enum(["success", "failure"]),
+  environment: z.string().min(1).nullable(),
+  secretKey: z.string().min(1).nullable(),
+  tokenPrefix: z.string().min(1).nullable(),
+  reason: z.string().min(1).nullable(),
+  correlationId: z.string().min(1),
+  occurredAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type RealtimeVaultAuditEvent = z.infer<typeof realtimeVaultAuditEventSchema>;
+
+export const realtimeVaultAuditCreatedMessageSchema = z.object({
+  messageId: z.string().min(1),
+  schemaVersion: z.literal(1),
+  projectId: z.string().min(1),
+  auditEvent: realtimeVaultAuditEventSchema,
+  occurredAt: z.string().datetime(),
+});
+
+export type RealtimeVaultAuditCreatedMessage = z.infer<
+  typeof realtimeVaultAuditCreatedMessageSchema
+>;

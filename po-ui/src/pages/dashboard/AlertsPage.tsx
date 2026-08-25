@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  acknowledgeIncident,
   getIncident,
   listIncidents,
   reopenIncident,
@@ -15,7 +16,7 @@ import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/s
 import { formatRelativeTime, severityClass } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
-const statuses = ["all", "open", "resolved"] as const;
+const statuses = ["all", "open", "acknowledged", "resolved"] as const;
 const severities = ["all", "critical", "high", "medium", "low"] as const;
 
 type StatusFilter = (typeof statuses)[number];
@@ -31,6 +32,7 @@ export function AlertsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [resolutionNote, setResolutionNote] = useState("");
 
   async function loadIncidents(): Promise<void> {
     if (selectedProject === null) {
@@ -119,6 +121,7 @@ export function AlertsPage() {
   const summary = useMemo(
     () => ({
       open: incidents.filter((incident) => incident.status === "open").length,
+      acknowledged: incidents.filter((incident) => incident.status === "acknowledged").length,
       resolved: incidents.filter((incident) => incident.status === "resolved").length,
       critical: incidents.filter((incident) => incident.severity === "critical").length,
       events: incidents.reduce((total, incident) => total + incident.eventCount, 0),
@@ -141,7 +144,7 @@ export function AlertsPage() {
     }
   }
 
-  async function updateIncidentStatus(incident: Incident): Promise<void> {
+  async function acknowledgeSelectedIncident(incident: Incident): Promise<void> {
     if (selectedProject === null) {
       return;
     }
@@ -150,15 +153,51 @@ export function AlertsPage() {
     setMessage(null);
 
     try {
-      const updatedIncident =
-        incident.status === "open"
-          ? await resolveIncident(selectedProject.id, incident.id)
-          : await reopenIncident(selectedProject.id, incident.id);
+      const updatedIncident = await acknowledgeIncident(selectedProject.id, incident.id);
       setIncidents((current) => upsertIncident(current, updatedIncident));
       setSelectedIncident(updatedIncident);
-      setMessage(
-        updatedIncident.status === "resolved" ? "Incident resolved." : "Incident reopened.",
+      setMessage("Incident acknowledged.");
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function resolveSelectedIncident(incident: Incident): Promise<void> {
+    if (selectedProject === null) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setMessage(null);
+
+    try {
+      const updatedIncident = await resolveIncident(
+        selectedProject.id,
+        incident.id,
+        resolutionNote,
       );
+      setIncidents((current) => upsertIncident(current, updatedIncident));
+      setSelectedIncident(updatedIncident);
+      setResolutionNote("");
+      setMessage("Incident resolved.");
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function reopenSelectedIncident(incident: Incident): Promise<void> {
+    if (selectedProject === null) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setMessage(null);
+
+    try {
+      const updatedIncident = await reopenIncident(selectedProject.id, incident.id);
+      setIncidents((current) => upsertIncident(current, updatedIncident));
+      setSelectedIncident(updatedIncident);
+      setMessage("Incident reopened.");
     } catch (requestError) {
       setErrorMessage(getApiErrorMessage(requestError));
     }
@@ -207,9 +246,9 @@ export function AlertsPage() {
 
       <section className="grid gap-3 md:grid-cols-4">
         <Summary label="Open" value={summary.open} />
+        <Summary label="Acknowledged" value={summary.acknowledged} />
         <Summary label="Resolved" value={summary.resolved} />
         <Summary label="Critical" value={summary.critical} />
-        <Summary label="Linked events" value={summary.events} />
       </section>
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_10rem_10rem]">
@@ -294,11 +333,7 @@ export function AlertsPage() {
                   >
                     {incident.severity}
                   </span>
-                  <span
-                    className={incident.status === "open" ? openStatusClass : resolvedStatusClass}
-                  >
-                    {incident.status}
-                  </span>
+                  <span className={statusClass(incident.status)}>{incident.status}</span>
                   <span className="text-right font-mono text-sm text-slate-700">
                     {incident.eventCount}
                   </span>
@@ -315,7 +350,11 @@ export function AlertsPage() {
             <IncidentDetail
               incident={selectedIncident}
               onCopy={() => void copySummary(selectedIncident)}
-              onToggleStatus={() => void updateIncidentStatus(selectedIncident)}
+              onAcknowledge={() => void acknowledgeSelectedIncident(selectedIncident)}
+              onResolve={() => void resolveSelectedIncident(selectedIncident)}
+              onReopen={() => void reopenSelectedIncident(selectedIncident)}
+              resolutionNote={resolutionNote}
+              setResolutionNote={setResolutionNote}
             />
           )}
         </aside>
@@ -326,12 +365,20 @@ export function AlertsPage() {
 
 function IncidentDetail({
   incident,
+  onAcknowledge,
   onCopy,
-  onToggleStatus,
+  onReopen,
+  onResolve,
+  resolutionNote,
+  setResolutionNote,
 }: {
   readonly incident: Incident;
+  readonly onAcknowledge: () => void;
   readonly onCopy: () => void;
-  readonly onToggleStatus: () => void;
+  readonly onReopen: () => void;
+  readonly onResolve: () => void;
+  readonly resolutionNote: string;
+  readonly setResolutionNote: (value: string) => void;
 }) {
   return (
     <div className="grid gap-5">
@@ -358,15 +405,32 @@ function IncidentDetail({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button className="w-full" onClick={onToggleStatus} type="button" variant="primary">
-          {incident.status === "open" ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
+      <div className="grid gap-2">
+        {incident.status === "resolved" ? (
+          <Button className="w-full" onClick={onReopen} type="button" variant="primary">
             <RotateCcw className="h-4 w-4" />
-          )}
-          {incident.status === "open" ? "Resolve incident" : "Reopen incident"}
-        </Button>
+            Reopen incident
+          </Button>
+        ) : (
+          <>
+            {incident.status === "open" ? (
+              <Button className="w-full" onClick={onAcknowledge} type="button" variant="outline">
+                <CheckCircle2 className="h-4 w-4" />
+                Acknowledge incident
+              </Button>
+            ) : null}
+            <textarea
+              className="min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+              onChange={(event) => setResolutionNote(event.target.value)}
+              placeholder="Resolution note"
+              value={resolutionNote}
+            />
+            <Button className="w-full" onClick={onResolve} type="button" variant="primary">
+              <CheckCircle2 className="h-4 w-4" />
+              Resolve incident
+            </Button>
+          </>
+        )}
         <Button className="w-full" onClick={onCopy} type="button" variant="outline">
           <Clipboard className="h-4 w-4" />
           Copy summary
@@ -377,8 +441,17 @@ function IncidentDetail({
         <Detail label="Status" value={incident.status} />
         <Detail label="Events" value={String(incident.eventCount)} />
         <Detail label="Fingerprint" value={incident.fingerprint} mono />
+        <Detail label="Rule" value={incident.creationReason} />
         <Detail label="First seen" value={new Date(incident.firstSeenAt).toLocaleString()} />
         <Detail label="Last seen" value={new Date(incident.lastSeenAt).toLocaleString()} />
+        <Detail
+          label="Acknowledged"
+          value={
+            incident.acknowledgedAt === null
+              ? "-"
+              : new Date(incident.acknowledgedAt).toLocaleString()
+          }
+        />
         <Detail
           label="Resolved"
           value={
@@ -391,6 +464,9 @@ function IncidentDetail({
         <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">Timeline</h3>
         <div className="mt-3 grid gap-3">
           <TimelineItem label="Opened" value={incident.firstSeenAt} />
+          {incident.acknowledgedAt !== null ? (
+            <TimelineItem label="Acknowledged" value={incident.acknowledgedAt} />
+          ) : null}
           <TimelineItem label="Last matched" value={incident.lastSeenAt} />
           {incident.resolvedAt !== null ? (
             <TimelineItem label="Resolved" value={incident.resolvedAt} />
@@ -400,13 +476,40 @@ function IncidentDetail({
 
       <section>
         <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-          Rule context
+          Linked event samples
         </h3>
-        <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-          This incident was created from repeated error telemetry with the same fingerprint. The
-          current backend deduplicates open incidents by project and fingerprint.
-        </p>
+        <div className="mt-3 grid gap-2">
+          {incident.samples.length === 0 ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+              No samples attached yet.
+            </p>
+          ) : (
+            incident.samples.map((sample) => (
+              <article
+                className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm"
+                key={`${sample.eventId}:${sample.receivedAt}`}
+              >
+                <p className="font-medium text-slate-900">{sample.message ?? sample.eventId}</p>
+                <p className="mt-1 font-mono text-xs text-slate-500">
+                  {sample.source} / {sample.level ?? "-"} /{" "}
+                  {new Date(sample.observedAt).toLocaleString()}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
       </section>
+
+      {incident.resolutionNote !== null ? (
+        <section>
+          <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+            Resolution note
+          </h3>
+          <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+            {incident.resolutionNote}
+          </p>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -483,3 +586,14 @@ const openStatusClass =
 
 const resolvedStatusClass =
   "w-fit rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium capitalize text-emerald-700";
+
+const acknowledgedStatusClass =
+  "w-fit rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium capitalize text-amber-700";
+
+function statusClass(status: Incident["status"]): string {
+  if (status === "open") {
+    return openStatusClass;
+  }
+
+  return status === "acknowledged" ? acknowledgedStatusClass : resolvedStatusClass;
+}

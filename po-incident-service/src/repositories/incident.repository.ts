@@ -1,6 +1,7 @@
 import {
   IncidentModel,
   type IncidentDocument,
+  type IncidentEventSample,
   type IncidentRecord,
   type IncidentStatus,
 } from "../models/incident.model.js";
@@ -11,6 +12,8 @@ export type CreateIncidentRecordInput = {
   readonly title: string;
   readonly summary: string | null;
   readonly severity: IncidentRecord["severity"];
+  readonly creationReason: string;
+  readonly sample: IncidentEventSample;
   readonly firstSeenAt: Date;
   readonly lastSeenAt: Date;
 };
@@ -35,6 +38,12 @@ export interface IncidentRepository {
     projectId: string,
     incidentId: string,
     resolvedAt: Date,
+    resolutionNote: string | null,
+  ): Promise<SafeIncidentRecord | null>;
+  acknowledge(
+    projectId: string,
+    incidentId: string,
+    acknowledgedAt: Date,
   ): Promise<SafeIncidentRecord | null>;
   reopen(projectId: string, incidentId: string): Promise<SafeIncidentRecord | null>;
 }
@@ -51,7 +60,7 @@ export class MongoIncidentRepository implements IncidentRepository {
         {
           projectId: input.projectId,
           fingerprint: input.fingerprint,
-          status: "open",
+          status: { $in: ["open", "acknowledged"] },
         },
         {
           $set: {
@@ -63,10 +72,14 @@ export class MongoIncidentRepository implements IncidentRepository {
           $setOnInsert: {
             projectId: input.projectId,
             fingerprint: input.fingerprint,
+            creationReason: input.creationReason,
             firstSeenAt: input.firstSeenAt,
             resolvedAt: null,
+            acknowledgedAt: null,
+            resolutionNote: null,
           },
           $inc: { eventCount: 1 },
+          $push: { samples: { $each: [input.sample], $slice: -8 } },
         },
         { new: true, setDefaultsOnInsert: true, upsert: true },
       ).exec();
@@ -82,7 +95,7 @@ export class MongoIncidentRepository implements IncidentRepository {
           {
             projectId: input.projectId,
             fingerprint: input.fingerprint,
-            status: "open",
+            status: { $in: ["open", "acknowledged"] },
           },
           {
             $set: {
@@ -92,6 +105,7 @@ export class MongoIncidentRepository implements IncidentRepository {
               lastSeenAt: input.lastSeenAt,
             },
             $inc: { eventCount: 1 },
+            $push: { samples: { $each: [input.sample], $slice: -8 } },
           },
           { new: true },
         ).exec();
@@ -123,10 +137,25 @@ export class MongoIncidentRepository implements IncidentRepository {
     projectId: string,
     incidentId: string,
     resolvedAt: Date,
+    resolutionNote: string | null,
   ): Promise<SafeIncidentRecord | null> {
     const incident = await IncidentModel.findOneAndUpdate(
       { _id: incidentId, projectId },
-      { $set: { status: "resolved", resolvedAt } },
+      { $set: { status: "resolved", resolvedAt, resolutionNote } },
+      { new: true },
+    ).exec();
+
+    return incident === null ? null : toSafeIncidentRecord(incident);
+  }
+
+  async acknowledge(
+    projectId: string,
+    incidentId: string,
+    acknowledgedAt: Date,
+  ): Promise<SafeIncidentRecord | null> {
+    const incident = await IncidentModel.findOneAndUpdate(
+      { _id: incidentId, projectId, status: "open" },
+      { $set: { status: "acknowledged", acknowledgedAt } },
       { new: true },
     ).exec();
 
@@ -136,7 +165,7 @@ export class MongoIncidentRepository implements IncidentRepository {
   async reopen(projectId: string, incidentId: string): Promise<SafeIncidentRecord | null> {
     const incident = await IncidentModel.findOneAndUpdate(
       { _id: incidentId, projectId },
-      { $set: { status: "open", resolvedAt: null } },
+      { $set: { status: "open", resolvedAt: null, acknowledgedAt: null, resolutionNote: null } },
       { new: true },
     ).exec();
 
@@ -154,6 +183,10 @@ function toSafeIncidentRecord(incident: IncidentDocument): SafeIncidentRecord {
     severity: incident.severity,
     status: incident.status,
     eventCount: incident.eventCount,
+    creationReason: incident.creationReason,
+    acknowledgedAt: incident.acknowledgedAt,
+    resolutionNote: incident.resolutionNote,
+    samples: incident.samples,
     firstSeenAt: incident.firstSeenAt,
     lastSeenAt: incident.lastSeenAt,
     resolvedAt: incident.resolvedAt,

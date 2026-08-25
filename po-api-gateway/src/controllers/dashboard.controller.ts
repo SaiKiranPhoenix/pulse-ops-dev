@@ -69,6 +69,13 @@ export class DashboardController {
 
     response.status(200).json(successResponse({ metrics }, String(response.locals.requestId)));
   };
+
+  traceSummary = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const traces = await this.dashboard.traceSummary(query.projectId, toAnalyticsOptions(query));
+
+    response.status(200).json(successResponse({ traces }, String(response.locals.requestId)));
+  };
 }
 
 function toAnalyticsOptions(query: DashboardAnalyticsQuery) {

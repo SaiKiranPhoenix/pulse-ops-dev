@@ -152,11 +152,11 @@ class InMemoryTokenRepository implements VaultTokenRepository {
 
 class PlainTextCryptoService implements SecretCryptoService {
   async encrypt(value: string): Promise<EncryptedSecretValue> {
-    return { ciphertext: value, iv: "iv", tag: "tag", salt: "salt" };
+    return { ciphertext: `encrypted:${value}`, iv: "iv", tag: "tag", salt: "salt" };
   }
 
   async decrypt(value: EncryptedSecretValue): Promise<string> {
-    return value.ciphertext;
+    return value.ciphertext.replace(/^encrypted:/, "");
   }
 
   verifyVaultPassword(value: string): boolean {
@@ -165,6 +165,22 @@ class PlainTextCryptoService implements SecretCryptoService {
 }
 
 describe("VaultService", () => {
+  it("stores encrypted values without returning raw secret material in metadata", async () => {
+    const secrets = new InMemorySecretRepository();
+    const service = createService(secrets);
+
+    const metadata = await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "DATABASE_URL",
+      value: "postgres://raw-secret",
+    });
+
+    expect(metadata).not.toHaveProperty("value");
+    expect(secrets.secrets[0]?.encryptedValue.ciphertext).toBe("encrypted:postgres://raw-secret");
+    expect(secrets.secrets[0]?.encryptedValue.ciphertext).not.toBe("postgres://raw-secret");
+  });
+
   it("requires the vault password before revealing a secret", async () => {
     const service = createService();
     await service.create({
@@ -219,13 +235,20 @@ describe("VaultService", () => {
   });
 });
 
-function createService(): VaultService {
+function createServiceWithRepositories(
+  secrets: InMemorySecretRepository,
+  tokens: InMemoryTokenRepository,
+): VaultService {
   return new VaultService(
-    new InMemorySecretRepository(),
-    new InMemoryTokenRepository(),
+    secrets,
+    tokens,
     new PlainTextCryptoService(),
     new VaultTokenHasher("pepper-value"),
   );
+}
+
+function createService(secrets = new InMemorySecretRepository()): VaultService {
+  return createServiceWithRepositories(secrets, new InMemoryTokenRepository());
 }
 
 function withoutValue(secret: VaultSecretWithEncryptedValueRecord): SafeVaultSecretRecord {

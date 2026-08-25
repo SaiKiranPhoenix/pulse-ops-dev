@@ -5,6 +5,7 @@ import { connectMongo, disconnectMongo } from "./config/database.js";
 import { loadEnv, parseAllowedOrigins } from "./config/env.js";
 import { RealtimeIncidentConsumerService } from "./events/consumers/realtime-incident.consumer.js";
 import { RealtimeTelemetryEventConsumerService } from "./events/consumers/realtime-event.consumer.js";
+import { RealtimeVaultAuditConsumerService } from "./events/consumers/realtime-vault-audit.consumer.js";
 import { MongoProjectAuthorizationRepository } from "./repositories/project-authorization.repository.js";
 
 const logger = createLogger({ service: SERVICE_NAME });
@@ -31,9 +32,17 @@ const telemetryEventConsumer = new RealtimeTelemetryEventConsumerService(
   },
   gateway.realtimeEvents,
 );
+const vaultAuditConsumer = new RealtimeVaultAuditConsumerService(
+  {
+    rabbitMqUrl: env.RABBITMQ_URL,
+    prefetch: env.REALTIME_WORKER_PREFETCH,
+  },
+  gateway.realtimeEvents,
+);
 
 await incidentConsumer.start();
 await telemetryEventConsumer.start();
+await vaultAuditConsumer.start();
 
 gateway.httpServer.listen(env.PORT, () => {
   logger.info("Realtime gateway started", {
@@ -47,6 +56,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   logger.info("Realtime gateway shutting down", { signal });
   await incidentConsumer.close();
   await telemetryEventConsumer.close();
+  await vaultAuditConsumer.close();
   await gateway.close();
   await disconnectMongo();
   process.exit(0);

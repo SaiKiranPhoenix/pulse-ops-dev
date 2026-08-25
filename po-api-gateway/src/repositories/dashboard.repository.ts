@@ -49,8 +49,20 @@ export type DashboardIncident = {
   readonly title: string;
   readonly summary: string | null;
   readonly severity: "low" | "medium" | "high" | "critical";
-  readonly status: "open" | "resolved";
+  readonly status: "open" | "acknowledged" | "resolved";
   readonly eventCount: number;
+  readonly creationReason: string;
+  readonly acknowledgedAt: Date | null;
+  readonly resolutionNote: string | null;
+  readonly samples: Array<{
+    readonly eventId: string;
+    readonly telemetryMessageId: string;
+    readonly source: string;
+    readonly level: string | null;
+    readonly message: string | null;
+    readonly observedAt: Date;
+    readonly receivedAt: Date;
+  }>;
   readonly firstSeenAt: Date;
   readonly lastSeenAt: Date;
   readonly resolvedAt: Date | null;
@@ -131,6 +143,66 @@ export type DashboardMetricSummary = {
   readonly metricSamples: DashboardMetricSample[];
 };
 
+export type DashboardTraceSpan = {
+  readonly id: string;
+  readonly eventId: string;
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId: string | null;
+  readonly service: string;
+  readonly operation: string;
+  readonly resource: string | null;
+  readonly eventType: DashboardEvent["type"];
+  readonly level: string | null;
+  readonly startedAt: Date;
+  readonly durationMs: number;
+  readonly status: "ok" | "error";
+};
+
+export type DashboardTrace = {
+  readonly traceId: string;
+  readonly rootService: string;
+  readonly startedAt: Date;
+  readonly endedAt: Date;
+  readonly durationMs: number;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly slowSpanCount: number;
+  readonly isSlow: boolean;
+  readonly services: string[];
+  readonly spans: DashboardTraceSpan[];
+};
+
+export type DashboardTraceEndpoint = {
+  readonly service: string;
+  readonly operation: string;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly slowSpanCount: number;
+  readonly avgDurationMs: number;
+  readonly p95DurationMs: number;
+};
+
+export type DashboardTraceEdge = {
+  readonly from: string;
+  readonly to: string;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly avgDurationMs: number;
+};
+
+export type DashboardTraceSummary = {
+  readonly totalTraces: number;
+  readonly totalSpans: number;
+  readonly errorTraces: number;
+  readonly slowTraces: number;
+  readonly serviceCount: number;
+  readonly slowThresholdMs: number;
+  readonly traces: DashboardTrace[];
+  readonly endpoints: DashboardTraceEndpoint[];
+  readonly serviceMap: DashboardTraceEdge[];
+};
+
 export interface DashboardRepository {
   countEvents(projectId: string): Promise<number>;
   countOpenIncidents(projectId: string): Promise<number>;
@@ -150,6 +222,10 @@ export interface DashboardRepository {
     projectId: string,
     options: DashboardAnalyticsOptions,
   ): Promise<DashboardMetricSummary>;
+  traceSummary(
+    projectId: string,
+    options: DashboardAnalyticsOptions,
+  ): Promise<DashboardTraceSummary>;
 }
 
 export class MongoDashboardRepository implements DashboardRepository {
@@ -158,7 +234,10 @@ export class MongoDashboardRepository implements DashboardRepository {
   }
 
   async countOpenIncidents(projectId: string): Promise<number> {
-    return DashboardIncidentModel.countDocuments({ projectId, status: "open" }).exec();
+    return DashboardIncidentModel.countDocuments({
+      projectId,
+      status: { $in: ["open", "acknowledged"] },
+    }).exec();
   }
 
   async latestEvents(projectId: string): Promise<DashboardEvent[]> {
@@ -310,6 +389,24 @@ export class MongoDashboardRepository implements DashboardRepository {
 
     return buildMetricSummary(events);
   }
+
+  async traceSummary(
+    projectId: string,
+    options: DashboardAnalyticsOptions,
+  ): Promise<DashboardTraceSummary> {
+    const events = (
+      await DashboardEventModel.find({
+        ...createEventQuery(projectId, options),
+        "attributes.traceId": { $type: "string" },
+        "attributes.spanId": { $type: "string" },
+      })
+        .sort({ observedAt: 1, receivedAt: 1 })
+        .limit(2_000)
+        .exec()
+    ).map(toDashboardEvent);
+
+    return buildTraceSummary(events);
+  }
 }
 
 function toDashboardEvent(event: DashboardEventDocument): DashboardEvent {
@@ -378,6 +475,18 @@ function toDashboardIncident(incident: DashboardIncidentDocument): DashboardInci
     severity: incident.severity,
     status: incident.status,
     eventCount: incident.eventCount,
+    creationReason: incident.creationReason ?? "Repeated error telemetry matched by fingerprint",
+    acknowledgedAt: incident.acknowledgedAt ?? null,
+    resolutionNote: incident.resolutionNote ?? null,
+    samples: (incident.samples ?? []).map((sample) => ({
+      eventId: sample.eventId,
+      telemetryMessageId: sample.telemetryMessageId,
+      source: sample.source,
+      level: sample.level,
+      message: sample.message,
+      observedAt: sample.observedAt,
+      receivedAt: sample.receivedAt,
+    })),
     firstSeenAt: incident.firstSeenAt,
     lastSeenAt: incident.lastSeenAt,
     resolvedAt: incident.resolvedAt,
@@ -574,4 +683,178 @@ function percentile(values: readonly number[], percentileValue: number): number 
   );
   const value = sorted[index];
   return value === undefined ? null : Number(value.toFixed(2));
+}
+
+const slowTraceThresholdMs = 500;
+const slowSpanThresholdMs = 250;
+
+function buildTraceSummary(events: DashboardEvent[]): DashboardTraceSummary {
+  const spans = events.map(toTraceSpan).filter((span): span is DashboardTraceSpan => span !== null);
+  const tracesById = groupBy(spans, (span) => span.traceId);
+  const traces = [...tracesById.entries()]
+    .map(([traceId, traceSpans]) => toTrace(traceId, traceSpans))
+    .sort((left, right) => right.startedAt.getTime() - left.startedAt.getTime())
+    .slice(0, 100);
+  const serviceNames = new Set(spans.map((span) => span.service));
+
+  return {
+    totalTraces: traces.length,
+    totalSpans: spans.length,
+    errorTraces: traces.filter((trace) => trace.errorCount > 0).length,
+    slowTraces: traces.filter((trace) => trace.isSlow).length,
+    serviceCount: serviceNames.size,
+    slowThresholdMs: slowTraceThresholdMs,
+    traces,
+    endpoints: buildTraceEndpoints(spans),
+    serviceMap: buildTraceServiceMap(spans),
+  };
+}
+
+function toTrace(traceId: string, spans: DashboardTraceSpan[]): DashboardTrace {
+  const sortedSpans = spans
+    .slice()
+    .sort((left, right) => left.startedAt.getTime() - right.startedAt.getTime());
+  const startedAt = sortedSpans[0]?.startedAt ?? new Date();
+  const endedAt = sortedSpans.reduce(
+    (latest, span) =>
+      new Date(Math.max(latest.getTime(), span.startedAt.getTime() + span.durationMs)),
+    startedAt,
+  );
+  const durationMs = Math.max(1, endedAt.getTime() - startedAt.getTime());
+  const rootSpan = sortedSpans.find((span) => span.parentSpanId === null) ?? sortedSpans[0] ?? null;
+
+  return {
+    traceId,
+    rootService: rootSpan?.service ?? "unknown",
+    startedAt,
+    endedAt,
+    durationMs,
+    spanCount: sortedSpans.length,
+    errorCount: sortedSpans.filter((span) => span.status === "error").length,
+    slowSpanCount: sortedSpans.filter((span) => span.durationMs >= slowSpanThresholdMs).length,
+    isSlow: durationMs >= slowTraceThresholdMs,
+    services: [...new Set(sortedSpans.map((span) => span.service))],
+    spans: sortedSpans,
+  };
+}
+
+function toTraceSpan(event: DashboardEvent): DashboardTraceSpan | null {
+  const traceId = readStringAttribute(event.attributes, "traceId");
+  const spanId = readStringAttribute(event.attributes, "spanId");
+
+  if (traceId === null || spanId === null) {
+    return null;
+  }
+
+  return {
+    id: `${event.id}:${spanId}`,
+    eventId: event.id,
+    traceId,
+    spanId,
+    parentSpanId: readStringAttribute(event.attributes, "parentSpanId"),
+    service: event.source,
+    operation:
+      readStringAttribute(event.attributes, "operation") ??
+      event.message ??
+      event.name ??
+      event.fingerprint,
+    resource: readStringAttribute(event.attributes, "resource"),
+    eventType: event.type,
+    level: event.level,
+    startedAt: event.observedAt,
+    durationMs: Math.max(
+      1,
+      readNumberAttribute(event.attributes, "durationMs") ?? event.value ?? 1,
+    ),
+    status: event.type === "error" || event.level === "error" ? "error" : "ok",
+  };
+}
+
+function buildTraceEndpoints(spans: DashboardTraceSpan[]): DashboardTraceEndpoint[] {
+  return [...groupBy(spans, (span) => `${span.service}\u0000${span.operation}`).entries()]
+    .map(([key, groupedSpans]) => {
+      const [service = "unknown", operation = "unknown"] = key.split("\u0000");
+      const durations = groupedSpans.map((span) => span.durationMs);
+
+      return {
+        service,
+        operation,
+        spanCount: groupedSpans.length,
+        errorCount: groupedSpans.filter((span) => span.status === "error").length,
+        slowSpanCount: groupedSpans.filter((span) => span.durationMs >= slowSpanThresholdMs).length,
+        avgDurationMs: average(durations) ?? 0,
+        p95DurationMs: percentile(durations, 95) ?? 0,
+      };
+    })
+    .sort((left, right) => right.p95DurationMs - left.p95DurationMs)
+    .slice(0, 20);
+}
+
+function buildTraceServiceMap(spans: DashboardTraceSpan[]): DashboardTraceEdge[] {
+  const spansByTrace = groupBy(spans, (span) => span.traceId);
+  const edges = new Map<string, { count: number; errors: number; durations: number[] }>();
+
+  for (const traceSpans of spansByTrace.values()) {
+    const bySpanId = new Map(traceSpans.map((span) => [span.spanId, span]));
+
+    for (const span of traceSpans) {
+      if (span.parentSpanId === null) {
+        continue;
+      }
+
+      const parent = bySpanId.get(span.parentSpanId);
+
+      if (parent === undefined || parent.service === span.service) {
+        continue;
+      }
+
+      const key = `${parent.service}\u0000${span.service}`;
+      const edge = edges.get(key) ?? { count: 0, errors: 0, durations: [] };
+      edge.count += 1;
+      edge.errors += span.status === "error" ? 1 : 0;
+      edge.durations.push(span.durationMs);
+      edges.set(key, edge);
+    }
+  }
+
+  return [...edges.entries()]
+    .map(([key, edge]) => {
+      const [from = "unknown", to = "unknown"] = key.split("\u0000");
+
+      return {
+        from,
+        to,
+        spanCount: edge.count,
+        errorCount: edge.errors,
+        avgDurationMs: average(edge.durations) ?? 0,
+      };
+    })
+    .sort((left, right) => right.spanCount - left.spanCount)
+    .slice(0, 30);
+}
+
+function readStringAttribute(attributes: Record<string, unknown>, key: string): string | null {
+  const value = attributes[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readNumberAttribute(attributes: Record<string, unknown>, key: string): number | null {
+  const value = attributes[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function groupBy<TValue>(
+  values: readonly TValue[],
+  keyForValue: (value: TValue) => string,
+): Map<string, TValue[]> {
+  const grouped = new Map<string, TValue[]>();
+
+  for (const value of values) {
+    const key = keyForValue(value);
+    const group = grouped.get(key) ?? [];
+    group.push(value);
+    grouped.set(key, group);
+  }
+
+  return grouped;
 }

@@ -22,8 +22,20 @@ export type DashboardIncidentRecord = {
   title: string;
   summary: string | null;
   severity: "low" | "medium" | "high" | "critical";
-  status: "open" | "resolved";
+  status: "open" | "acknowledged" | "resolved";
   eventCount: number;
+  creationReason: string;
+  acknowledgedAt: Date | null;
+  resolutionNote: string | null;
+  samples: Array<{
+    eventId: string;
+    telemetryMessageId: string;
+    source: string;
+    level: string | null;
+    message: string | null;
+    observedAt: Date;
+    receivedAt: Date;
+  }>;
   firstSeenAt: Date;
   lastSeenAt: Date;
   resolvedAt: Date | null;
@@ -72,6 +84,19 @@ const dashboardEventSchema = new Schema<DashboardEventRecord>(
   { collection: "ingested_events", versionKey: false },
 );
 
+const dashboardIncidentSampleSchema = new Schema<DashboardIncidentRecord["samples"][number]>(
+  {
+    eventId: String,
+    telemetryMessageId: String,
+    source: String,
+    level: String,
+    message: String,
+    observedAt: Date,
+    receivedAt: Date,
+  },
+  { _id: false },
+);
+
 const dashboardIncidentSchema = new Schema<DashboardIncidentRecord>(
   {
     projectId: String,
@@ -81,6 +106,10 @@ const dashboardIncidentSchema = new Schema<DashboardIncidentRecord>(
     severity: String,
     status: String,
     eventCount: Number,
+    creationReason: String,
+    acknowledgedAt: Date,
+    resolutionNote: String,
+    samples: { type: [dashboardIncidentSampleSchema], default: [] },
     firstSeenAt: Date,
     lastSeenAt: Date,
     resolvedAt: Date,

@@ -60,6 +60,11 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     asyncHandler(dependencies.dashboardController.metricSummary),
   );
   router.get(
+    "/dashboard/traces",
+    validateQuery(dashboardAnalyticsQuerySchema),
+    asyncHandler(dependencies.dashboardController.traceSummary),
+  );
+  router.get(
     "/dashboard/incidents",
     validateQuery(projectQuerySchema),
     asyncHandler(dependencies.dashboardController.incidents),

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   createSecret,
@@ -30,6 +31,12 @@ import {
   type VaultToken,
 } from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import {
+  createPulseOpsSocket,
+  joinProjectRoom,
+  leaveProjectRoom,
+  type RealtimeVaultAuditCreated,
+} from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
 import {
   dashboardEnvironments,
@@ -38,6 +45,7 @@ import {
 } from "./DashboardLayout";
 
 const defaultTokenScope = "secrets:read";
+const tokenScopeOptions = ["secrets:read", "secrets:list"] as const;
 
 type SecretForm = {
   readonly environment: DashboardEnvironment;
@@ -51,6 +59,7 @@ export function VaultPage() {
   const [tokens, setTokens] = useState<VaultToken[]>([]);
   const [auditEvents, setAuditEvents] = useState<VaultAuditEvent[]>([]);
   const [activeSecret, setActiveSecret] = useState<VaultSecretMetadata | null>(null);
+  const [pendingDeleteSecret, setPendingDeleteSecret] = useState<VaultSecretMetadata | null>(null);
   const [revealedSecret, setRevealedSecret] = useState<RevealedVaultSecret | null>(null);
   const [rawToken, setRawToken] = useState<string | null>(null);
   const [integrationFetch, setIntegrationFetch] = useState<RevealedVaultSecret | null>(null);
@@ -60,9 +69,12 @@ export function VaultPage() {
     value: "",
   });
   const [vaultPassword, setVaultPassword] = useState("");
+  const [unlockForm, setUnlockForm] = useState({ password: "", confirmPassword: "" });
+  const [vaultPasswordSession, setVaultPasswordSession] = useState<string | null>(null);
   const [tokenForm, setTokenForm] = useState({
     name: "production-reader",
     environment: selectedEnvironment,
+    scopes: [defaultTokenScope],
     expiresAt: "",
   });
   const [fetchForm, setFetchForm] = useState({
@@ -109,6 +121,31 @@ export function VaultPage() {
     setActiveSecret(null);
     void loadVault();
   }, [selectedProject?.id, selectedEnvironment]);
+
+  useEffect(() => {
+    if (selectedProject === null) {
+      return;
+    }
+
+    const socket = createPulseOpsSocket();
+
+    if (socket === null) {
+      return;
+    }
+
+    socket.on("connect", () => {
+      void joinProjectRoom(socket, selectedProject.id);
+    });
+    socket.on("vault.audit.created", (update: RealtimeVaultAuditCreated) => {
+      setAuditEvents((current) => upsertAuditEvent(current, update.auditEvent).slice(0, 100));
+    });
+    socket.connect();
+
+    return () => {
+      leaveProjectRoom(socket, selectedProject.id);
+      socket.disconnect();
+    };
+  }, [selectedProject]);
 
   const vaultSummary = useMemo(
     () => ({
@@ -175,7 +212,9 @@ export function VaultPage() {
       return;
     }
 
-    if (vaultPassword.length === 0) {
+    const password = vaultPassword.length > 0 ? vaultPassword : (vaultPasswordSession ?? "");
+
+    if (password.length === 0) {
       setErrorMessage("Vault password is required to reveal secrets.");
       return;
     }
@@ -189,7 +228,7 @@ export function VaultPage() {
           activeSecret.projectId,
           activeSecret.environment,
           activeSecret.key,
-          vaultPassword,
+          password,
         ),
       );
       await loadVault();
@@ -206,6 +245,7 @@ export function VaultPage() {
       await deleteSecret(secret.projectId, secret.environment, secret.key);
       setMessage("Secret deleted.");
       await loadVault();
+      setPendingDeleteSecret(null);
     } catch (requestError) {
       setErrorMessage(getApiErrorMessage(requestError));
     }
@@ -226,7 +266,7 @@ export function VaultPage() {
       const created = await createVaultToken({
         projectId: selectedProject.id,
         name: tokenForm.name,
-        scopes: [defaultTokenScope],
+        scopes: tokenForm.scopes,
         environments: [tokenForm.environment],
         expiresAt:
           tokenForm.expiresAt.trim().length === 0
@@ -286,6 +326,21 @@ export function VaultPage() {
     setVaultPassword("");
   }
 
+  function unlockVault(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    setMessage(null);
+    setErrorMessage(null);
+
+    if (unlockForm.password.length === 0 || unlockForm.password !== unlockForm.confirmPassword) {
+      setErrorMessage("Vault password confirmation does not match.");
+      return;
+    }
+
+    setVaultPasswordSession(unlockForm.password);
+    setUnlockForm({ password: "", confirmPassword: "" });
+    setMessage("Vault unlocked for this browser session.");
+  }
+
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -323,6 +378,47 @@ export function VaultPage() {
         <Summary label="Reveal audits" value={vaultSummary.reveals} />
         <Summary label="Audit failures" value={vaultSummary.failures} />
       </section>
+
+      <form
+        className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_1fr_auto]"
+        onSubmit={unlockVault}
+      >
+        <Input
+          onChange={(event) =>
+            setUnlockForm((current) => ({ ...current, password: event.target.value }))
+          }
+          placeholder="vault password"
+          type="password"
+          value={unlockForm.password}
+        />
+        <Input
+          onChange={(event) =>
+            setUnlockForm((current) => ({ ...current, confirmPassword: event.target.value }))
+          }
+          placeholder="confirm vault password"
+          type="password"
+          value={unlockForm.confirmPassword}
+        />
+        <div className="flex gap-2">
+          <Button className="w-auto" type="submit">
+            <LockKeyhole className="h-4 w-4" />
+            {vaultPasswordSession === null ? "Unlock" : "Update unlock"}
+          </Button>
+          <Button
+            className="w-auto"
+            disabled={vaultPasswordSession === null}
+            onClick={() => {
+              setVaultPasswordSession(null);
+              setVaultPassword("");
+              setRevealedSecret(null);
+            }}
+            type="button"
+            variant="outline"
+          >
+            <EyeOff className="h-4 w-4" />
+          </Button>
+        </div>
+      </form>
 
       <section className="flex flex-wrap gap-2">
         {dashboardEnvironments.map((environment) => (
@@ -449,7 +545,7 @@ export function VaultPage() {
                     </Button>
                     <Button
                       className="h-9 w-9 px-0"
-                      onClick={() => void remove(secret)}
+                      onClick={() => setPendingDeleteSecret(secret)}
                       type="button"
                       variant="outline"
                     >
@@ -501,6 +597,31 @@ export function VaultPage() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="text-sm font-medium">
+              Token scopes
+              <div className="mt-2 grid gap-2">
+                {tokenScopeOptions.map((scope) => (
+                  <label
+                    className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    key={scope}
+                  >
+                    <input
+                      checked={tokenForm.scopes.includes(scope)}
+                      onChange={(event) =>
+                        setTokenForm((current) => ({
+                          ...current,
+                          scopes: event.target.checked
+                            ? [...new Set([...current.scopes, scope])]
+                            : current.scopes.filter((selectedScope) => selectedScope !== scope),
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    <span className="font-mono text-xs">{scope}</span>
+                  </label>
+                ))}
+              </div>
             </label>
             <label className="text-sm font-medium">
               Expires at
@@ -703,6 +824,23 @@ export function VaultPage() {
           revealedSecret={revealedSecret}
         />
       ) : null}
+
+      <ConfirmDialog
+        confirmLabel="Delete secret"
+        description={
+          pendingDeleteSecret === null
+            ? ""
+            : `This soft-deletes ${pendingDeleteSecret.environment}/${pendingDeleteSecret.key}.`
+        }
+        isOpen={pendingDeleteSecret !== null}
+        onCancel={() => setPendingDeleteSecret(null)}
+        onConfirm={() => {
+          if (pendingDeleteSecret !== null) {
+            void remove(pendingDeleteSecret);
+          }
+        }}
+        title="Delete secret?"
+      />
     </main>
   );
 }
@@ -820,3 +958,15 @@ const activeClass =
 
 const revokedClass =
   "w-fit rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium capitalize text-red-700";
+
+function upsertAuditEvent(events: VaultAuditEvent[], incoming: VaultAuditEvent): VaultAuditEvent[] {
+  const eventsById = new Map<string, VaultAuditEvent>();
+
+  for (const event of [incoming, ...events]) {
+    eventsById.set(event.id, event);
+  }
+
+  return [...eventsById.values()].sort(
+    (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
+  );
+}

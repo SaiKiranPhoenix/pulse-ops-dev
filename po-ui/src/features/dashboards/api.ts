@@ -35,13 +35,27 @@ export type DashboardIncident = {
   readonly title: string;
   readonly summary?: string | null;
   readonly severity: "low" | "medium" | "high" | "critical";
-  readonly status: "open" | "resolved";
+  readonly status: "open" | "acknowledged" | "resolved";
   readonly eventCount: number;
+  readonly creationReason?: string;
+  readonly acknowledgedAt?: string | null;
+  readonly resolutionNote?: string | null;
+  readonly samples?: IncidentEventSample[];
   readonly firstSeenAt?: string;
   readonly lastSeenAt: string;
   readonly resolvedAt?: string | null;
   readonly createdAt?: string;
   readonly updatedAt?: string;
+};
+
+export type IncidentEventSample = {
+  readonly eventId: string;
+  readonly telemetryMessageId: string;
+  readonly source: string;
+  readonly level: string | null;
+  readonly message: string | null;
+  readonly observedAt: string;
+  readonly receivedAt: string;
 };
 
 export type WorkerHealth = {
@@ -77,6 +91,8 @@ export type QueueStatus = {
   readonly status: "available" | "missing";
   readonly messageCount: number | null;
   readonly consumerCount: number | null;
+  readonly health: "clear" | "backlog" | "blocked" | "missing";
+  readonly backlogWarning: string | null;
 };
 
 export type QueueStatusResponse = {
@@ -87,7 +103,7 @@ export type RealtimeIncidentUpdate = {
   readonly messageId: string;
   readonly schemaVersion: 1;
   readonly projectId: string;
-  readonly action: "opened" | "updated" | "resolved" | "reopened";
+  readonly action: "opened" | "updated" | "acknowledged" | "resolved" | "reopened";
   readonly incident: DashboardIncident;
   readonly occurredAt: string;
 };
@@ -172,6 +188,69 @@ export type MetricSummary = {
     readonly unit: string | null;
     readonly observedAt: string;
   }>;
+};
+
+export type TraceSummary = {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly totalTraces: number;
+  readonly totalSpans: number;
+  readonly errorTraces: number;
+  readonly slowTraces: number;
+  readonly serviceCount: number;
+  readonly slowThresholdMs: number;
+  readonly traces: TraceGroup[];
+  readonly endpoints: TraceEndpoint[];
+  readonly serviceMap: TraceEdge[];
+};
+
+export type TraceGroup = {
+  readonly traceId: string;
+  readonly rootService: string;
+  readonly startedAt: string;
+  readonly endedAt: string;
+  readonly durationMs: number;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly slowSpanCount: number;
+  readonly isSlow: boolean;
+  readonly services: string[];
+  readonly spans: TraceSpan[];
+};
+
+export type TraceSpan = {
+  readonly id: string;
+  readonly eventId: string;
+  readonly traceId: string;
+  readonly spanId: string;
+  readonly parentSpanId: string | null;
+  readonly service: string;
+  readonly operation: string;
+  readonly resource: string | null;
+  readonly eventType: "log" | "error" | "metric";
+  readonly level: string | null;
+  readonly startedAt: string;
+  readonly durationMs: number;
+  readonly status: "ok" | "error";
+};
+
+export type TraceEndpoint = {
+  readonly service: string;
+  readonly operation: string;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly slowSpanCount: number;
+  readonly avgDurationMs: number;
+  readonly p95DurationMs: number;
+};
+
+export type TraceEdge = {
+  readonly from: string;
+  readonly to: string;
+  readonly spanCount: number;
+  readonly errorCount: number;
+  readonly avgDurationMs: number;
 };
 
 export async function getDashboardSummary(projectId: string): Promise<DashboardSummary> {
@@ -265,6 +344,19 @@ export async function getMetricSummary(
     },
   );
   return response.data.data.metrics;
+}
+
+export async function getTraceSummary(
+  projectId: string,
+  options: DashboardAnalyticsOptions = {},
+): Promise<TraceSummary> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly traces: TraceSummary }>>(
+    "/dashboard/traces",
+    {
+      params: toAnalyticsParams(projectId, options),
+    },
+  );
+  return response.data.data.traces;
 }
 
 function toAnalyticsParams(projectId: string, options: DashboardAnalyticsOptions) {

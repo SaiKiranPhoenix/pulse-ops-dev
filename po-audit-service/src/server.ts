@@ -4,6 +4,7 @@ import { SERVICE_NAME } from "./config/constants.js";
 import { connectMongo, disconnectMongo } from "./config/database.js";
 import { loadEnv } from "./config/env.js";
 import { AuditConsumerService } from "./events/consumers/audit.consumer.js";
+import { RabbitRealtimeVaultAuditPublisher } from "./events/publishers/realtime-vault-audit.publisher.js";
 import { createAuditServiceDependencies } from "./services/dependencies.js";
 
 const logger = createLogger({ service: SERVICE_NAME });
@@ -11,7 +12,8 @@ const env = loadEnv();
 
 await connectMongo(env.MONGODB_URI);
 
-const dependencies = createAuditServiceDependencies();
+const realtimeVaultAuditPublisher = new RabbitRealtimeVaultAuditPublisher(env.RABBITMQ_URL);
+const dependencies = createAuditServiceDependencies(realtimeVaultAuditPublisher);
 const consumer = new AuditConsumerService(
   {
     rabbitMqUrl: env.RABBITMQ_URL,
@@ -34,6 +36,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   logger.info("Audit service shutting down", { signal });
   server.close(async () => {
     await consumer.close();
+    await realtimeVaultAuditPublisher.close();
     await disconnectMongo();
     process.exit(0);
   });
