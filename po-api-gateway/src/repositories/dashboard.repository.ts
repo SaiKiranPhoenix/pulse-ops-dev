@@ -17,6 +17,7 @@ export type DashboardEvent = {
   readonly name: string | null;
   readonly value: number | null;
   readonly fingerprint: string;
+  readonly attributes: Record<string, unknown>;
   readonly observedAt: Date;
   readonly receivedAt: Date;
 };
@@ -93,6 +94,7 @@ function toDashboardEvent(event: DashboardEventDocument): DashboardEvent {
     name: event.name,
     value: event.value,
     fingerprint: event.fingerprint,
+    attributes: event.attributes ?? {},
     observedAt: event.observedAt,
     receivedAt: event.receivedAt,
   };
