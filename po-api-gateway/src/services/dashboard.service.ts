@@ -1,5 +1,6 @@
 import type {
   DashboardEvent,
+  DashboardEventPageOptions,
   DashboardIncident,
   DashboardRepository,
   DashboardVaultActivity,
@@ -14,6 +15,11 @@ export type DashboardSummaryDto = {
 export type DashboardEventDto = Omit<DashboardEvent, "observedAt" | "receivedAt"> & {
   readonly observedAt: string;
   readonly receivedAt: string;
+};
+
+export type DashboardEventPageDto = {
+  readonly events: DashboardEventDto[];
+  readonly nextCursor: string | null;
 };
 
 export type DashboardIncidentDto = Omit<DashboardIncident, "lastSeenAt"> & {
@@ -40,13 +46,15 @@ export class DashboardService {
     };
   }
 
-  async events(projectId: string): Promise<DashboardEventDto[]> {
-    const events = await this.dashboard.latestEvents(projectId);
-    return events.map((event) => ({
-      ...event,
-      observedAt: event.observedAt.toISOString(),
-      receivedAt: event.receivedAt.toISOString(),
-    }));
+  async events(
+    projectId: string,
+    options: DashboardEventPageOptions,
+  ): Promise<DashboardEventPageDto> {
+    const page = await this.dashboard.pagedEvents(projectId, options);
+    return {
+      events: page.events.map(toDashboardEventDto),
+      nextCursor: page.nextCursor,
+    };
   }
 
   async incidents(projectId: string): Promise<DashboardIncidentDto[]> {
@@ -64,4 +72,12 @@ export class DashboardService {
       updatedAt: activity.updatedAt.toISOString(),
     }));
   }
+}
+
+function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
+  return {
+    ...event,
+    observedAt: event.observedAt.toISOString(),
+    receivedAt: event.receivedAt.toISOString(),
+  };
 }

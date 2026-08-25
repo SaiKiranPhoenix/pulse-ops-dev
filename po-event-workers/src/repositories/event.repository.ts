@@ -10,6 +10,7 @@ export type SafeEventRecord = {
   readonly fingerprint: string;
   readonly receivedAt: Date;
   readonly processedAt: Date;
+  readonly wasCreated: boolean;
 };
 
 export interface EventRepository {
@@ -44,7 +45,7 @@ export class MongoEventRepository implements EventRepository {
         receivedAt: new Date(message.acceptedAt),
         processedAt: new Date(),
       });
-      return toSafeEventRecord(event);
+      return toSafeEventRecord(event, true);
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         const existingEventAfterRace = await this.findByMessageId(message.messageId);
@@ -60,11 +61,11 @@ export class MongoEventRepository implements EventRepository {
 
   async findByMessageId(messageId: string): Promise<SafeEventRecord | null> {
     const event = await EventModel.findOne({ messageId }).exec();
-    return event === null ? null : toSafeEventRecord(event);
+    return event === null ? null : toSafeEventRecord(event, false);
   }
 }
 
-function toSafeEventRecord(event: EventDocument): SafeEventRecord {
+function toSafeEventRecord(event: EventDocument, wasCreated: boolean): SafeEventRecord {
   const record = event.toObject<EventRecord>();
 
   return {
@@ -76,6 +77,7 @@ function toSafeEventRecord(event: EventDocument): SafeEventRecord {
     fingerprint: record.fingerprint,
     receivedAt: record.receivedAt,
     processedAt: record.processedAt,
+    wasCreated,
   };
 }
 

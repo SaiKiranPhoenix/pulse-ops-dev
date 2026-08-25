@@ -19,6 +19,7 @@ import {
   type DashboardIncident,
   type DashboardSummary,
   type QueueStatus,
+  type RealtimeEventCreated,
   type RealtimeIncidentUpdate,
   type WorkerHealth,
 } from "@/features/dashboards/api";
@@ -128,6 +129,19 @@ export function OverviewPage() {
         incidents: upsertIncident(current.incidents, message.incident),
       }));
     });
+    socket.on("event.created", (message: RealtimeEventCreated) => {
+      setDashboard((current) => ({
+        ...current,
+        summary:
+          current.summary === null
+            ? current.summary
+            : {
+                ...current.summary,
+                totalEvents: current.summary.totalEvents + 1,
+              },
+        events: upsertEvent(current.events, message.event).slice(0, 8),
+      }));
+    });
     socket.connect();
 
     return () => {
@@ -186,24 +200,30 @@ export function OverviewPage() {
 
         <section className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
           <Panel title="Recent Events" emptyText={isLoading ? "Loading events" : "No events yet"}>
-            <div className="divide-y divide-slate-100">
-              {dashboard.events.slice(0, 8).map((event) => (
-                <div key={event.id} className="grid gap-2 py-3 sm:grid-cols-[7rem_1fr_8rem]">
-                  <span className="text-sm font-medium capitalize text-slate-700">
-                    {event.type}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">
-                      {event.message ?? event.name ?? event.fingerprint}
-                    </p>
-                    <p className="truncate text-xs text-slate-500">{event.source}</p>
+            {dashboard.events.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                {isLoading ? "Loading events" : "No events yet"}
+              </p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {dashboard.events.slice(0, 8).map((event) => (
+                  <div key={event.id} className="grid gap-2 py-3 sm:grid-cols-[7rem_1fr_8rem]">
+                    <span className="text-sm font-medium capitalize text-slate-700">
+                      {event.type}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {event.message ?? event.name ?? event.fingerprint}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{event.source}</p>
+                    </div>
+                    <span className="text-right text-xs text-slate-500">
+                      {formatRelativeTime(event.receivedAt)}
+                    </span>
                   </div>
-                  <span className="text-right text-xs text-slate-500">
-                    {formatRelativeTime(event.receivedAt)}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Panel>
 
           <Panel
@@ -212,7 +232,10 @@ export function OverviewPage() {
           >
             <div className="flex flex-col gap-3">
               {dashboard.incidents.slice(0, 6).map((incident) => (
-                <article key={incident.id} className="rounded-md border border-slate-200 bg-white p-3">
+                <article
+                  key={incident.id}
+                  className="rounded-md border border-slate-200 bg-white p-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="min-w-0 text-sm font-semibold text-slate-900">
                       {incident.title}
@@ -226,7 +249,8 @@ export function OverviewPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    {incident.eventCount} events, last seen {formatRelativeTime(incident.lastSeenAt)}
+                    {incident.eventCount} events, last seen{" "}
+                    {formatRelativeTime(incident.lastSeenAt)}
                   </p>
                 </article>
               ))}
@@ -328,4 +352,16 @@ function upsertIncident(
   }
 
   return incidents.map((incident, index) => (index === existingIndex ? incoming : incident));
+}
+
+function upsertEvent(events: DashboardEvent[], incoming: DashboardEvent): DashboardEvent[] {
+  const eventsById = new Map<string, DashboardEvent>();
+
+  for (const event of [incoming, ...events]) {
+    eventsById.set(event.id, event);
+  }
+
+  return [...eventsById.values()].sort(
+    (left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt),
+  );
 }

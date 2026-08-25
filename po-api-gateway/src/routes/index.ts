@@ -4,7 +4,10 @@ import type { ProxyController } from "../controllers/proxy.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import { projectQuerySchema } from "../validators/dashboard.validator.js";
+import {
+  dashboardEventsQuerySchema,
+  projectQuerySchema,
+} from "../validators/dashboard.validator.js";
 
 export type RouteDependencies = {
   readonly dashboardController: DashboardController;
@@ -37,7 +40,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   );
   router.get(
     "/dashboard/events",
-    validateQuery(projectQuerySchema),
+    validateQuery(dashboardEventsQuerySchema),
     asyncHandler(dependencies.dashboardController.events),
   );
   router.get(

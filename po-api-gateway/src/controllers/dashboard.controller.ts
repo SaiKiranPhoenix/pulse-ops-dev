@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
 import type { DashboardService } from "../services/dashboard.service.js";
-import type { ProjectQuery } from "../validators/dashboard.validator.js";
+import type { DashboardEventsQuery, ProjectQuery } from "../validators/dashboard.validator.js";
 
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
@@ -14,10 +14,13 @@ export class DashboardController {
   };
 
   events = async (_request: Request, response: Response): Promise<void> => {
-    const query = response.locals.validatedQuery as ProjectQuery;
-    const events = await this.dashboard.events(query.projectId);
+    const query = response.locals.validatedQuery as DashboardEventsQuery;
+    const events = await this.dashboard.events(query.projectId, {
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      limit: query.limit,
+    });
 
-    response.status(200).json(successResponse({ events }, String(response.locals.requestId)));
+    response.status(200).json(successResponse(events, String(response.locals.requestId)));
   };
 
   incidents = async (_request: Request, response: Response): Promise<void> => {

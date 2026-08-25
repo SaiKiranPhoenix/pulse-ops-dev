@@ -165,17 +165,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 - [x] Backend event model/repository exists.
 - [x] Dashboard event API client exists.
-- [ ] Partial Overview shows a recent events list.
+- [x] Overview shows a recent events list.
 - [x] Replace placeholder Logs page.
 - [x] Add live logs table/list.
 - [x] Add filters: environment, service, level, search, time range.
 - [x] Add pause/resume live stream.
 - [x] Add metadata detail drawer.
 - [x] Add JSON viewer with redaction.
-- [ ] Todo Add pagination/cursor support in UI.
+- [x] Add pagination/cursor support in UI.
 - [x] Add copy event ID/request ID actions.
 - [x] Add empty state with "send test log" action.
-- [ ] Todo Add realtime `event.created` handling.
+- [x] Add realtime `event.created` handling.
 - [x] Add log severity coloring.
 
 ## Errors Experience
