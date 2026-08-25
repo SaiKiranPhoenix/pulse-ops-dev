@@ -12,6 +12,7 @@ import {
   Menu,
   RadioTower,
   SearchCode,
+  ServerCog,
   Settings,
   ShieldCheck,
   UserRound,
@@ -80,6 +81,7 @@ const navItems = [
   { to: "/dashboard/vault-audit", label: "Vault Audit", icon: ShieldCheck },
   { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
   { to: "/dashboard/projects", label: "Projects", icon: Settings },
+  { to: "/dashboard/platform", label: "Platform", icon: ServerCog },
 ] as const;
 
 export function DashboardLayout() {
