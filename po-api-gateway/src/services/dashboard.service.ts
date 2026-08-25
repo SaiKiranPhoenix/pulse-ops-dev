@@ -1,7 +1,10 @@
 import type {
   DashboardEvent,
   DashboardEventPageOptions,
+  DashboardErrorGroup,
+  DashboardIngestionStats,
   DashboardIncident,
+  DashboardMetricSummary,
   DashboardRepository,
   DashboardVaultActivity,
 } from "../repositories/dashboard.repository.js";
@@ -22,12 +25,68 @@ export type DashboardEventPageDto = {
   readonly nextCursor: string | null;
 };
 
-export type DashboardIncidentDto = Omit<DashboardIncident, "lastSeenAt"> & {
+export type DashboardIncidentDto = Omit<
+  DashboardIncident,
+  "createdAt" | "firstSeenAt" | "lastSeenAt" | "resolvedAt" | "updatedAt"
+> & {
+  readonly firstSeenAt: string;
   readonly lastSeenAt: string;
+  readonly resolvedAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 };
 
 export type DashboardVaultActivityDto = Omit<DashboardVaultActivity, "updatedAt"> & {
   readonly updatedAt: string;
+};
+
+export type DashboardAnalyticsOptionsDto = {
+  readonly environment?: string;
+  readonly timeRange?: string;
+};
+
+export type DashboardIngestionStatsDto = Omit<
+  DashboardIngestionStats,
+  "latestAcceptedAt" | "latestProcessedAt"
+> & {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly rateLimit: {
+    readonly limitPerMinute: number;
+    readonly windowSeconds: number;
+  };
+  readonly latestAcceptedAt: string | null;
+  readonly latestProcessedAt: string | null;
+};
+
+export type DashboardErrorGroupDto = Omit<
+  DashboardErrorGroup,
+  "firstSeenAt" | "lastSeenAt" | "samples" | "incident"
+> & {
+  readonly firstSeenAt: string;
+  readonly lastSeenAt: string;
+  readonly samples: DashboardEventDto[];
+  readonly incident: DashboardIncidentDto | null;
+};
+
+export type DashboardMetricSummaryDto = Omit<
+  DashboardMetricSummary,
+  "buckets" | "metricSamples"
+> & {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly buckets: Array<
+    Omit<DashboardMetricSummary["buckets"][number], "startedAt"> & {
+      readonly startedAt: string;
+    }
+  >;
+  readonly metricSamples: Array<
+    Omit<DashboardMetricSummary["metricSamples"][number], "observedAt"> & {
+      readonly observedAt: string;
+    }
+  >;
 };
 
 export class DashboardService {
@@ -59,10 +118,7 @@ export class DashboardService {
 
   async incidents(projectId: string): Promise<DashboardIncidentDto[]> {
     const incidents = await this.dashboard.latestIncidents(projectId);
-    return incidents.map((incident) => ({
-      ...incident,
-      lastSeenAt: incident.lastSeenAt.toISOString(),
-    }));
+    return incidents.map(toDashboardIncidentDto);
   }
 
   async vaultActivity(projectId: string): Promise<DashboardVaultActivityDto[]> {
@@ -72,6 +128,63 @@ export class DashboardService {
       updatedAt: activity.updatedAt.toISOString(),
     }));
   }
+
+  async ingestionStats(
+    projectId: string,
+    options: DashboardAnalyticsOptionsDto,
+  ): Promise<DashboardIngestionStatsDto> {
+    const normalizedOptions = toAnalyticsOptions(options);
+    const stats = await this.dashboard.ingestionStats(projectId, normalizedOptions);
+
+    return {
+      ...stats,
+      projectId,
+      environment: options.environment ?? null,
+      timeRange: options.timeRange ?? "1h",
+      rateLimit: {
+        limitPerMinute: 600,
+        windowSeconds: 60,
+      },
+      latestAcceptedAt: stats.latestAcceptedAt?.toISOString() ?? null,
+      latestProcessedAt: stats.latestProcessedAt?.toISOString() ?? null,
+    };
+  }
+
+  async errorGroups(
+    projectId: string,
+    options: DashboardAnalyticsOptionsDto,
+  ): Promise<DashboardErrorGroupDto[]> {
+    const groups = await this.dashboard.errorGroups(projectId, toAnalyticsOptions(options));
+    return groups.map((group) => ({
+      ...group,
+      firstSeenAt: group.firstSeenAt.toISOString(),
+      lastSeenAt: group.lastSeenAt.toISOString(),
+      samples: group.samples.map(toDashboardEventDto),
+      incident: group.incident === null ? null : toDashboardIncidentDto(group.incident),
+    }));
+  }
+
+  async metricSummary(
+    projectId: string,
+    options: DashboardAnalyticsOptionsDto,
+  ): Promise<DashboardMetricSummaryDto> {
+    const summary = await this.dashboard.metricSummary(projectId, toAnalyticsOptions(options));
+
+    return {
+      ...summary,
+      projectId,
+      environment: options.environment ?? null,
+      timeRange: options.timeRange ?? "1h",
+      buckets: summary.buckets.map((bucket) => ({
+        ...bucket,
+        startedAt: bucket.startedAt.toISOString(),
+      })),
+      metricSamples: summary.metricSamples.map((sample) => ({
+        ...sample,
+        observedAt: sample.observedAt.toISOString(),
+      })),
+    };
+  }
 }
 
 function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
@@ -80,4 +193,36 @@ function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
     observedAt: event.observedAt.toISOString(),
     receivedAt: event.receivedAt.toISOString(),
   };
+}
+
+function toDashboardIncidentDto(incident: DashboardIncident): DashboardIncidentDto {
+  return {
+    ...incident,
+    firstSeenAt: incident.firstSeenAt.toISOString(),
+    lastSeenAt: incident.lastSeenAt.toISOString(),
+    resolvedAt: incident.resolvedAt?.toISOString() ?? null,
+    createdAt: incident.createdAt.toISOString(),
+    updatedAt: incident.updatedAt.toISOString(),
+  };
+}
+
+function toAnalyticsOptions(options: DashboardAnalyticsOptionsDto) {
+  return {
+    ...(options.environment === undefined ? {} : { environment: options.environment }),
+    since: toSinceDate(options.timeRange ?? "1h"),
+  };
+}
+
+function toSinceDate(timeRange: string): Date {
+  const now = Date.now();
+  const durationMsByRange: Record<string, number> = {
+    "15m": 15 * 60_000,
+    "1h": 60 * 60_000,
+    "6h": 6 * 60 * 60_000,
+    "24h": 24 * 60 * 60_000,
+    "7d": 7 * 24 * 60 * 60_000,
+  };
+
+  const fallbackDurationMs = 60 * 60_000;
+  return new Date(now - (durationMsByRange[timeRange] ?? fallbackDurationMs));
 }

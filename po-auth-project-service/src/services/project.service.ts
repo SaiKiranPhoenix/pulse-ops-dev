@@ -7,12 +7,14 @@ export type CreateProjectInput = {
   readonly ownerId: string;
   readonly name: string;
   readonly slug?: string | undefined;
+  readonly description?: string | null | undefined;
 };
 
 export type ProjectDto = {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
+  readonly description: string | null;
   readonly status: SafeProjectRecord["status"];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -31,7 +33,12 @@ export class ProjectService {
     }
 
     try {
-      const project = await this.projects.create({ ownerId: input.ownerId, name, slug });
+      const project = await this.projects.create({
+        ownerId: input.ownerId,
+        name,
+        slug,
+        description: normalizeDescription(input.description),
+      });
       return toProjectDto(project);
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -49,6 +56,28 @@ export class ProjectService {
 
   async get(projectId: string, ownerId: string): Promise<ProjectDto> {
     const project = await this.projects.findByIdForOwner(projectId, ownerId);
+
+    if (project === null) {
+      throw notFound("Project not found");
+    }
+
+    return toProjectDto(project);
+  }
+
+  async archive(projectId: string, ownerId: string): Promise<ProjectDto> {
+    return this.changeStatus(projectId, ownerId, "archived");
+  }
+
+  async restore(projectId: string, ownerId: string): Promise<ProjectDto> {
+    return this.changeStatus(projectId, ownerId, "active");
+  }
+
+  private async changeStatus(
+    projectId: string,
+    ownerId: string,
+    status: SafeProjectRecord["status"],
+  ): Promise<ProjectDto> {
+    const project = await this.projects.updateStatus(projectId, ownerId, status);
 
     if (project === null) {
       throw notFound("Project not found");
@@ -76,11 +105,21 @@ function createSlug(name: string): string {
   return normalizeSlug(name);
 }
 
+function normalizeDescription(description: string | null | undefined): string | null {
+  if (description === undefined || description === null) {
+    return null;
+  }
+
+  const normalized = description.trim();
+  return normalized.length === 0 ? null : normalized;
+}
+
 function toProjectDto(project: SafeProjectRecord): ProjectDto {
   return {
     id: project.id,
     name: project.name,
     slug: project.slug,
+    description: project.description,
     status: project.status,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),

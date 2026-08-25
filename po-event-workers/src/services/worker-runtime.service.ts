@@ -41,7 +41,9 @@ export class WorkerRuntimeService {
   async start(): Promise<void> {
     await Promise.all(
       this.consumers.map((consumer) =>
-        consumer.start((content) => this.eventWorker.process(content)),
+        consumer.start((content, message) =>
+          this.eventWorker.process(content, { redelivered: message.fields.redelivered }),
+        ),
       ),
     );
   }

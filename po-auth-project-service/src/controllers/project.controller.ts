@@ -23,6 +23,7 @@ export class ProjectController {
       ownerId: auth.userId,
       name: body.name,
       slug: body.slug,
+      description: body.description,
     });
 
     response.status(201).json(successResponse({ project }, String(response.locals.requestId)));
@@ -39,6 +40,22 @@ export class ProjectController {
     const auth = getAuthContext(response);
     const params = response.locals.validatedParams as ProjectParams;
     const project = await this.projects.get(params.projectId, auth.userId);
+
+    response.status(200).json(successResponse({ project }, String(response.locals.requestId)));
+  };
+
+  archive = async (_request: Request, response: Response): Promise<void> => {
+    const auth = getAuthContext(response);
+    const params = response.locals.validatedParams as ProjectParams;
+    const project = await this.projects.archive(params.projectId, auth.userId);
+
+    response.status(200).json(successResponse({ project }, String(response.locals.requestId)));
+  };
+
+  restore = async (_request: Request, response: Response): Promise<void> => {
+    const auth = getAuthContext(response);
+    const params = response.locals.validatedParams as ProjectParams;
+    const project = await this.projects.restore(params.projectId, auth.userId);
 
     response.status(200).json(successResponse({ project }, String(response.locals.requestId)));
   };

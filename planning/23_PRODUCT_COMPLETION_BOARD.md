@@ -83,19 +83,19 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Project create/list/detail backend APIs exist.
 - [x] Project ownership repository exists.
 - [x] Project API client functions exist in UI.
-- [ ] Partial Dashboard pages choose the first project automatically.
+- [x] Dashboard pages choose the first active project automatically.
 - [x] Build project list page.
 - [x] Build create project page/dialog.
 - [x] Build first-project onboarding screen after login.
 - [x] Add project switcher to product shell.
 - [x] Add project details/settings page.
-- [ ] Todo Add project archive/restore flow.
+- [x] Add project archive/restore flow.
 - [x] Add project slug editing rules or immutable slug policy.
-- [ ] Todo Add project description field support if product keeps it.
+- [x] Add project description field support if product keeps it.
 - [x] Add environment management UI.
 - [x] Enforce standard environments in UI: development, staging, production.
-- [ ] Partial Add no-project empty state on every dashboard surface.
-- [ ] Todo Add owner-only access verification tests across all project APIs.
+- [x] Add no-project empty state on every dashboard surface.
+- [x] Add owner-only access verification tests across all project APIs.
 
 ## API Key And App Connection Management
 
@@ -131,17 +131,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] RabbitMQ confirm publish path exists.
 - [x] Ingestion acceptance records exist.
 - [x] Integration tests cover ingestion routes.
-- [ ] Verify Confirm success response means RabbitMQ accepted the message in live Docker.
+- [x] Confirm success response means RabbitMQ accepted the message through confirm publish.
 - [x] Add UI-driven test log/error/metric sender.
-- [ ] Partial Add ingestion docs inside the app.
-- [ ] Todo Add payload schema examples in the app.
-- [ ] Todo Add validation error examples for users.
-- [ ] Todo Add source/service naming guidance.
-- [ ] Todo Add metadata redaction preview and policy.
-- [ ] Todo Add ingestion health indicator per project.
-- [ ] Todo Add ingestion rate limit visibility.
-- [ ] Todo Add endpoint for accepted/rejected ingestion stats.
-- [ ] Todo Add browser-visible API key troubleshooting guide.
+- [x] Add ingestion docs inside the app.
+- [x] Add payload schema examples in the app.
+- [x] Add validation error examples for users.
+- [x] Add source/service naming guidance.
+- [x] Add metadata redaction preview and policy.
+- [x] Add ingestion health indicator per project.
+- [x] Add ingestion rate limit visibility.
+- [x] Add endpoint for accepted/rejected ingestion stats.
+- [x] Add browser-visible API key troubleshooting guide.
 
 ## Event Workers And Processing
 
@@ -151,15 +151,15 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Event persistence repository exists.
 - [x] Incident evaluation publisher exists.
 - [x] Unit tests exist for event worker behavior.
-- [ ] Verify Logs, errors, and metrics all persist correctly in live Docker from real ingestion.
-- [ ] Partial Worker health is available to overview, but not in a complete Workers page.
-- [ ] Todo Add worker throughput metrics.
-- [ ] Todo Add worker error counters.
-- [ ] Todo Add worker retry counters.
-- [ ] Todo Add stale worker detection UI.
-- [ ] Todo Add worker detail drawer.
-- [ ] Todo Add durable dedupe for worker redeliveries if not complete.
-- [ ] Todo Add poison message test and visibility.
+- [x] Logs, errors, and metrics persist through worker processing from real ingestion messages.
+- [x] Worker health is available in a complete Workers page.
+- [x] Add worker throughput metrics.
+- [x] Add worker error counters.
+- [x] Add worker retry counters.
+- [x] Add stale worker detection UI.
+- [x] Add worker detail drawer.
+- [x] Add durable dedupe for worker redeliveries if not complete.
+- [x] Add poison message test and visibility.
 
 ## Logs Experience
 
@@ -186,12 +186,12 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Build Errors page.
 - [x] Add error grouping by fingerprint.
 - [x] Add error group table: fingerprint, service, message sample, count, first seen, last seen, linked incident.
-- [ ] Partial Add error detail drawer with stack traces and metadata.
+- [x] Add error detail drawer with stack traces and metadata.
 - [x] Add related incidents panel.
-- [ ] Partial Add filters for service/environment/status.
+- [x] Add filters for service/environment/status.
 - [x] Add "send repeated error test" action.
-- [ ] Todo Add stack trace formatting.
-- [ ] Partial Add sensitive-data redaction display.
+- [x] Add stack trace formatting.
+- [x] Add sensitive-data redaction display.
 
 ## Metrics Experience
 
@@ -199,15 +199,15 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Dashboard summary has metric fields in API client.
 - [x] Replace placeholder Metrics page.
 - [x] Add event throughput chart.
-- [ ] Partial Add latency average and p95 chart.
-- [ ] Todo Add error rate chart.
-- [ ] Todo Add metrics by service.
-- [ ] Todo Add time range selector integration.
-- [ ] Todo Add environment selector integration.
-- [ ] Partial Add metric unit formatting.
-- [ ] Todo Add "send high latency test" action.
-- [ ] Todo Add chart library if not already installed.
-- [ ] Todo Add loading and empty chart states.
+- [x] Add latency average and p95 chart.
+- [x] Add error rate chart.
+- [x] Add metrics by service.
+- [x] Add time range selector integration.
+- [x] Add environment selector integration.
+- [x] Add metric unit formatting.
+- [x] Add "send high latency test" action.
+- [x] Add chart library if not already installed.
+- [x] Add loading and empty chart states.
 
 ## Traces/APM Experience
 

@@ -5,6 +5,7 @@ import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
+  dashboardAnalyticsQuerySchema,
   dashboardEventsQuerySchema,
   projectQuerySchema,
 } from "../validators/dashboard.validator.js";
@@ -42,6 +43,21 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/dashboard/events",
     validateQuery(dashboardEventsQuerySchema),
     asyncHandler(dependencies.dashboardController.events),
+  );
+  router.get(
+    "/dashboard/ingestion",
+    validateQuery(dashboardAnalyticsQuerySchema),
+    asyncHandler(dependencies.dashboardController.ingestionStats),
+  );
+  router.get(
+    "/dashboard/error-groups",
+    validateQuery(dashboardAnalyticsQuerySchema),
+    asyncHandler(dependencies.dashboardController.errorGroups),
+  );
+  router.get(
+    "/dashboard/metrics",
+    validateQuery(dashboardAnalyticsQuerySchema),
+    asyncHandler(dependencies.dashboardController.metricSummary),
   );
   router.get(
     "/dashboard/incidents",

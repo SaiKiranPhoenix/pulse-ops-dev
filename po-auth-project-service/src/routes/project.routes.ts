@@ -23,6 +23,16 @@ export function createProjectRouter(
   router.get("/", asyncHandler(controller.list));
   router.get("/:projectId", validateParams(projectParamsSchema), asyncHandler(controller.detail));
   router.post(
+    "/:projectId/archive",
+    validateParams(projectParamsSchema),
+    asyncHandler(controller.archive),
+  );
+  router.post(
+    "/:projectId/restore",
+    validateParams(projectParamsSchema),
+    asyncHandler(controller.restore),
+  );
+  router.post(
     "/:projectId/api-keys",
     validateParams(projectParamsSchema),
     validateBody(createApiKeyBodySchema),

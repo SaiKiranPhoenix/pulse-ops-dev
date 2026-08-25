@@ -20,6 +20,7 @@ describe("project and API key routes", () => {
       .set("x-request-id", "req_project")
       .send({
         name: "Checkout API",
+        description: "Revenue path telemetry",
       })
       .expect(201);
 
@@ -27,6 +28,7 @@ describe("project and API key routes", () => {
       id: "000000000000000000000014",
       name: "Checkout API",
       slug: "checkout-api",
+      description: "Revenue path telemetry",
       status: "active",
     });
 
@@ -132,13 +134,73 @@ describe("project and API key routes", () => {
       requestId: "req_no_auth",
     });
   });
+
+  it("enforces project ownership across detail, archive, restore, and API key routes", async () => {
+    const harness = createTestDependencies();
+    harness.users.seed(registeredUser({ email: "owner@example.com", name: "Owner" }));
+    harness.users.seed(
+      registeredUser({
+        id: "000000000000000000000002",
+        email: "other@example.com",
+        name: "Other",
+      }),
+    );
+    const app = createApp({ dependencies: harness.dependencies });
+    const ownerToken = await login(app, "owner@example.com");
+    const otherToken = await login(app, "other@example.com");
+
+    await request(app)
+      .post("/projects")
+      .set("authorization", `Bearer ${ownerToken}`)
+      .send({ name: "Owned API" })
+      .expect(201);
+
+    await request(app)
+      .get("/projects/000000000000000000000014")
+      .set("authorization", `Bearer ${otherToken}`)
+      .expect(404);
+
+    await request(app)
+      .post("/projects/000000000000000000000014/api-keys")
+      .set("authorization", `Bearer ${otherToken}`)
+      .send({ name: "bad key" })
+      .expect(404);
+
+    const archiveResponse = await request(app)
+      .post("/projects/000000000000000000000014/archive")
+      .set("authorization", `Bearer ${ownerToken}`)
+      .expect(200);
+
+    expect(archiveResponse.body.data.project).toMatchObject({
+      id: "000000000000000000000014",
+      status: "archived",
+    });
+
+    await request(app)
+      .post("/projects/000000000000000000000014/restore")
+      .set("authorization", `Bearer ${otherToken}`)
+      .expect(404);
+
+    const restoreResponse = await request(app)
+      .post("/projects/000000000000000000000014/restore")
+      .set("authorization", `Bearer ${ownerToken}`)
+      .expect(200);
+
+    expect(restoreResponse.body.data.project).toMatchObject({
+      id: "000000000000000000000014",
+      status: "active",
+    });
+  });
 });
 
-async function login(app: Parameters<typeof request>[0]): Promise<string> {
+async function login(
+  app: Parameters<typeof request>[0],
+  email = "owner@example.com",
+): Promise<string> {
   const response = await request(app)
     .post("/auth/login")
     .send({
-      email: "owner@example.com",
+      email,
       password: validTestCredential(),
     })
     .expect(200);

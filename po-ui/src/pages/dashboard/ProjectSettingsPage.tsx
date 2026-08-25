@@ -8,11 +8,13 @@ import {
   RadioTower,
   Settings,
   Terminal,
+  Undo2,
 } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
-import { createProject, type Project } from "@/features/auth/api";
+import { archiveProject, createProject, restoreProject, type Project } from "@/features/auth/api";
 import { apiClient, getApiErrorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import {
@@ -37,6 +39,10 @@ export function ProjectSettingsPage() {
   } = useDashboardContext();
   const [projectName, setProjectName] = useState("");
   const [projectSlug, setProjectSlug] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [pendingLifecycleAction, setPendingLifecycleAction] = useState<
+    "archive" | "restore" | null
+  >(null);
   const [environmentState, setEnvironmentState] = useState<ProjectEnvironmentState>(() =>
     readEnvironmentState(),
   );
@@ -74,11 +80,13 @@ export function ProjectSettingsPage() {
     try {
       const project = await createProject({
         name: projectName,
+        description: projectDescription,
         ...(projectSlug.trim().length > 0 ? { slug: projectSlug } : {}),
       });
 
       setProjectName("");
       setProjectSlug("");
+      setProjectDescription("");
       await refreshProjects(project.id);
       setEnvironmentState((current) =>
         writeEnvironmentState(project.id, current, "production", true),
@@ -130,6 +138,28 @@ export function ProjectSettingsPage() {
   async function copy(value: string, successMessage: string): Promise<void> {
     await navigator.clipboard.writeText(value);
     setMessage(successMessage);
+  }
+
+  async function performLifecycleAction(): Promise<void> {
+    if (selectedProject === null || pendingLifecycleAction === null) {
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+
+    try {
+      const project =
+        pendingLifecycleAction === "archive"
+          ? await archiveProject(selectedProject.id)
+          : await restoreProject(selectedProject.id);
+      await refreshProjects(project.id);
+      setMessage(pendingLifecycleAction === "archive" ? "Project archived." : "Project restored.");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setPendingLifecycleAction(null);
+    }
   }
 
   return (
@@ -210,6 +240,16 @@ export function ProjectSettingsPage() {
                   value={projectSlug}
                 />
               </label>
+              <label className="text-sm font-medium">
+                Description
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+                  maxLength={500}
+                  onChange={(event) => setProjectDescription(event.target.value)}
+                  placeholder="What this project owns and which app sends telemetry"
+                  value={projectDescription}
+                />
+              </label>
               <Button disabled={isCreatingProject} type="submit">
                 {isCreatingProject ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -270,6 +310,10 @@ export function ProjectSettingsPage() {
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <Detail label="Name" value={selectedProject.name} />
                 <Detail label="Status" value={selectedProject.status} />
+                <Detail
+                  label="Description"
+                  value={selectedProject.description ?? "No description"}
+                />
                 <Detail label="Slug" value={selectedProject.slug} mono />
                 <Detail label="Project ID" value={selectedProject.id} mono />
                 <Detail label="Created" value={formatRelativeTime(selectedProject.createdAt)} />
@@ -281,6 +325,34 @@ export function ProjectSettingsPage() {
               Project slugs are immutable after creation in this MVP. Create a new project when a
               production slug has to change.
             </div>
+
+            {selectedProject !== null ? (
+              <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Lifecycle</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Archived projects stay visible for restore and historical telemetry review.
+                  </p>
+                </div>
+                <Button
+                  className="w-auto"
+                  onClick={() =>
+                    setPendingLifecycleAction(
+                      selectedProject.status === "active" ? "archive" : "restore",
+                    )
+                  }
+                  type="button"
+                  variant={selectedProject.status === "active" ? "outline" : "primary"}
+                >
+                  {selectedProject.status === "active" ? (
+                    <Settings className="h-4 w-4" />
+                  ) : (
+                    <Undo2 className="h-4 w-4" />
+                  )}
+                  {selectedProject.status === "active" ? "Archive" : "Restore"}
+                </Button>
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-md border border-slate-200 bg-white p-4">
@@ -353,6 +425,19 @@ export function ProjectSettingsPage() {
           </section>
         </div>
       </section>
+
+      <ConfirmDialog
+        confirmLabel={pendingLifecycleAction === "archive" ? "Archive" : "Restore"}
+        description={
+          pendingLifecycleAction === "archive"
+            ? "The project will be hidden from active operational work but remains restorable."
+            : "The project will return to the active project list and selectors."
+        }
+        isOpen={pendingLifecycleAction !== null}
+        onCancel={() => setPendingLifecycleAction(null)}
+        onConfirm={() => void performLifecycleAction()}
+        title={pendingLifecycleAction === "archive" ? "Archive project?" : "Restore project?"}
+      />
     </main>
   );
 }

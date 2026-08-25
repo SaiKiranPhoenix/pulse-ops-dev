@@ -150,6 +150,7 @@ export class InMemoryProjectRepository implements ProjectRepository {
       ownerId: input.ownerId,
       name: input.name,
       slug: input.slug,
+      description: input.description ?? null,
       status: "active",
       createdAt: fixedDate,
       updatedAt: fixedDate,
@@ -174,6 +175,22 @@ export class InMemoryProjectRepository implements ProjectRepository {
         (project) => project.slug === slug && project.ownerId === ownerId,
       ) ?? null
     );
+  }
+
+  async updateStatus(
+    projectId: string,
+    ownerId: string,
+    status: SafeProjectRecord["status"],
+  ): Promise<SafeProjectRecord | null> {
+    const project = await this.findByIdForOwner(projectId, ownerId);
+
+    if (project === null) {
+      return null;
+    }
+
+    const updatedProject = { ...project, status, updatedAt: fixedDate };
+    this.projects.set(projectId, updatedProject);
+    return updatedProject;
   }
 }
 

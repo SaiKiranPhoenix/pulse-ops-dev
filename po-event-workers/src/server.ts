@@ -24,21 +24,23 @@ const redis = await connectRedisClient(createRedisClient(env.REDIS_URL));
 
 const incidentEvaluationPublisher = createIncidentEvaluationPublisher(env.RABBITMQ_URL);
 const realtimeEventPublisher = createRealtimeEventPublisher(env.RABBITMQ_URL);
+const eventWorker = new EventWorkerService(
+  new MongoEventRepository(),
+  incidentEvaluationPublisher,
+  realtimeEventPublisher,
+);
 const workerHeartbeat = new WorkerHeartbeatService(new RedisWorkerHeartbeatRepository(redis), {
   workerId: env.WORKER_ID ?? `${SERVICE_NAME}:${hostname()}:${process.pid}`,
   intervalSeconds: env.WORKER_HEARTBEAT_INTERVAL_SECONDS,
   ttlSeconds: env.WORKER_HEARTBEAT_TTL_SECONDS,
+  processingStats: () => eventWorker.snapshotStats(),
 });
 const runtime = new WorkerRuntimeService(
   {
     rabbitMqUrl: env.RABBITMQ_URL,
     prefetch: env.WORKER_PREFETCH,
   },
-  new EventWorkerService(
-    new MongoEventRepository(),
-    incidentEvaluationPublisher,
-    realtimeEventPublisher,
-  ),
+  eventWorker,
 );
 
 await runtime.start();

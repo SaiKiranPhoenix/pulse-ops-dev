@@ -115,27 +115,25 @@ export class IngestionService {
       receivedAt: acceptedAt.toISOString(),
     };
 
-    if (input.idempotencyKey !== null) {
-      try {
-        await this.acceptances.create({
-          projectId: apiKey.projectId,
-          idempotencyKey: input.idempotencyKey,
-          event: acceptedEvent,
-        });
-      } catch (error) {
-        if (isDuplicateKeyError(error)) {
-          const existingAcceptance = await this.acceptances.findByIdempotencyKey(
-            apiKey.projectId,
-            input.idempotencyKey,
-          );
+    try {
+      await this.acceptances.create({
+        projectId: apiKey.projectId,
+        idempotencyKey: input.idempotencyKey ?? messageId,
+        event: acceptedEvent,
+      });
+    } catch (error) {
+      if (input.idempotencyKey !== null && isDuplicateKeyError(error)) {
+        const existingAcceptance = await this.acceptances.findByIdempotencyKey(
+          apiKey.projectId,
+          input.idempotencyKey,
+        );
 
-          if (existingAcceptance !== null) {
-            return toEventDto(apiKey.projectId, existingAcceptance.event, true);
-          }
+        if (existingAcceptance !== null) {
+          return toEventDto(apiKey.projectId, existingAcceptance.event, true);
         }
-
-        throw error;
       }
+
+      throw error;
     }
 
     return toEventDto(apiKey.projectId, acceptedEvent, false);

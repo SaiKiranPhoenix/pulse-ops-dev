@@ -2,32 +2,19 @@ import { AlertTriangle, Clipboard, RefreshCw, Search, Send } from "lucide-react"
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listIncidents, type Incident } from "@/features/alerts/api";
-import { listDashboardEvents, type DashboardEvent } from "@/features/dashboards/api";
+import { listErrorGroups, type ErrorGroup } from "@/features/dashboards/api";
 import { ingestError } from "@/features/ingestion/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { formatRelativeTime, severityClass } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
-
-type ErrorGroup = {
-  readonly fingerprint: string;
-  readonly source: string;
-  readonly message: string;
-  readonly count: number;
-  readonly firstSeenAt: string;
-  readonly lastSeenAt: string;
-  readonly samples: DashboardEvent[];
-  readonly incident: Incident | null;
-};
 
 const statuses = ["all", "open", "resolved", "no_incident"] as const;
 
 type StatusFilter = (typeof statuses)[number];
 
 export function ErrorsPage() {
-  const { selectedEnvironment, selectedProject } = useDashboardContext();
-  const [events, setEvents] = useState<DashboardEvent[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const { selectedEnvironment, selectedProject, selectedTimeRange } = useDashboardContext();
+  const [groups, setGroups] = useState<ErrorGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<ErrorGroup | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
@@ -40,8 +27,7 @@ export function ErrorsPage() {
 
   async function loadErrors(): Promise<void> {
     if (selectedProject === null) {
-      setEvents([]);
-      setIncidents([]);
+      setGroups([]);
       setSelectedGroup(null);
       return;
     }
@@ -50,12 +36,12 @@ export function ErrorsPage() {
     setError(null);
 
     try {
-      const [nextEvents, nextIncidents] = await Promise.all([
-        listDashboardEvents(selectedProject.id),
-        listIncidents(selectedProject.id),
-      ]);
-      setEvents(nextEvents);
-      setIncidents(nextIncidents);
+      setGroups(
+        await listErrorGroups(selectedProject.id, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        }),
+      );
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -65,9 +51,8 @@ export function ErrorsPage() {
 
   useEffect(() => {
     void loadErrors();
-  }, [selectedProject?.id]);
+  }, [selectedEnvironment, selectedProject?.id, selectedTimeRange]);
 
-  const groups = useMemo(() => buildErrorGroups(events, incidents), [events, incidents]);
   const services = useMemo(
     () => ["all", ...Array.from(new Set(groups.map((group) => group.source))).sort()],
     [groups],
@@ -167,6 +152,8 @@ export function ErrorsPage() {
         <div>
           <p className="text-sm font-medium text-cyan-700">
             {selectedProject?.name ?? "No project selected"} / {selectedEnvironment}
+            {" / "}
+            {selectedTimeRange}
           </p>
           <h1 className="text-2xl font-semibold tracking-normal">Error groups</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -362,6 +349,21 @@ function ErrorGroupDetail({
 
       <section>
         <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+          Stack trace
+        </h3>
+        {group.stack === null ? (
+          <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+            No stack trace was attached to the latest sample.
+          </p>
+        ) : (
+          <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+            {formatStack(group.stack)}
+          </pre>
+        )}
+      </section>
+
+      <section>
+        <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
           Recent samples
         </h3>
         <div className="mt-3 divide-y divide-slate-100 rounded-md border border-slate-200">
@@ -376,6 +378,9 @@ function ErrorGroupDetail({
                 </span>
               </div>
               <p className="mt-1 font-mono text-xs text-slate-500">{sample.id}</p>
+              <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-xs leading-5 text-slate-600">
+                {JSON.stringify(redactMetadata(sample.attributes), null, 2)}
+              </pre>
             </article>
           ))}
         </div>
@@ -397,7 +402,7 @@ function ErrorGroupDetail({
   );
 }
 
-function IncidentBadge({ incident }: { readonly incident: Incident | null }) {
+function IncidentBadge({ incident }: { readonly incident: ErrorGroup["incident"] }) {
   if (incident === null) {
     return <span className={neutralClass}>none</span>;
   }
@@ -437,47 +442,6 @@ function Detail({
   );
 }
 
-function buildErrorGroups(events: DashboardEvent[], incidents: Incident[]): ErrorGroup[] {
-  const incidentByFingerprint = new Map(
-    incidents.map((incident) => [incident.fingerprint, incident]),
-  );
-  const groupedEvents = new Map<string, DashboardEvent[]>();
-
-  for (const event of events) {
-    if (event.type !== "error") {
-      continue;
-    }
-
-    const group = groupedEvents.get(event.fingerprint) ?? [];
-    group.push(event);
-    groupedEvents.set(event.fingerprint, group);
-  }
-
-  return [...groupedEvents.entries()]
-    .map(([fingerprint, samples]) => {
-      const sortedSamples = samples
-        .slice()
-        .sort((left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt));
-      const oldestSample = samples
-        .slice()
-        .sort((left, right) => Date.parse(left.receivedAt) - Date.parse(right.receivedAt))[0];
-      const newestSample = sortedSamples[0];
-
-      return {
-        fingerprint,
-        source: newestSample?.source ?? "unknown",
-        message: newestSample?.message ?? newestSample?.name ?? fingerprint,
-        count: samples.length,
-        firstSeenAt:
-          oldestSample?.receivedAt ?? newestSample?.receivedAt ?? new Date().toISOString(),
-        lastSeenAt: newestSample?.receivedAt ?? new Date().toISOString(),
-        samples: sortedSamples,
-        incident: incidentByFingerprint.get(fingerprint) ?? null,
-      };
-    })
-    .sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt));
-}
-
 function toGroupSummary(group: ErrorGroup): string {
   return [
     `Error group: ${group.message}`,
@@ -490,6 +454,50 @@ function toGroupSummary(group: ErrorGroup): string {
       ? "Incident: none"
       : `Incident: ${group.incident.status} ${group.incident.severity} ${group.incident.title}`,
   ].join("\n");
+}
+
+function formatStack(stack: string): string {
+  return stack
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length > 0)
+    .join("\n");
+}
+
+function redactMetadata(value: unknown): unknown {
+  if (typeof value === "string") {
+    return redactString(value);
+  }
+
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(redactMetadata);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => [
+      key,
+      isSensitiveKey(key) ? "[REDACTED]" : redactMetadata(nestedValue),
+    ]),
+  );
+}
+
+function isSensitiveKey(key: string): boolean {
+  return /authorization|cookie|password|passwd|\bpwd\b|secret|token|api[-_]?key|private[-_]?key|jwt|database[-_]?url|mongodb[-_]?uri|redis[-_]?url|rabbitmq[-_]?url/i.test(
+    key,
+  );
+}
+
+function redactString(value: string): string {
+  return value
+    .replace(/AKIA[0-9A-Z]{16}/g, "[REDACTED]")
+    .replace(/gh[pousr]_[A-Za-z0-9_]{36,}/g, "[REDACTED]")
+    .replace(/sk_live_[A-Za-z0-9]{24,}/g, "[REDACTED]")
+    .replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, "[REDACTED]")
+    .replace(/\b(?:mongodb|postgres|mysql|redis|amqp):\/\/[^/\s:@]+:[^@\s]+@/gi, "[REDACTED]");
 }
 
 const openClass =

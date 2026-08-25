@@ -33,7 +33,11 @@ export class IngestionController {
       name: body.name,
       message: body.message,
       fingerprint: body.fingerprint,
-      attributes: { ...(body.attributes ?? {}), hasStack: body.stack !== undefined },
+      attributes: {
+        ...(body.attributes ?? {}),
+        ...(body.stack === undefined ? {} : { stack: body.stack }),
+        hasStack: body.stack !== undefined,
+      },
       timestamp: body.timestamp,
     });
 

@@ -16,6 +16,7 @@ export type DashboardEvent = {
   readonly message: string | null;
   readonly name: string | null;
   readonly value: number | null;
+  readonly unit: string | null;
   readonly fingerprint: string;
   readonly attributes: Record<string, unknown>;
   readonly observedAt: string;
@@ -48,6 +49,20 @@ export type WorkerHealth = {
   readonly service: string;
   readonly status: "running";
   readonly queues: string[];
+  readonly metrics: {
+    readonly processed: number;
+    readonly processedByType: {
+      readonly log: number;
+      readonly error: number;
+      readonly metric: number;
+    };
+    readonly failed: number;
+    readonly retries: number;
+    readonly poisonMessages: number;
+    readonly lastProcessedAt: string | null;
+    readonly lastErrorAt: string | null;
+    readonly lastErrorMessage: string | null;
+  };
   readonly startedAt: string;
   readonly lastSeenAt: string;
   readonly ageSeconds: number;
@@ -83,6 +98,80 @@ export type RealtimeEventCreated = {
   readonly projectId: string;
   readonly event: DashboardEvent;
   readonly occurredAt: string;
+};
+
+export type DashboardAnalyticsOptions = {
+  readonly environment?: string;
+  readonly timeRange?: string;
+};
+
+export type IngestionStats = {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly acceptedEvents: number;
+  readonly processedEvents: number;
+  readonly rejectedEvents: number;
+  readonly processingBacklog: number;
+  readonly latestAcceptedAt: string | null;
+  readonly latestProcessedAt: string | null;
+  readonly rateLimit: {
+    readonly limitPerMinute: number;
+    readonly windowSeconds: number;
+  };
+};
+
+export type ErrorGroup = {
+  readonly fingerprint: string;
+  readonly source: string;
+  readonly message: string;
+  readonly count: number;
+  readonly firstSeenAt: string;
+  readonly lastSeenAt: string;
+  readonly samples: DashboardEvent[];
+  readonly stack: string | null;
+  readonly incident: DashboardIncident | null;
+};
+
+export type MetricSummary = {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly totalEvents: number;
+  readonly logCount: number;
+  readonly errorCount: number;
+  readonly metricCount: number;
+  readonly errorRate: number;
+  readonly avgLatencyMs: number | null;
+  readonly p95LatencyMs: number | null;
+  readonly buckets: Array<{
+    readonly label: string;
+    readonly startedAt: string;
+    readonly events: number;
+    readonly logs: number;
+    readonly errors: number;
+    readonly metrics: number;
+    readonly errorRate: number;
+    readonly avgLatencyMs: number | null;
+    readonly p95LatencyMs: number | null;
+  }>;
+  readonly services: Array<{
+    readonly service: string;
+    readonly events: number;
+    readonly logs: number;
+    readonly errors: number;
+    readonly metrics: number;
+    readonly errorRate: number;
+    readonly avgLatencyMs: number | null;
+  }>;
+  readonly metricSamples: Array<{
+    readonly id: string;
+    readonly source: string;
+    readonly name: string;
+    readonly value: number;
+    readonly unit: string | null;
+    readonly observedAt: string;
+  }>;
 };
 
 export async function getDashboardSummary(projectId: string): Promise<DashboardSummary> {
@@ -137,4 +226,51 @@ export async function getQueueStatus(): Promise<QueueStatusResponse> {
   const response =
     await apiClient.get<ApiSuccessResponse<QueueStatusResponse>>("/dashboard/queues");
   return response.data.data;
+}
+
+export async function getIngestionStats(
+  projectId: string,
+  options: DashboardAnalyticsOptions = {},
+): Promise<IngestionStats> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly ingestion: IngestionStats }>>(
+    "/dashboard/ingestion",
+    {
+      params: toAnalyticsParams(projectId, options),
+    },
+  );
+  return response.data.data.ingestion;
+}
+
+export async function listErrorGroups(
+  projectId: string,
+  options: DashboardAnalyticsOptions = {},
+): Promise<ErrorGroup[]> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly errorGroups: ErrorGroup[] }>>(
+    "/dashboard/error-groups",
+    {
+      params: toAnalyticsParams(projectId, options),
+    },
+  );
+  return response.data.data.errorGroups;
+}
+
+export async function getMetricSummary(
+  projectId: string,
+  options: DashboardAnalyticsOptions = {},
+): Promise<MetricSummary> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly metrics: MetricSummary }>>(
+    "/dashboard/metrics",
+    {
+      params: toAnalyticsParams(projectId, options),
+    },
+  );
+  return response.data.data.metrics;
+}
+
+function toAnalyticsParams(projectId: string, options: DashboardAnalyticsOptions) {
+  return {
+    projectId,
+    ...(options.environment === undefined ? {} : { environment: options.environment }),
+    ...(options.timeRange === undefined ? {} : { timeRange: options.timeRange }),
+  };
 }
