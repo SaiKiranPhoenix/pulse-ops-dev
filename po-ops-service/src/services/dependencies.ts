@@ -6,6 +6,10 @@ import {
 } from "@pulseops/shared";
 import { OpsController } from "../controllers/ops.controller.js";
 import {
+  createRealtimeQueueStatusPublisher,
+  type RealtimeQueueStatusPublisher,
+} from "../events/publishers/realtime-queue-status.publisher.js";
+import {
   RabbitQueueStatusRepository,
   type QueueStatusRepository,
 } from "../repositories/queue-status.repository.js";
@@ -30,11 +34,14 @@ export async function createOpsServiceDependencies(
   options: CreateOpsServiceDependenciesOptions,
 ): Promise<OpsServiceDependencies> {
   const redis = await connectRedisClient(createRedisClient(options.redisUrl));
+  const realtimeQueueStatusPublisher = createRealtimeQueueStatusPublisher(options.rabbitMqUrl);
 
   return createOpsServiceDependenciesFromRepositories({
     workerHealthRepository: new RedisWorkerHealthRepository(redis),
     queueStatusRepository: new RabbitQueueStatusRepository(options.rabbitMqUrl),
+    realtimeQueueStatusPublisher,
     close: async () => {
+      await realtimeQueueStatusPublisher.close();
       await closeRedisClient(redis);
     },
   });
@@ -43,10 +50,15 @@ export async function createOpsServiceDependencies(
 export function createOpsServiceDependenciesFromRepositories(options: {
   readonly workerHealthRepository: WorkerHealthRepository;
   readonly queueStatusRepository: QueueStatusRepository;
+  readonly realtimeQueueStatusPublisher?: RealtimeQueueStatusPublisher;
   readonly redis?: PulseRedisClient;
   close?(): Promise<void>;
 }): OpsServiceDependencies {
-  const opsService = new OpsService(options.workerHealthRepository, options.queueStatusRepository);
+  const opsService = new OpsService(
+    options.workerHealthRepository,
+    options.queueStatusRepository,
+    options.realtimeQueueStatusPublisher,
+  );
 
   return {
     opsController: new OpsController(opsService),

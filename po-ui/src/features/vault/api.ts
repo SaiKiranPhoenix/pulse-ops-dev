@@ -8,6 +8,8 @@ export type VaultSecretMetadata = {
   readonly key: string;
   readonly version: number;
   readonly status: "active" | "deleted";
+  readonly createdBy: string | null;
+  readonly updatedBy: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
@@ -51,6 +53,16 @@ export type VaultAuditEvent = {
   readonly occurredAt: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+};
+
+export type VaultAuditFilters = {
+  readonly action?: string;
+  readonly result?: "success" | "failure";
+  readonly environment?: string;
+  readonly secretKey?: string;
+  readonly actor?: string;
+  readonly occurredAfter?: string;
+  readonly occurredBefore?: string;
 };
 
 export async function createSecret(input: {
@@ -125,10 +137,33 @@ export async function listVaultActivity(projectId: string): Promise<VaultSecretM
   return response.data.data.vaultActivity;
 }
 
-export async function listVaultAuditEvents(projectId: string): Promise<VaultAuditEvent[]> {
+export type VaultSecretVersion = {
+  readonly version: number;
+  readonly status: "rotated" | "deleted";
+  readonly actorId: string | null;
+  readonly occurredAt: string;
+};
+
+export async function listSecretVersions(
+  projectId: string,
+  environment: string,
+  key: string,
+): Promise<VaultSecretVersion[]> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly versions: VaultSecretVersion[] }>
+  >(`/vault/secrets/${encodeURIComponent(environment)}/${encodeURIComponent(key)}/versions`, {
+    params: { projectId },
+  });
+  return response.data.data.versions;
+}
+
+export async function listVaultAuditEvents(
+  projectId: string,
+  filters: VaultAuditFilters = {},
+): Promise<VaultAuditEvent[]> {
   const response = await apiClient.get<ApiSuccessResponse<{ readonly events: VaultAuditEvent[] }>>(
     "/audit/events",
-    { params: { projectId } },
+    { params: { projectId, ...filters } },
   );
   return response.data.data.events;
 }

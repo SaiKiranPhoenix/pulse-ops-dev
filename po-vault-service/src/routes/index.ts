@@ -45,6 +45,12 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateBody(updateSecretBodySchema),
     asyncHandler(dependencies.vaultController.update),
   );
+  router.get(
+    "/vault/secrets/:environment/:key/versions",
+    validateParams(secretParamsSchema),
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.versions),
+  );
   router.delete(
     "/vault/secrets/:environment/:key",
     validateParams(secretParamsSchema),

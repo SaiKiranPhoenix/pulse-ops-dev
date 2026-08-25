@@ -253,7 +253,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Worker and queue panels exist.
 - [x] Realtime incident update handler exists.
 - [x] No project onboarding; empty state is actionable through the setup redirect and shell selector.
-- [x] Realtime currently focuses on incidents, not all event/metric/worker updates.
+- [x] Realtime covers incidents, telemetry events, metrics refreshes, vault audit, worker heartbeats, and queue status updates.
 - [x] Add chart section for throughput, errors, latency.
 - [x] Add environment and time range selectors.
 - [x] Add project selector.
@@ -261,7 +261,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add dashboard auto-refresh and stale data indicator.
 - [x] Add deep links from cards to Logs, Metrics, Incidents, Workers, Vault.
 - [ ] Todo Add better no-data demo guidance.
-- [x] Add realtime `event.created` and `vault.audit`; worker and queue surfaces use auto-refresh health until producers emit dedicated heartbeat/status messages.
+- [x] Add realtime `event.created`, `vault.audit`, `worker.heartbeat`, and `queue.status`.
 
 ## Workers And Queues Experience
 
@@ -275,8 +275,8 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add queue table.
 - [x] Add queue depth, consumers, retry count, poison count, and derived queue health warnings.
 - [ ] Todo Add RabbitMQ management-backed stats if needed.
-- [ ] Todo Add DLQ inspection.
-- [ ] Todo Add DLQ replay tool for v1.5.
+- [x] Add DLQ inspection.
+- [x] Add DLQ replay tool.
 - [x] Add queue backlog warning.
 - [x] Add stale worker warnings.
 
@@ -287,16 +287,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Project room join/leave helpers exist.
 - [x] Incident realtime consumer exists.
 - [x] Dashboard uses realtime for incidents, telemetry events, trace refreshes, and vault audit updates.
-- [ ] Todo Verify project ownership before room join in live path.
-- [ ] Todo Add environment-scoped rooms.
-- [ ] Todo Emit live events to Logs.
-- [ ] Todo Emit live metric updates to Overview/Metrics.
-- [ ] Todo Emit worker heartbeat updates.
-- [ ] Todo Emit queue status updates.
+- [x] Verify project ownership before room join in live path.
+- [x] Add environment-scoped rooms.
+- [x] Emit live events to Logs.
+- [x] Emit live metric updates to Overview/Metrics.
+- [x] Emit worker heartbeat updates.
+- [x] Emit queue status updates.
 - [x] Emit vault audit updates.
 - [x] Handle reconnect by refetching current page.
-- [ ] Todo Deduplicate events after reconnect.
-- [ ] Todo Add visible stale connection state across shell.
+- [x] Deduplicate events after reconnect.
+- [x] Add visible stale connection state across shell.
 
 ## Vault Core
 
@@ -320,14 +320,14 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add copy secret value action inside reveal modal.
 - [x] Add rotate secret flow.
 - [x] Add soft-delete confirmation.
-- [ ] Todo Add secret version history if in scope.
-- [ ] Todo Add per-key metadata: created by, updated by, timestamps.
+- [x] Add secret version history.
+- [x] Add per-key metadata: created by, updated by, timestamps.
 - [x] Add integration token scopes UI.
 - [x] Add integration token expiry UI.
 - [x] Add last-used token display.
 - [x] Add external app secret fetch instructions.
-- [ ] Todo Add rate limiting for vault reveal/fetch attempts if not complete.
-- [ ] Todo Add wrong-password audit failure verification.
+- [x] Add rate limiting for vault reveal/fetch attempts.
+- [x] Add wrong-password audit failure verification.
 
 ## Vault Audit
 
@@ -337,13 +337,13 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Vault page displays audit events.
 - [x] Audit is available as a dedicated audit product surface.
 - [x] Build Vault Audit page.
-- [ ] Partial Add filters: action, result, environment, key, actor, time range.
+- [x] Add filters: action, result, environment, key, actor, time range.
 - [x] Add request ID display.
 - [x] Add actor type display: user/integration token/system.
 - [x] Add audit detail drawer.
 - [x] Add export/copy audit row action.
-- [ ] Todo Add realtime audit event updates.
-- [ ] Todo Add tests proving audit never stores raw secret, password, token, or auth header.
+- [x] Add realtime audit event updates.
+- [x] Add tests proving audit never stores raw secret, password, token, or auth header.
 
 ## API Gateway
 
@@ -355,12 +355,12 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Error shape middleware exists.
 - [x] Request ID middleware exists.
 - [x] Unit tests exist for proxy and CORS.
-- [ ] Verify Gateway route coverage matches `planning/10_API_CONTRACTS.md`.
-- [ ] Todo Add route-level docs or OpenAPI generation.
-- [ ] Todo Add request/response logging with redaction verification.
-- [ ] Todo Add gateway health aggregation.
-- [ ] Todo Add service unavailable UX mapping.
-- [ ] Todo Add rate limit at gateway if required.
+- [x] Verify Gateway route coverage matches `planning/10_API_CONTRACTS.md`.
+- [x] Add route-level docs or OpenAPI generation.
+- [x] Add request/response logging with redaction verification.
+- [x] Add gateway health aggregation.
+- [x] Add service unavailable UX mapping.
+- [x] Add rate limit at gateway.
 
 ## Data Model And Storage
 

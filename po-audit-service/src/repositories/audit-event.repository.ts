@@ -9,9 +9,20 @@ export type SafeAuditEventRecord = AuditEventRecord & {
   readonly id: string;
 };
 
+export type AuditEventFilter = {
+  readonly projectId: string;
+  readonly action?: string | undefined;
+  readonly result?: "success" | "failure" | undefined;
+  readonly environment?: string | undefined;
+  readonly secretKey?: string | undefined;
+  readonly actor?: string | undefined;
+  readonly occurredAfter?: Date | undefined;
+  readonly occurredBefore?: Date | undefined;
+};
+
 export interface AuditEventRepository {
   createFromMessage(message: VaultAuditEventMessage): Promise<SafeAuditEventRecord>;
-  findByProject(projectId: string): Promise<SafeAuditEventRecord[]>;
+  findByProject(filter: AuditEventFilter): Promise<SafeAuditEventRecord[]>;
 }
 
 export class MongoAuditEventRepository implements AuditEventRepository {
@@ -53,13 +64,37 @@ export class MongoAuditEventRepository implements AuditEventRepository {
     }
   }
 
-  async findByProject(projectId: string): Promise<SafeAuditEventRecord[]> {
-    const events = await AuditEventModel.find({ projectId })
+  async findByProject(filter: AuditEventFilter): Promise<SafeAuditEventRecord[]> {
+    const events = await AuditEventModel.find(toMongoFilter(filter))
       .sort({ occurredAt: -1 })
       .limit(100)
       .exec();
     return events.map(toSafeAuditEventRecord);
   }
+}
+
+function toMongoFilter(filter: AuditEventFilter): Record<string, unknown> {
+  const occurredAt: Record<string, Date> = {};
+
+  if (filter.occurredAfter !== undefined) {
+    occurredAt.$gte = filter.occurredAfter;
+  }
+
+  if (filter.occurredBefore !== undefined) {
+    occurredAt.$lte = filter.occurredBefore;
+  }
+
+  return {
+    projectId: filter.projectId,
+    ...(filter.action === undefined ? {} : { action: filter.action }),
+    ...(filter.result === undefined ? {} : { result: filter.result }),
+    ...(filter.environment === undefined ? {} : { environment: filter.environment }),
+    ...(filter.secretKey === undefined ? {} : { secretKey: filter.secretKey }),
+    ...(filter.actor === undefined
+      ? {}
+      : { $or: [{ actorId: filter.actor }, { actorType: filter.actor }] }),
+    ...(Object.keys(occurredAt).length === 0 ? {} : { occurredAt }),
+  };
 }
 
 function toSafeAuditEventRecord(event: AuditEventDocument): SafeAuditEventRecord {

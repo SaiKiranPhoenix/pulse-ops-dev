@@ -12,13 +12,23 @@ export type VaultSecretRecord = {
   environment: string;
   key: string;
   encryptedValue: EncryptedSecretValue;
+  versions: VaultSecretVersionRecord[];
   version: number;
   status: "active" | "deleted";
+  createdBy: string | null;
+  updatedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type VaultSecretDocument = HydratedDocument<VaultSecretRecord>;
+
+export type VaultSecretVersionRecord = {
+  version: number;
+  status: "rotated" | "deleted";
+  actorId: string | null;
+  occurredAt: Date;
+};
 
 const encryptedValueSchema = new Schema<EncryptedSecretValue>(
   {
@@ -36,6 +46,21 @@ const vaultSecretSchema = new Schema<VaultSecretRecord>(
     environment: { type: String, required: true, trim: true, lowercase: true, index: true },
     key: { type: String, required: true, trim: true, index: true },
     encryptedValue: { type: encryptedValueSchema, required: true, select: false },
+    versions: {
+      type: [
+        new Schema<VaultSecretVersionRecord>(
+          {
+            version: { type: Number, required: true, min: 1 },
+            status: { type: String, enum: ["rotated", "deleted"], required: true },
+            actorId: { type: String, default: null },
+            occurredAt: { type: Date, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+      select: false,
+    },
     version: { type: Number, required: true, default: 1, min: 1 },
     status: {
       type: String,
@@ -44,6 +69,8 @@ const vaultSecretSchema = new Schema<VaultSecretRecord>(
       default: "active",
       index: true,
     },
+    createdBy: { type: String, default: null },
+    updatedBy: { type: String, default: null },
   },
   {
     collection: "vault_secrets",

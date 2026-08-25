@@ -3,6 +3,7 @@ import {
   type EncryptedSecretValue,
   type VaultSecretDocument,
   type VaultSecretRecord,
+  type VaultSecretVersionRecord,
 } from "../models/vault-secret.model.js";
 
 export type CreateVaultSecretInput = {
@@ -10,11 +11,14 @@ export type CreateVaultSecretInput = {
   readonly environment: string;
   readonly key: string;
   readonly encryptedValue: EncryptedSecretValue;
+  readonly actorId: string | null;
 };
 
 export type SafeVaultSecretRecord = Omit<VaultSecretRecord, "encryptedValue"> & {
   readonly id: string;
 };
+
+export type SafeVaultSecretVersionRecord = VaultSecretVersionRecord;
 
 export type VaultSecretWithEncryptedValueRecord = SafeVaultSecretRecord & {
   readonly encryptedValue: EncryptedSecretValue;
@@ -38,17 +42,31 @@ export interface VaultSecretRepository {
     environment: string,
     key: string,
     encryptedValue: EncryptedSecretValue,
+    actorId: string | null,
   ): Promise<SafeVaultSecretRecord | null>;
+  listVersions(
+    projectId: string,
+    environment: string,
+    key: string,
+  ): Promise<SafeVaultSecretVersionRecord[] | null>;
   softDelete(
     projectId: string,
     environment: string,
     key: string,
+    actorId: string | null,
   ): Promise<SafeVaultSecretRecord | null>;
 }
 
 export class MongoVaultSecretRepository implements VaultSecretRepository {
   async create(input: CreateVaultSecretInput): Promise<SafeVaultSecretRecord> {
-    const secret = await VaultSecretModel.create(input);
+    const secret = await VaultSecretModel.create({
+      projectId: input.projectId,
+      environment: input.environment,
+      key: input.key,
+      encryptedValue: input.encryptedValue,
+      createdBy: input.actorId,
+      updatedBy: input.actorId,
+    });
     return toSafeSecretRecord(secret);
   }
 
@@ -101,24 +119,92 @@ export class MongoVaultSecretRepository implements VaultSecretRepository {
     environment: string,
     key: string,
     encryptedValue: EncryptedSecretValue,
+    actorId: string | null,
   ): Promise<SafeVaultSecretRecord | null> {
+    const currentSecret = await VaultSecretModel.findOne({
+      projectId,
+      environment,
+      key,
+      status: "active",
+    }).exec();
+
+    if (currentSecret === null) {
+      return null;
+    }
+
     const secret = await VaultSecretModel.findOneAndUpdate(
       { projectId, environment, key, status: "active" },
-      { $set: { encryptedValue }, $inc: { version: 1 } },
+      {
+        $set: { encryptedValue, updatedBy: actorId },
+        $inc: { version: 1 },
+        $push: {
+          versions: {
+            version: currentSecret.version,
+            status: "rotated",
+            actorId: currentSecret.updatedBy,
+            occurredAt: currentSecret.updatedAt,
+          },
+        },
+      },
       { new: true },
     ).exec();
 
     return secret === null ? null : toSafeSecretRecord(secret);
   }
 
+  async listVersions(
+    projectId: string,
+    environment: string,
+    key: string,
+  ): Promise<SafeVaultSecretVersionRecord[] | null> {
+    const secret = await VaultSecretModel.findOne({ projectId, environment, key, status: "active" })
+      .select("+versions")
+      .exec();
+
+    if (secret === null) {
+      return null;
+    }
+
+    const currentVersion: SafeVaultSecretVersionRecord = {
+      version: secret.version,
+      status: secret.status === "deleted" ? "deleted" : "rotated",
+      actorId: secret.updatedBy,
+      occurredAt: secret.updatedAt,
+    };
+
+    return [...secret.versions, currentVersion].sort((left, right) => right.version - left.version);
+  }
+
   async softDelete(
     projectId: string,
     environment: string,
     key: string,
+    actorId: string | null,
   ): Promise<SafeVaultSecretRecord | null> {
+    const currentSecret = await VaultSecretModel.findOne({
+      projectId,
+      environment,
+      key,
+      status: "active",
+    }).exec();
+
+    if (currentSecret === null) {
+      return null;
+    }
+
     const secret = await VaultSecretModel.findOneAndUpdate(
       { projectId, environment, key, status: "active" },
-      { $set: { status: "deleted" } },
+      {
+        $set: { status: "deleted", updatedBy: actorId },
+        $push: {
+          versions: {
+            version: currentSecret.version,
+            status: "deleted",
+            actorId,
+            occurredAt: new Date(),
+          },
+        },
+      },
       { new: true },
     ).exec();
 
@@ -132,8 +218,11 @@ function toSafeSecretRecord(secret: VaultSecretDocument): SafeVaultSecretRecord 
     projectId: secret.projectId,
     environment: secret.environment,
     key: secret.key,
+    versions: secret.versions ?? [],
     version: secret.version,
     status: secret.status,
+    createdBy: secret.createdBy,
+    updatedBy: secret.updatedBy,
     createdAt: secret.createdAt,
     updatedAt: secret.updatedAt,
   };

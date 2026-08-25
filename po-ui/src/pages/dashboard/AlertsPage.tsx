@@ -80,7 +80,7 @@ export function AlertsPage() {
     }
 
     socket.on("connect", () => {
-      void joinProjectRoom(socket, selectedProject.id);
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
     });
     socket.on("incident.updated", (update: RealtimeIncidentUpdate) => {
       setIncidents((current) => upsertIncident(current, update.incident as Incident));
@@ -91,10 +91,10 @@ export function AlertsPage() {
     socket.connect();
 
     return () => {
-      leaveProjectRoom(socket, selectedProject.id);
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
-  }, [selectedProject]);
+  }, [selectedEnvironment, selectedProject]);
 
   const filteredIncidents = useMemo(
     () =>

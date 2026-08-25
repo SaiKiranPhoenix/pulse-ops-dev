@@ -1,5 +1,9 @@
 import { TELEMETRY_QUEUES, type TelemetryEventType } from "@pulseops/shared";
 import { SERVICE_NAME } from "../config/constants.js";
+import {
+  noopRealtimeWorkerHeartbeatPublisher,
+  type RealtimeWorkerHeartbeatPublisher,
+} from "../events/publishers/realtime-worker-heartbeat.publisher.js";
 import type { WorkerHeartbeatRepository } from "../repositories/worker-heartbeat.repository.js";
 import type { WorkerProcessingStats } from "./event-worker.service.js";
 
@@ -18,6 +22,7 @@ export class WorkerHeartbeatService {
   constructor(
     private readonly heartbeats: WorkerHeartbeatRepository,
     private readonly options: WorkerHeartbeatOptions,
+    private readonly realtimeHeartbeats: RealtimeWorkerHeartbeatPublisher = noopRealtimeWorkerHeartbeatPublisher,
   ) {
     this.startedAt = options.startedAt ?? new Date();
   }
@@ -38,18 +43,28 @@ export class WorkerHeartbeatService {
   }
 
   async writeHeartbeat(now: Date = new Date()): Promise<void> {
-    await this.heartbeats.write(
-      {
-        workerId: this.options.workerId,
-        service: SERVICE_NAME,
-        status: "running",
-        queues: workerQueueNames(),
-        metrics: this.options.processingStats?.() ?? emptyProcessingStats(),
-        startedAt: this.startedAt.toISOString(),
-        lastSeenAt: now.toISOString(),
-      },
-      this.options.ttlSeconds,
-    );
+    const heartbeat = {
+      workerId: this.options.workerId,
+      service: SERVICE_NAME,
+      status: "running" as const,
+      queues: workerQueueNames(),
+      metrics: this.options.processingStats?.() ?? emptyProcessingStats(),
+      startedAt: this.startedAt.toISOString(),
+      lastSeenAt: now.toISOString(),
+    };
+
+    await this.heartbeats.write(heartbeat, this.options.ttlSeconds);
+
+    try {
+      await this.realtimeHeartbeats.publish({
+        messageId: `${heartbeat.workerId}:${now.getTime()}`,
+        schemaVersion: 1,
+        worker: heartbeat,
+        occurredAt: now.toISOString(),
+      });
+    } catch {
+      // Durable heartbeat storage is enough for recovery; realtime delivery is best-effort.
+    }
   }
 }
 
@@ -70,7 +85,7 @@ function emptyProcessingStats(): WorkerProcessingStats {
   };
 }
 
-function workerQueueNames(): readonly string[] {
+function workerQueueNames(): string[] {
   const types: readonly TelemetryEventType[] = ["log", "error", "metric"];
   return types.map((type) => TELEMETRY_QUEUES[type]);
 }

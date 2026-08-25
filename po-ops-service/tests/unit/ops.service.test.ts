@@ -3,6 +3,7 @@ import type {
   QueueStatusRecord,
   QueueStatusRepository,
 } from "../../src/repositories/queue-status.repository.js";
+import type { RealtimeQueueStatusPublisher } from "../../src/events/publishers/realtime-queue-status.publisher.js";
 import type {
   WorkerHealthRecord,
   WorkerHealthRepository,
@@ -23,10 +24,29 @@ class InMemoryQueueStatusRepository implements QueueStatusRepository {
   async inspect(): Promise<QueueStatusRecord[]> {
     return this.records;
   }
+
+  async inspectDeadLetters(): Promise<[]> {
+    return [];
+  }
+
+  async replayDeadLetters(): Promise<{ readonly replayed: number }> {
+    return { replayed: 0 };
+  }
+}
+
+class CapturingQueueStatusPublisher implements RealtimeQueueStatusPublisher {
+  readonly messages: Parameters<RealtimeQueueStatusPublisher["publish"]>[0][] = [];
+
+  async publish(message: Parameters<RealtimeQueueStatusPublisher["publish"]>[0]): Promise<void> {
+    this.messages.push(message);
+  }
+
+  async close(): Promise<void> {}
 }
 
 describe("OpsService", () => {
   it("adds heartbeat age and summarizes observed queues", async () => {
+    const realtimeQueues = new CapturingQueueStatusPublisher();
     const service = new OpsService(
       new InMemoryWorkerHealthRepository([
         {
@@ -66,6 +86,7 @@ describe("OpsService", () => {
           consumerCount: null,
         },
       ]),
+      realtimeQueues,
     );
 
     await expect(service.workers(new Date("2026-08-18T00:00:15.000Z"))).resolves.toEqual([
@@ -104,5 +125,24 @@ describe("OpsService", () => {
         totalConsumers: 1,
       },
     });
+    expect(realtimeQueues.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        schemaVersion: 1,
+        queues: [
+          {
+            name: "pulseops.logs.q",
+            status: "available",
+            messageCount: 7,
+            consumerCount: 1,
+          },
+          {
+            name: "pulseops.dead-letter.q",
+            status: "missing",
+            messageCount: null,
+            consumerCount: null,
+          },
+        ],
+      }),
+    );
   });
 });

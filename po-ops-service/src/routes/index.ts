@@ -14,9 +14,15 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   });
   router.get("/ops/workers", asyncHandler(dependencies.opsController.workers));
   router.get("/ops/queues", asyncHandler(dependencies.opsController.queues));
+  router.get("/ops/dead-letters", asyncHandler(dependencies.opsController.deadLetters));
+  router.post(
+    "/ops/dead-letters/replay",
+    asyncHandler(dependencies.opsController.replayDeadLetters),
+  );
   router.get("/ops/summary", asyncHandler(dependencies.opsController.summary));
   router.get("/dashboard/workers", asyncHandler(dependencies.opsController.workers));
   router.get("/dashboard/queues", asyncHandler(dependencies.opsController.queues));
+  router.get("/dashboard/dead-letters", asyncHandler(dependencies.opsController.deadLetters));
 
   return router;
 }

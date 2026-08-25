@@ -10,6 +10,7 @@ import { connectMongo, disconnectMongo } from "./config/database.js";
 import { loadEnv } from "./config/env.js";
 import { createIncidentEvaluationPublisher } from "./events/publishers/incident-evaluation.publisher.js";
 import { createRealtimeEventPublisher } from "./events/publishers/realtime-event.publisher.js";
+import { createRealtimeWorkerHeartbeatPublisher } from "./events/publishers/realtime-worker-heartbeat.publisher.js";
 import { MongoEventRepository } from "./repositories/event.repository.js";
 import { RedisWorkerHeartbeatRepository } from "./repositories/worker-heartbeat.repository.js";
 import { EventWorkerService } from "./services/event-worker.service.js";
@@ -24,17 +25,22 @@ const redis = await connectRedisClient(createRedisClient(env.REDIS_URL));
 
 const incidentEvaluationPublisher = createIncidentEvaluationPublisher(env.RABBITMQ_URL);
 const realtimeEventPublisher = createRealtimeEventPublisher(env.RABBITMQ_URL);
+const realtimeWorkerHeartbeatPublisher = createRealtimeWorkerHeartbeatPublisher(env.RABBITMQ_URL);
 const eventWorker = new EventWorkerService(
   new MongoEventRepository(),
   incidentEvaluationPublisher,
   realtimeEventPublisher,
 );
-const workerHeartbeat = new WorkerHeartbeatService(new RedisWorkerHeartbeatRepository(redis), {
-  workerId: env.WORKER_ID ?? `${SERVICE_NAME}:${hostname()}:${process.pid}`,
-  intervalSeconds: env.WORKER_HEARTBEAT_INTERVAL_SECONDS,
-  ttlSeconds: env.WORKER_HEARTBEAT_TTL_SECONDS,
-  processingStats: () => eventWorker.snapshotStats(),
-});
+const workerHeartbeat = new WorkerHeartbeatService(
+  new RedisWorkerHeartbeatRepository(redis),
+  {
+    workerId: env.WORKER_ID ?? `${SERVICE_NAME}:${hostname()}:${process.pid}`,
+    intervalSeconds: env.WORKER_HEARTBEAT_INTERVAL_SECONDS,
+    ttlSeconds: env.WORKER_HEARTBEAT_TTL_SECONDS,
+    processingStats: () => eventWorker.snapshotStats(),
+  },
+  realtimeWorkerHeartbeatPublisher,
+);
 const runtime = new WorkerRuntimeService(
   {
     rabbitMqUrl: env.RABBITMQ_URL,
@@ -58,6 +64,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   await runtime.close();
   await incidentEvaluationPublisher.close();
   await realtimeEventPublisher.close();
+  await realtimeWorkerHeartbeatPublisher.close();
   await closeRedisClient(redis);
   await disconnectMongo();
   process.exit(0);

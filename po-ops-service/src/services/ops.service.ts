@@ -1,3 +1,8 @@
+import type { RabbitDeadLetterMessage, RabbitDeadLetterReplayResult } from "@pulseops/shared";
+import {
+  noopRealtimeQueueStatusPublisher,
+  type RealtimeQueueStatusPublisher,
+} from "../events/publishers/realtime-queue-status.publisher.js";
 import type {
   WorkerHealthRecord,
   WorkerHealthRepository,
@@ -17,6 +22,9 @@ export type QueueHealthDto = QueueStatusRecord & {
   readonly health: QueueHealthStatus;
   readonly backlogWarning: string | null;
 };
+
+export type DeadLetterMessageDto = RabbitDeadLetterMessage;
+export type DeadLetterReplayDto = RabbitDeadLetterReplayResult;
 
 export type OpsSummaryDto = {
   readonly generatedAt: string;
@@ -41,6 +49,7 @@ export class OpsService {
   constructor(
     private readonly workersRepository: WorkerHealthRepository,
     private readonly queuesRepository: QueueStatusRepository,
+    private readonly realtimeQueues: RealtimeQueueStatusPublisher = noopRealtimeQueueStatusPublisher,
   ) {}
 
   async workers(now: Date = new Date()): Promise<WorkerHealthDto[]> {
@@ -54,7 +63,30 @@ export class OpsService {
 
   async queues(): Promise<QueueHealthDto[]> {
     const queues = await this.queuesRepository.inspect();
-    return queues.map(toQueueHealth);
+    const queueDtos = queues.map(toQueueHealth);
+
+    try {
+      await this.realtimeQueues.publish({
+        messageId: `queue-status:${Date.now()}`,
+        schemaVersion: 1,
+        queues: queueDtos.map(
+          ({ health: _health, backlogWarning: _backlogWarning, ...queue }) => queue,
+        ),
+        occurredAt: new Date().toISOString(),
+      });
+    } catch {
+      // Queue inspection responses should not fail because realtime delivery is unavailable.
+    }
+
+    return queueDtos;
+  }
+
+  async deadLetters(limit = 20): Promise<DeadLetterMessageDto[]> {
+    return this.queuesRepository.inspectDeadLetters(Math.min(Math.max(limit, 1), 100));
+  }
+
+  async replayDeadLetters(limit = 10): Promise<DeadLetterReplayDto> {
+    return this.queuesRepository.replayDeadLetters(Math.min(Math.max(limit, 1), 100));
   }
 
   async summary(): Promise<OpsSummaryDto> {

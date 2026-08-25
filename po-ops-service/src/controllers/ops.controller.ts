@@ -19,4 +19,16 @@ export class OpsController {
     const summary = await this.ops.summary();
     response.status(200).json(successResponse({ summary }, String(response.locals.requestId)));
   };
+
+  deadLetters = async (request: Request, response: Response): Promise<void> => {
+    const limit = Number(request.query.limit ?? 20);
+    const messages = await this.ops.deadLetters(Number.isFinite(limit) ? limit : 20);
+    response.status(200).json(successResponse({ messages }, String(response.locals.requestId)));
+  };
+
+  replayDeadLetters = async (request: Request, response: Response): Promise<void> => {
+    const limit = Number((request.body as { readonly limit?: unknown } | undefined)?.limit ?? 10);
+    const replay = await this.ops.replayDeadLetters(Number.isFinite(limit) ? limit : 10);
+    response.status(200).json(successResponse({ replay }, String(response.locals.requestId)));
+  };
 }

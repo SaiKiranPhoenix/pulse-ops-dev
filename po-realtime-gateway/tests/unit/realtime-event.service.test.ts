@@ -1,7 +1,9 @@
 import type {
   RealtimeEventCreatedMessage,
   RealtimeIncidentUpdateMessage,
+  RealtimeQueueStatusMessage,
   RealtimeVaultAuditCreatedMessage,
+  RealtimeWorkerHeartbeatMessage,
 } from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
 import type { SocketRoomEmitter } from "../../src/services/realtime-event.service.js";
@@ -14,6 +16,8 @@ class InMemorySocketRoomEmitter implements SocketRoomEmitter {
     readonly payload:
       | RealtimeEventCreatedMessage
       | RealtimeIncidentUpdateMessage
+      | RealtimeQueueStatusMessage
+      | RealtimeWorkerHeartbeatMessage
       | RealtimeVaultAuditCreatedMessage;
   }> = [];
 
@@ -23,6 +27,8 @@ class InMemorySocketRoomEmitter implements SocketRoomEmitter {
       payload:
         | RealtimeEventCreatedMessage
         | RealtimeIncidentUpdateMessage
+        | RealtimeQueueStatusMessage
+        | RealtimeWorkerHeartbeatMessage
         | RealtimeVaultAuditCreatedMessage,
     ) => void;
   } {
@@ -56,13 +62,13 @@ describe("RealtimeEventService", () => {
     });
   });
 
-  it("emits created events to the project room", () => {
+  it("emits created events to project and environment rooms", () => {
     const emitter = new InMemorySocketRoomEmitter();
     const service = new RealtimeEventService(emitter);
 
     service.emitEventCreated(validEventCreated());
 
-    expect(emitter.emitted).toHaveLength(1);
+    expect(emitter.emitted).toHaveLength(2);
     expect(emitter.emitted[0]).toMatchObject({
       room: "project:project_1",
       event: "event.created",
@@ -74,15 +80,19 @@ describe("RealtimeEventService", () => {
         },
       },
     });
+    expect(emitter.emitted[1]).toMatchObject({
+      room: "project:project_1:env:production",
+      event: "event.created",
+    });
   });
 
-  it("emits vault audit events to the project room", () => {
+  it("emits vault audit events to project and environment rooms", () => {
     const emitter = new InMemorySocketRoomEmitter();
     const service = new RealtimeEventService(emitter);
 
     service.emitVaultAuditCreated(validVaultAuditCreated());
 
-    expect(emitter.emitted).toHaveLength(1);
+    expect(emitter.emitted).toHaveLength(2);
     expect(emitter.emitted[0]).toMatchObject({
       room: "project:project_1",
       event: "vault.audit.created",
@@ -94,6 +104,31 @@ describe("RealtimeEventService", () => {
         },
       },
     });
+    expect(emitter.emitted[1]).toMatchObject({
+      room: "project:project_1:env:production",
+      event: "vault.audit.created",
+    });
+  });
+
+  it("emits worker heartbeat and queue status updates to the ops room", () => {
+    const emitter = new InMemorySocketRoomEmitter();
+    const service = new RealtimeEventService(emitter);
+
+    service.emitWorkerHeartbeat(validWorkerHeartbeat());
+    service.emitQueueStatus(validQueueStatus());
+
+    expect(emitter.emitted).toEqual([
+      expect.objectContaining({
+        room: "ops",
+        event: "worker.heartbeat",
+        payload: expect.objectContaining({ messageId: "worker_1:1" }),
+      }),
+      expect.objectContaining({
+        room: "ops",
+        event: "queue.status",
+        payload: expect.objectContaining({ messageId: "queue-status:1" }),
+      }),
+    ]);
   });
 });
 
@@ -169,9 +204,51 @@ function validEventCreated(): RealtimeEventCreatedMessage {
       value: null,
       unit: null,
       fingerprint: "fingerprint_1",
-      attributes: {},
+      attributes: { environment: "production" },
       observedAt: "2026-08-18T00:00:00.000Z",
       receivedAt: "2026-08-18T00:00:00.100Z",
     },
+  };
+}
+
+function validWorkerHeartbeat(): RealtimeWorkerHeartbeatMessage {
+  return {
+    messageId: "worker_1:1",
+    schemaVersion: 1,
+    worker: {
+      workerId: "worker_1",
+      service: "po-event-workers",
+      status: "running",
+      queues: ["pulseops.logs.q"],
+      metrics: {
+        processed: 1,
+        processedByType: { log: 1, error: 0, metric: 0 },
+        failed: 0,
+        retries: 0,
+        poisonMessages: 0,
+        lastProcessedAt: "2026-08-18T00:00:01.000Z",
+        lastErrorAt: null,
+        lastErrorMessage: null,
+      },
+      startedAt: "2026-08-18T00:00:00.000Z",
+      lastSeenAt: "2026-08-18T00:00:01.000Z",
+    },
+    occurredAt: "2026-08-18T00:00:01.000Z",
+  };
+}
+
+function validQueueStatus(): RealtimeQueueStatusMessage {
+  return {
+    messageId: "queue-status:1",
+    schemaVersion: 1,
+    queues: [
+      {
+        name: "pulseops.logs.q",
+        status: "available",
+        messageCount: 1,
+        consumerCount: 1,
+      },
+    ],
+    occurredAt: "2026-08-18T00:00:01.000Z",
   };
 }

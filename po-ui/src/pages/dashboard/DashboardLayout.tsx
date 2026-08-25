@@ -51,7 +51,7 @@ const dashboardTimeRanges = ["15m", "1h", "6h", "24h", "7d"] as const;
 
 export type DashboardEnvironment = (typeof dashboardEnvironments)[number];
 type DashboardTimeRange = (typeof dashboardTimeRanges)[number];
-type RealtimeState = "connected" | "connecting" | "disconnected";
+type RealtimeState = "connected" | "connecting" | "disconnected" | "stale";
 
 export type DashboardContextValue = {
   readonly projects: Project[];
@@ -101,6 +101,7 @@ export function DashboardLayout() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [realtimeState, setRealtimeState] = useState<RealtimeState>("disconnected");
+  const [, setLastRealtimeAt] = useState<number | null>(null);
   const [selectedTimeRange, setSelectedTimeRangeState] = useState<DashboardTimeRange>(() => {
     const saved = localStorage.getItem(selectedTimeRangeStorageKey);
     return isDashboardTimeRange(saved) ? saved : "1h";
@@ -226,7 +227,12 @@ export function DashboardLayout() {
     setRealtimeState("connecting");
     socket.on("connect", () => {
       setRealtimeState("connected");
-      void joinProjectRoom(socket, selectedProject.id);
+      setLastRealtimeAt(Date.now());
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
+    });
+    socket.on("project:joined", () => {
+      setLastRealtimeAt(Date.now());
+      setRealtimeState("connected");
     });
     socket.on("disconnect", () => {
       setRealtimeState("disconnected");
@@ -235,12 +241,22 @@ export function DashboardLayout() {
       setRealtimeState("disconnected");
     });
     socket.connect();
+    const staleInterval = window.setInterval(() => {
+      setLastRealtimeAt((lastSeenAt) => {
+        if (lastSeenAt !== null && Date.now() - lastSeenAt > 45_000) {
+          setRealtimeState((current) => (current === "connected" ? "stale" : current));
+        }
+
+        return lastSeenAt;
+      });
+    }, 15_000);
 
     return () => {
-      leaveProjectRoom(socket, selectedProject.id);
+      window.clearInterval(staleInterval);
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
-  }, [selectedProject]);
+  }, [selectedEnvironment, selectedProject]);
 
   if (isLoadingProjects) {
     return <DashboardLoadingShell />;
@@ -493,6 +509,7 @@ function DashboardFrame({
                   realtimeState === "connected" &&
                     "border-emerald-200 bg-emerald-50 text-emerald-800",
                   realtimeState === "connecting" && "border-amber-200 bg-amber-50 text-amber-800",
+                  realtimeState === "stale" && "border-amber-200 bg-amber-50 text-amber-800",
                   realtimeState === "disconnected" && "border-slate-200 bg-slate-50 text-slate-600",
                 )}
                 title={realtimeUrl}

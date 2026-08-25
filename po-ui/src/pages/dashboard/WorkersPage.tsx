@@ -2,19 +2,30 @@ import { Boxes, RadioTower, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  listDeadLetters,
   getQueueStatus,
   getWorkerStatus,
+  replayDeadLetters,
+  type DeadLetterMessage,
   type QueueStatus,
   type WorkerHealth,
 } from "@/features/dashboards/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import {
+  createPulseOpsSocket,
+  type RealtimeQueueStatus,
+  type RealtimeWorkerHeartbeat,
+} from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
 
 export function WorkersPage() {
   const [workers, setWorkers] = useState<WorkerHealth[]>([]);
   const [queues, setQueues] = useState<QueueStatus[]>([]);
+  const [deadLetters, setDeadLetters] = useState<DeadLetterMessage[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadOps(): Promise<void> {
@@ -22,9 +33,14 @@ export function WorkersPage() {
     setError(null);
 
     try {
-      const [workerStatus, queueStatus] = await Promise.all([getWorkerStatus(), getQueueStatus()]);
+      const [workerStatus, queueStatus, deadLetterMessages] = await Promise.all([
+        getWorkerStatus(),
+        getQueueStatus(),
+        listDeadLetters(),
+      ]);
       setWorkers(workerStatus.workers);
       setQueues(queueStatus.queues);
+      setDeadLetters(deadLetterMessages);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -40,6 +56,29 @@ export function WorkersPage() {
     }, 15_000);
 
     return () => window.clearInterval(refreshInterval);
+  }, []);
+
+  useEffect(() => {
+    const socket = createPulseOpsSocket();
+
+    if (socket === null) {
+      return;
+    }
+
+    socket.on("connect", () => {
+      void loadOps();
+    });
+    socket.on("worker.heartbeat", (update: RealtimeWorkerHeartbeat) => {
+      setWorkers((current) => upsertWorker(current, update));
+    });
+    socket.on("queue.status", (update: RealtimeQueueStatus) => {
+      setQueues(update.queues.map(toQueueHealth));
+    });
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const totalMessages = useMemo(
@@ -73,6 +112,22 @@ export function WorkersPage() {
   const selectedWorker =
     workers.find((worker) => worker.workerId === selectedWorkerId) ?? workers[0] ?? null;
 
+  async function replayDlq(): Promise<void> {
+    setIsReplaying(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const replayed = await replayDeadLetters(10);
+      setMessage(`${replayed} dead-letter message${replayed === 1 ? "" : "s"} replayed.`);
+      await loadOps();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsReplaying(false);
+    }
+  }
+
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -95,6 +150,12 @@ export function WorkersPage() {
         </div>
       ) : null}
 
+      {message !== null ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {message}
+        </div>
+      ) : null}
+
       <section className="grid gap-3 md:grid-cols-4">
         <Summary label="Workers" value={workers.length} />
         <Summary label="Stale workers" value={staleWorkers} />
@@ -114,6 +175,7 @@ export function WorkersPage() {
           label="Retries"
           value={workers.reduce((total, worker) => total + worker.metrics.retries, 0)}
         />
+        <Summary label="Dead letters" value={deadLetters.length} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
@@ -212,6 +274,58 @@ export function WorkersPage() {
           </div>
         )}
       </section>
+
+      <section className="rounded-md border border-slate-200 bg-white">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Boxes className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+              Dead-letter queue
+            </h2>
+          </div>
+          <Button
+            className="w-auto"
+            disabled={deadLetters.length === 0 || isReplaying}
+            onClick={() => void replayDlq()}
+            type="button"
+            variant="outline"
+          >
+            Replay 10
+          </Button>
+        </div>
+        {deadLetters.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500">
+            {isLoading ? "Loading dead letters" : "No dead-letter messages observed"}
+          </p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {deadLetters.map((deadLetter) => (
+              <article className="grid gap-3 px-4 py-3" key={deadLetter.id}>
+                <div className="grid gap-3 md:grid-cols-[1fr_10rem_10rem]">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {deadLetter.originalRoutingKey ?? deadLetter.routingKey}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {deadLetter.deadLetterReason ?? "unknown reason"} /{" "}
+                      {deadLetter.originalExchange ?? deadLetter.exchange}
+                    </p>
+                  </div>
+                  <span className="font-mono text-xs text-slate-500">
+                    {deadLetter.contentType ?? "-"}
+                  </span>
+                  <span className={deadLetter.redelivered ? staleClass : healthyClass}>
+                    {deadLetter.redelivered ? "redelivered" : "parked"}
+                  </span>
+                </div>
+                <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+                  {JSON.stringify(deadLetter.payload, null, 2)}
+                </pre>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
@@ -282,6 +396,49 @@ function Detail({ label, value }: { readonly label: string; readonly value: numb
       <p className="mt-2 font-mono text-lg font-semibold text-slate-950">{value}</p>
     </div>
   );
+}
+
+function upsertWorker(workers: WorkerHealth[], update: RealtimeWorkerHeartbeat): WorkerHealth[] {
+  const nextWorker: WorkerHealth = {
+    ...update.worker,
+    ageSeconds: Math.max(
+      0,
+      Math.floor((Date.now() - Date.parse(update.worker.lastSeenAt)) / 1_000),
+    ),
+  };
+  const workersById = new Map(workers.map((worker) => [worker.workerId, worker]));
+  workersById.set(nextWorker.workerId, nextWorker);
+
+  return [...workersById.values()].sort((left, right) =>
+    left.workerId.localeCompare(right.workerId),
+  );
+}
+
+function toQueueHealth(queue: RealtimeQueueStatus["queues"][number]): QueueStatus {
+  const messageCount = queue.messageCount ?? 0;
+  const consumerCount = queue.consumerCount ?? 0;
+
+  if (queue.status === "missing") {
+    return { ...queue, health: "missing", backlogWarning: "Queue is missing in RabbitMQ." };
+  }
+
+  if (messageCount > 0 && consumerCount === 0) {
+    return {
+      ...queue,
+      health: "blocked",
+      backlogWarning: "Messages are queued but no consumers are attached.",
+    };
+  }
+
+  if (messageCount >= 100) {
+    return {
+      ...queue,
+      health: "backlog",
+      backlogWarning: "Queue backlog is above the local warning threshold.",
+    };
+  }
+
+  return { ...queue, health: "clear", backlogWarning: null };
 }
 
 const healthyClass =
