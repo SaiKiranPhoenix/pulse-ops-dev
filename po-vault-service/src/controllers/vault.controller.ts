@@ -77,7 +77,8 @@ export class VaultController {
     const body = response.locals.validatedBody as CreateVaultTokenBody;
     const token = await this.vault.createToken({
       ...body,
-      expiresAt: body.expiresAt === undefined || body.expiresAt === null ? null : new Date(body.expiresAt),
+      expiresAt:
+        body.expiresAt === undefined || body.expiresAt === null ? null : new Date(body.expiresAt),
       ...auditContext(request, response),
     });
 
@@ -94,7 +95,11 @@ export class VaultController {
   revokeToken = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as SecretQuery;
     const params = response.locals.validatedParams as VaultTokenParams;
-    const token = await this.vault.revokeToken(query.projectId, params.tokenId, auditContext(request, response));
+    const token = await this.vault.revokeToken(
+      query.projectId,
+      params.tokenId,
+      auditContext(request, response),
+    );
 
     response.status(200).json(successResponse({ token }, String(response.locals.requestId)));
   };

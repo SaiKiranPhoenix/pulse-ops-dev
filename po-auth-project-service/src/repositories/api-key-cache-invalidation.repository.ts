@@ -1,16 +1,10 @@
-import {
-  connectRedisClient,
-  toApiKeyCacheKey,
-  type PulseRedisClient,
-} from "@pulseops/shared";
+import { connectRedisClient, toApiKeyCacheKey, type PulseRedisClient } from "@pulseops/shared";
 
 export interface ApiKeyCacheInvalidationRepository {
   invalidate(keyHash: string): Promise<void>;
 }
 
-export class RedisApiKeyCacheInvalidationRepository
-  implements ApiKeyCacheInvalidationRepository
-{
+export class RedisApiKeyCacheInvalidationRepository implements ApiKeyCacheInvalidationRepository {
   constructor(private readonly redis: PulseRedisClient) {}
 
   async invalidate(keyHash: string): Promise<void> {

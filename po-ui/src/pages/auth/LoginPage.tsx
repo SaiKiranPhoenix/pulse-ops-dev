@@ -18,7 +18,19 @@ export function LoginPage() {
   const oauthError = searchParams.get("oauth_error");
   const statusMessage = useMemo(() => {
     if (oauthError !== null) {
-      return oauthError;
+      if (oauthError.toLowerCase().includes("provider")) {
+        return "OAuth is not configured for this local stack. Add provider credentials in .env, or use email sign-in for the demo.";
+      }
+
+      return "OAuth sign-in could not be completed. Check the provider setup or use email sign-in.";
+    }
+
+    if (searchParams.get("session_expired") === "1") {
+      return "Your session expired. Sign in again to continue.";
+    }
+
+    if (searchParams.get("reset") === "not-supported") {
+      return "Password reset is not enabled for the local demo. Create a new local account if needed.";
     }
 
     return searchParams.get("registered") === "1" ? "Account created. Sign in to continue." : null;
@@ -106,6 +118,12 @@ export function LoginPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
+        <Link className="font-medium text-primary hover:underline" to="/login?reset=not-supported">
+          Forgot password?
+        </Link>
+      </p>
+
+      <p className="mt-3 text-center text-sm text-muted-foreground">
         No account?{" "}
         <Link className="font-medium text-primary hover:underline" to="/register">
           Create one

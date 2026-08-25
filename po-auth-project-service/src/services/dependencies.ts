@@ -9,6 +9,7 @@ import { MongoProjectRepository } from "../repositories/project.repository.js";
 import { MongoUserRepository } from "../repositories/user.repository.js";
 import { HmacApiKeyHasher } from "./api-key-hasher.service.js";
 import { ApiKeyService } from "./api-key.service.js";
+import { SafeAuthEventLogger } from "./auth-event-logger.service.js";
 import { FetchOAuthProviderClient } from "./oauth-provider.service.js";
 import { OAuthService } from "./oauth.service.js";
 import { HmacOAuthStateService } from "./oauth-state.service.js";
@@ -39,8 +40,14 @@ export function createAuthProjectServiceDependencies(): AuthProjectServiceDepend
   const passwordHasher = new ScryptPasswordHasher();
   const tokenService = new HmacJwtTokenService(env.JWT_SECRET, env.ACCESS_TOKEN_TTL_SECONDS);
   const apiKeyHasher = new HmacApiKeyHasher(env.API_KEY_PEPPER);
+  const authEventLogger = new SafeAuthEventLogger();
   const userRegistrationService = new UserRegistrationService(userRepository, passwordHasher);
-  const sessionService = new SessionService(userRepository, passwordHasher, tokenService);
+  const sessionService = new SessionService(
+    userRepository,
+    passwordHasher,
+    tokenService,
+    authEventLogger,
+  );
   const oauthStateService = new HmacOAuthStateService(
     env.OAUTH_STATE_SECRET ?? env.JWT_SECRET,
     env.OAUTH_STATE_TTL_SECONDS,

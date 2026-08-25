@@ -6,6 +6,7 @@ import type {
   OAuthCallbackQuery,
   OAuthProviderParams,
   RegisterUserBody,
+  UpdateCurrentUserBody,
 } from "../validators/auth.validator.js";
 import type { OAuthService } from "../services/oauth.service.js";
 import type { SessionService } from "../services/session.service.js";
@@ -21,15 +22,9 @@ export class AuthController {
   register = async (_request: Request, response: Response): Promise<void> => {
     const body = response.locals.validatedBody as RegisterUserBody;
     const user = await this.userRegistration.register(body);
+    const session = this.sessions.issueSessionForRegisteredUser(user);
 
-    response.status(201).json(
-      successResponse(
-        {
-          user,
-        },
-        String(response.locals.requestId),
-      ),
-    );
+    response.status(201).json(successResponse(session, String(response.locals.requestId)));
   };
 
   login = async (_request: Request, response: Response): Promise<void> => {
@@ -42,6 +37,23 @@ export class AuthController {
   currentUser = async (_request: Request, response: Response): Promise<void> => {
     const auth = getAuthContext(response);
     const user = await this.sessions.getCurrentUser(auth.userId);
+
+    response.status(200).json(
+      successResponse(
+        {
+          user,
+        },
+        String(response.locals.requestId),
+      ),
+    );
+  };
+
+  updateCurrentUser = async (_request: Request, response: Response): Promise<void> => {
+    const auth = getAuthContext(response);
+    const body = response.locals.validatedBody as UpdateCurrentUserBody;
+    const user = await this.sessions.updateCurrentUser(auth.userId, {
+      name: body.name,
+    });
 
     response.status(200).json(
       successResponse(

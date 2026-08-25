@@ -1,6 +1,7 @@
 import axios, { AxiosError, type AxiosInstance } from "axios";
 
 const accessTokenStorageKey = "pulseops.accessToken";
+export const sessionExpiredEventName = "pulseops:session-expired";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000",
@@ -20,6 +21,22 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (
+      error instanceof AxiosError &&
+      error.response?.status === 401 &&
+      getAccessToken() !== null
+    ) {
+      clearAccessToken();
+      window.dispatchEvent(new CustomEvent(sessionExpiredEventName));
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export function setAccessToken(accessToken: string): void {
   localStorage.setItem(accessTokenStorageKey, accessToken);
 }
@@ -30,6 +47,13 @@ export function clearAccessToken(): void {
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(accessTokenStorageKey);
+}
+
+export function subscribeToSessionExpired(listener: () => void): () => void {
+  window.addEventListener(sessionExpiredEventName, listener);
+  return () => {
+    window.removeEventListener(sessionExpiredEventName, listener);
+  };
 }
 
 export function getApiErrorMessage(error: unknown): string {

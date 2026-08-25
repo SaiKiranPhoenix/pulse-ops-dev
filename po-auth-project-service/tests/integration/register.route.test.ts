@@ -20,6 +20,8 @@ describe("POST /auth/register", () => {
 
     expect(response.body).toEqual({
       data: {
+        accessToken: expect.any(String),
+        tokenType: "Bearer",
         user: {
           id: "000000000000000000000001",
           email: "user@example.com",
@@ -30,6 +32,13 @@ describe("POST /auth/register", () => {
       requestId: "req_test",
     });
     expect(JSON.stringify(response.body)).not.toContain("password");
+    expect(harness.authEvents.events).toEqual([
+      {
+        action: "auth.register",
+        status: "success",
+        userId: "000000000000000000000001",
+      },
+    ]);
   });
 
   it("returns validation errors for weak passwords", async () => {

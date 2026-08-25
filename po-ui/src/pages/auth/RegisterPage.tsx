@@ -27,7 +27,7 @@ export function RegisterPage() {
         password,
         ...(name.trim().length > 0 ? { name } : {}),
       });
-      navigate("/login?registered=1", { replace: true });
+      navigate("/dashboard/setup", { replace: true });
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {

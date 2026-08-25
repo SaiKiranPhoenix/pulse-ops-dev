@@ -40,7 +40,9 @@ export class MongoAuditEventRepository implements AuditEventRepository {
       return toSafeAuditEventRecord(event);
     } catch (error) {
       if (isDuplicateKeyError(error)) {
-        const eventAfterRace = await AuditEventModel.findOne({ messageId: message.messageId }).exec();
+        const eventAfterRace = await AuditEventModel.findOne({
+          messageId: message.messageId,
+        }).exec();
 
         if (eventAfterRace !== null) {
           return toSafeAuditEventRecord(eventAfterRace);

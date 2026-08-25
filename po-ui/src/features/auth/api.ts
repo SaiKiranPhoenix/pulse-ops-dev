@@ -54,12 +54,10 @@ export type CreatedApiKey = {
   readonly rawKey: string;
 };
 
-export async function register(input: RegisterInput): Promise<CurrentUser> {
-  const response = await apiClient.post<ApiSuccessResponse<{ readonly user: CurrentUser }>>(
-    "/auth/register",
-    input,
-  );
-  return response.data.data.user;
+export async function register(input: RegisterInput): Promise<AuthSession> {
+  const response = await apiClient.post<ApiSuccessResponse<AuthSession>>("/auth/register", input);
+  setAccessToken(response.data.data.accessToken);
+  return response.data.data;
 }
 
 export async function login(input: LoginInput): Promise<AuthSession> {
@@ -71,6 +69,16 @@ export async function login(input: LoginInput): Promise<AuthSession> {
 export async function getCurrentUser(): Promise<CurrentUser> {
   const response =
     await apiClient.get<ApiSuccessResponse<{ readonly user: CurrentUser }>>("/auth/me");
+  return response.data.data.user;
+}
+
+export async function updateCurrentUser(input: {
+  readonly name: string | null;
+}): Promise<CurrentUser> {
+  const response = await apiClient.patch<ApiSuccessResponse<{ readonly user: CurrentUser }>>(
+    "/auth/me",
+    input,
+  );
   return response.data.data.user;
 }
 
