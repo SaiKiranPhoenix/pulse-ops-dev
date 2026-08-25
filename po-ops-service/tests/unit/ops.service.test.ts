@@ -34,6 +34,20 @@ describe("OpsService", () => {
           service: "po-event-workers",
           status: "running",
           queues: ["pulseops.logs.q"],
+          metrics: {
+            processed: 9,
+            processedByType: {
+              log: 5,
+              error: 3,
+              metric: 1,
+            },
+            failed: 2,
+            retries: 1,
+            poisonMessages: 2,
+            lastProcessedAt: "2026-08-18T00:00:04.000Z",
+            lastErrorAt: "2026-08-18T00:00:06.000Z",
+            lastErrorMessage: "Invalid telemetry",
+          },
           startedAt: "2026-08-18T00:00:00.000Z",
           lastSeenAt: "2026-08-18T00:00:05.000Z",
         },
@@ -60,6 +74,20 @@ describe("OpsService", () => {
         service: "po-event-workers",
         status: "running",
         queues: ["pulseops.logs.q"],
+        metrics: {
+          processed: 9,
+          processedByType: {
+            log: 5,
+            error: 3,
+            metric: 1,
+          },
+          failed: 2,
+          retries: 1,
+          poisonMessages: 2,
+          lastProcessedAt: "2026-08-18T00:00:04.000Z",
+          lastErrorAt: "2026-08-18T00:00:06.000Z",
+          lastErrorMessage: "Invalid telemetry",
+        },
         startedAt: "2026-08-18T00:00:00.000Z",
         lastSeenAt: "2026-08-18T00:00:05.000Z",
         ageSeconds: 10,
@@ -67,7 +95,7 @@ describe("OpsService", () => {
     ]);
 
     await expect(service.summary()).resolves.toMatchObject({
-      workers: { active: 1 },
+      workers: { active: 1, processed: 9, failed: 2, retries: 1, poisonMessages: 2 },
       queues: {
         observed: 2,
         available: 1,

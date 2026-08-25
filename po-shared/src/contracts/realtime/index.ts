@@ -57,6 +57,7 @@ export const realtimeTelemetryEventSchema = z.object({
   message: z.string().min(1).nullable(),
   name: z.string().min(1).nullable(),
   value: z.number().finite().nullable(),
+  unit: z.string().min(1).nullable(),
   fingerprint: z.string().min(1),
   attributes: z.record(z.string(), z.unknown()),
   observedAt: z.string().datetime(),

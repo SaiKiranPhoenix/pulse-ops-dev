@@ -1,17 +1,20 @@
 import {
   CheckCircle2,
   Clipboard,
+  FileJson,
   KeyRound,
   Loader2,
   RadioTower,
   Send,
+  ShieldCheck,
   Terminal,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createApiKey, createProject, type CreatedApiKey, type Project } from "@/features/auth/api";
+import { getIngestionStats, type IngestionStats } from "@/features/dashboards/api";
 import {
   ingestError,
   ingestLog,
@@ -24,13 +27,15 @@ import { useDashboardContext } from "./DashboardLayout";
 const defaultScopes = ["logs:write", "errors:write", "metrics:write"] as const;
 
 export function SetupPage() {
-  const { projects, refreshProjects, selectedEnvironment, selectedProject } = useDashboardContext();
+  const { projects, refreshProjects, selectedEnvironment, selectedProject, selectedTimeRange } =
+    useDashboardContext();
   const [projectName, setProjectName] = useState(projects.length === 0 ? "Production API" : "");
   const [projectSlug, setProjectSlug] = useState(projects.length === 0 ? "production-api" : "");
   const [keyName, setKeyName] = useState("local-ingestion");
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
   const [lastAck, setLastAck] = useState<IngestedEventAck | null>(null);
+  const [ingestionStats, setIngestionStats] = useState<IngestionStats | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -50,6 +55,39 @@ export function SetupPage() {
       `  -d "{\\"source\\":\\"checkout-api\\",\\"level\\":\\"info\\",\\"message\\":\\"PulseOps connected\\",\\"attributes\\":{\\"environment\\":\\"${selectedEnvironment}\\"}}"`,
     ].join("\n");
   }, [apiBaseUrl, createdKey?.rawKey, selectedEnvironment]);
+
+  useEffect(() => {
+    if (targetProject === null) {
+      setIngestionStats(null);
+      return;
+    }
+
+    const projectId = targetProject.id;
+    let isMounted = true;
+
+    async function loadIngestionStats(): Promise<void> {
+      try {
+        const stats = await getIngestionStats(projectId, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        });
+
+        if (isMounted) {
+          setIngestionStats(stats);
+        }
+      } catch {
+        if (isMounted) {
+          setIngestionStats(null);
+        }
+      }
+    }
+
+    void loadIngestionStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEnvironment, selectedTimeRange, targetProject?.id]);
 
   const nodeSnippet = useMemo(() => {
     const apiKey = createdKey?.rawKey ?? "process.env.PULSEOPS_API_KEY";
@@ -366,7 +404,89 @@ export function SetupPage() {
           </Button>
         </div>
       </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <FileJson className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+              Payload contracts
+            </h2>
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <Snippet
+              title="Log JSON"
+              value={logPayloadExample(selectedEnvironment)}
+              onCopy={copy}
+            />
+            <Snippet
+              title="Error JSON"
+              value={errorPayloadExample(selectedEnvironment)}
+              onCopy={copy}
+            />
+            <Snippet
+              title="Metric JSON"
+              value={metricPayloadExample(selectedEnvironment)}
+              onCopy={copy}
+            />
+          </div>
+          <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+            <Guidance
+              title="Validation"
+              value="source and message/name are required. metric value must be finite. payloads over 512kb are rejected before queue publish."
+            />
+            <Guidance
+              title="Service names"
+              value="Use stable service names such as checkout-api or worker-billing. Put deployment version, host, and request IDs in attributes."
+            />
+            <Guidance
+              title="Troubleshooting"
+              value="401 means missing/disabled key or scope mismatch. 429 means project rate limit. 202 means RabbitMQ confirm publish accepted the event."
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+              Ingestion health
+            </h2>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <HealthRow label="Accepted" value={ingestionStats?.acceptedEvents ?? 0} />
+            <HealthRow label="Processed" value={ingestionStats?.processedEvents ?? 0} />
+            <HealthRow label="Backlog" value={ingestionStats?.processingBacklog ?? 0} />
+            <HealthRow
+              label="Rate limit"
+              value={`${ingestionStats?.rateLimit.limitPerMinute ?? 600}/min`}
+            />
+          </div>
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+            Sensitive attribute keys such as password, token, authorization, secret, apiKey, and
+            privateKey are redacted in viewers. Keep raw secrets in Vault, not telemetry metadata.
+          </div>
+        </div>
+      </section>
     </main>
+  );
+}
+
+function Guidance({ title, value }: { readonly title: string; readonly value: string }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+      <p className="font-semibold text-slate-900">{title}</p>
+      <p className="mt-1 leading-5">{value}</p>
+    </div>
+  );
+}
+
+function HealthRow({ label, value }: { readonly label: string; readonly value: number | string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+      <span className="text-sm text-slate-600">{label}</span>
+      <span className="font-mono text-sm font-semibold text-slate-950">{value}</span>
+    </div>
   );
 }
 
@@ -406,4 +526,56 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+function logPayloadExample(environment: string): string {
+  return JSON.stringify(
+    {
+      source: "checkout-api",
+      level: "info",
+      message: "Cart converted",
+      attributes: {
+        environment,
+        requestId: "req_123",
+        version: "2026.08.25",
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function errorPayloadExample(environment: string): string {
+  return JSON.stringify(
+    {
+      source: "checkout-api",
+      name: "CheckoutTimeout",
+      message: "Payment provider timeout",
+      stack: "CheckoutTimeout: Payment provider timeout\\n    at charge (checkout.ts:42:11)",
+      attributes: {
+        environment,
+        requestId: "req_123",
+        redactionPreview: "sensitive values are hidden in viewers",
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function metricPayloadExample(environment: string): string {
+  return JSON.stringify(
+    {
+      source: "checkout-api",
+      name: "checkout.latency",
+      value: 245,
+      unit: "ms",
+      attributes: {
+        environment,
+        route: "POST /checkout",
+      },
+    },
+    null,
+    2,
+  );
 }

@@ -1,12 +1,14 @@
 import { TELEMETRY_QUEUES, type TelemetryEventType } from "@pulseops/shared";
 import { SERVICE_NAME } from "../config/constants.js";
 import type { WorkerHeartbeatRepository } from "../repositories/worker-heartbeat.repository.js";
+import type { WorkerProcessingStats } from "./event-worker.service.js";
 
 export type WorkerHeartbeatOptions = {
   readonly workerId: string;
   readonly intervalSeconds: number;
   readonly ttlSeconds: number;
   readonly startedAt?: Date;
+  readonly processingStats?: () => WorkerProcessingStats;
 };
 
 export class WorkerHeartbeatService {
@@ -42,12 +44,30 @@ export class WorkerHeartbeatService {
         service: SERVICE_NAME,
         status: "running",
         queues: workerQueueNames(),
+        metrics: this.options.processingStats?.() ?? emptyProcessingStats(),
         startedAt: this.startedAt.toISOString(),
         lastSeenAt: now.toISOString(),
       },
       this.options.ttlSeconds,
     );
   }
+}
+
+function emptyProcessingStats(): WorkerProcessingStats {
+  return {
+    processed: 0,
+    processedByType: {
+      log: 0,
+      error: 0,
+      metric: 0,
+    },
+    failed: 0,
+    retries: 0,
+    poisonMessages: 0,
+    lastProcessedAt: null,
+    lastErrorAt: null,
+    lastErrorMessage: null,
+  };
 }
 
 function workerQueueNames(): readonly string[] {

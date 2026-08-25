@@ -8,6 +8,7 @@ export type DashboardEventRecord = {
   message: string | null;
   name: string | null;
   value: number | null;
+  unit: string | null;
   fingerprint: string;
   attributes: Record<string, unknown>;
   observedAt: Date;
@@ -17,12 +18,17 @@ export type DashboardEventRecord = {
 
 export type DashboardIncidentRecord = {
   projectId: string;
+  fingerprint: string;
   title: string;
+  summary: string | null;
   severity: "low" | "medium" | "high" | "critical";
   status: "open" | "resolved";
   eventCount: number;
+  firstSeenAt: Date;
   lastSeenAt: Date;
+  resolvedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
 };
 
 export type DashboardVaultSecretRecord = {
@@ -30,6 +36,21 @@ export type DashboardVaultSecretRecord = {
   environment: string;
   key: string;
   status: "active" | "deleted";
+  updatedAt: Date;
+};
+
+export type DashboardIngestionAcceptanceRecord = {
+  projectId: string;
+  idempotencyKey: string;
+  event: {
+    id: string;
+    type: "log" | "error" | "metric";
+    source: string;
+    fingerprint: string;
+    observedAt: string;
+    receivedAt: string;
+  };
+  createdAt: Date;
   updatedAt: Date;
 };
 
@@ -42,6 +63,7 @@ const dashboardEventSchema = new Schema<DashboardEventRecord>(
     message: String,
     name: String,
     value: Number,
+    unit: String,
     fingerprint: String,
     attributes: { type: Schema.Types.Mixed, default: {} },
     observedAt: Date,
@@ -53,11 +75,15 @@ const dashboardEventSchema = new Schema<DashboardEventRecord>(
 const dashboardIncidentSchema = new Schema<DashboardIncidentRecord>(
   {
     projectId: String,
+    fingerprint: String,
     title: String,
+    summary: String,
     severity: String,
     status: String,
     eventCount: Number,
+    firstSeenAt: Date,
     lastSeenAt: Date,
+    resolvedAt: Date,
   },
   { collection: "incidents", versionKey: false },
 );
@@ -72,9 +98,27 @@ const dashboardVaultSecretSchema = new Schema<DashboardVaultSecretRecord>(
   { collection: "vault_secrets", versionKey: false },
 );
 
+const dashboardIngestionAcceptanceSchema = new Schema<DashboardIngestionAcceptanceRecord>(
+  {
+    projectId: String,
+    idempotencyKey: String,
+    event: {
+      id: String,
+      type: String,
+      source: String,
+      fingerprint: String,
+      observedAt: String,
+      receivedAt: String,
+    },
+  },
+  { collection: "ingestion_acceptances", timestamps: true, versionKey: false },
+);
+
 export type DashboardEventDocument = HydratedDocument<DashboardEventRecord>;
 export type DashboardIncidentDocument = HydratedDocument<DashboardIncidentRecord>;
 export type DashboardVaultSecretDocument = HydratedDocument<DashboardVaultSecretRecord>;
+export type DashboardIngestionAcceptanceDocument =
+  HydratedDocument<DashboardIngestionAcceptanceRecord>;
 
 export const DashboardEventModel: Model<DashboardEventRecord> =
   mongoose.models.DashboardEvent ??
@@ -87,3 +131,10 @@ export const DashboardIncidentModel: Model<DashboardIncidentRecord> =
 export const DashboardVaultSecretModel: Model<DashboardVaultSecretRecord> =
   mongoose.models.DashboardVaultSecret ??
   model<DashboardVaultSecretRecord>("DashboardVaultSecret", dashboardVaultSecretSchema);
+
+export const DashboardIngestionAcceptanceModel: Model<DashboardIngestionAcceptanceRecord> =
+  mongoose.models.DashboardIngestionAcceptance ??
+  model<DashboardIngestionAcceptanceRecord>(
+    "DashboardIngestionAcceptance",
+    dashboardIngestionAcceptanceSchema,
+  );

@@ -6,6 +6,7 @@ export type ProjectRecord = {
   ownerId: string;
   name: string;
   slug: string;
+  description: string | null;
   status: ProjectStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +33,12 @@ const projectSchema = new Schema<ProjectRecord>(
       trim: true,
       lowercase: true,
       maxlength: 80,
+    },
+    description: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 500,
     },
     status: {
       type: String,

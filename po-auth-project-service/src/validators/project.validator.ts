@@ -14,6 +14,7 @@ export const apiKeyParamsSchema = z.object({
 
 export const createProjectBodySchema = z.object({
   name: z.string().trim().min(1).max(PROJECT_LIMITS.nameMaxLength),
+  description: z.string().trim().max(500).nullable().optional(),
   slug: z
     .string()
     .trim()

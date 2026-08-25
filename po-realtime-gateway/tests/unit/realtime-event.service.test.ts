@@ -107,6 +107,7 @@ function validEventCreated(): RealtimeEventCreatedMessage {
       message: "Checkout completed",
       name: null,
       value: null,
+      unit: null,
       fingerprint: "fingerprint_1",
       attributes: {},
       observedAt: "2026-08-18T00:00:00.000Z",

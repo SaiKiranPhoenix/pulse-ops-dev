@@ -5,6 +5,20 @@ export type WorkerHeartbeatRecord = {
   readonly service: string;
   readonly status: "running";
   readonly queues: readonly string[];
+  readonly metrics: {
+    readonly processed: number;
+    readonly processedByType: {
+      readonly log: number;
+      readonly error: number;
+      readonly metric: number;
+    };
+    readonly failed: number;
+    readonly retries: number;
+    readonly poisonMessages: number;
+    readonly lastProcessedAt: string | null;
+    readonly lastErrorAt: string | null;
+    readonly lastErrorMessage: string | null;
+  };
   readonly startedAt: string;
   readonly lastSeenAt: string;
 };

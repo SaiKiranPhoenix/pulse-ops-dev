@@ -78,6 +78,15 @@ describe("EventWorkerService", () => {
         source: "checkout-api",
       },
     });
+    expect(worker.snapshotStats()).toMatchObject({
+      processed: 1,
+      processedByType: {
+        log: 1,
+        error: 0,
+        metric: 0,
+      },
+      failed: 0,
+    });
   });
 
   it("publishes incident evaluations for error telemetry", async () => {
@@ -104,6 +113,11 @@ describe("EventWorkerService", () => {
 
     await expect(worker.process({ type: "log" })).rejects.toThrow();
     expect(events.messages).toHaveLength(0);
+    expect(worker.snapshotStats()).toMatchObject({
+      processed: 0,
+      failed: 1,
+      poisonMessages: 1,
+    });
   });
 });
 

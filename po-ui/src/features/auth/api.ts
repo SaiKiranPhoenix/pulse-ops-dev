@@ -31,6 +31,7 @@ export type Project = {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
+  readonly description: string | null;
   readonly status: "active" | "archived";
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -88,11 +89,26 @@ export function getOAuthStartUrl(provider: OAuthProvider): string {
 
 export async function createProject(input: {
   readonly name: string;
+  readonly description?: string | null;
   readonly slug?: string;
 }): Promise<Project> {
   const response = await apiClient.post<ApiSuccessResponse<{ readonly project: Project }>>(
     "/projects",
     input,
+  );
+  return response.data.data.project;
+}
+
+export async function archiveProject(projectId: string): Promise<Project> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly project: Project }>>(
+    `/projects/${projectId}/archive`,
+  );
+  return response.data.data.project;
+}
+
+export async function restoreProject(projectId: string): Promise<Project> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly project: Project }>>(
+    `/projects/${projectId}/restore`,
   );
   return response.data.data.project;
 }

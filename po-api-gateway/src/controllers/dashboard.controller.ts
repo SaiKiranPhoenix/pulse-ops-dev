@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
 import type { DashboardService } from "../services/dashboard.service.js";
-import type { DashboardEventsQuery, ProjectQuery } from "../validators/dashboard.validator.js";
+import type {
+  DashboardAnalyticsQuery,
+  DashboardEventsQuery,
+  ProjectQuery,
+} from "../validators/dashboard.validator.js";
 
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
@@ -37,5 +41,39 @@ export class DashboardController {
     response
       .status(200)
       .json(successResponse({ vaultActivity }, String(response.locals.requestId)));
+  };
+
+  ingestionStats = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const ingestion = await this.dashboard.ingestionStats(
+      query.projectId,
+      toAnalyticsOptions(query),
+    );
+
+    response.status(200).json(successResponse({ ingestion }, String(response.locals.requestId)));
+  };
+
+  errorGroups = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const errorGroups = await this.dashboard.errorGroups(
+      query.projectId,
+      toAnalyticsOptions(query),
+    );
+
+    response.status(200).json(successResponse({ errorGroups }, String(response.locals.requestId)));
+  };
+
+  metricSummary = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const metrics = await this.dashboard.metricSummary(query.projectId, toAnalyticsOptions(query));
+
+    response.status(200).json(successResponse({ metrics }, String(response.locals.requestId)));
+  };
+}
+
+function toAnalyticsOptions(query: DashboardAnalyticsQuery) {
+  return {
+    ...(query.environment === undefined ? {} : { environment: query.environment }),
+    timeRange: query.timeRange,
   };
 }

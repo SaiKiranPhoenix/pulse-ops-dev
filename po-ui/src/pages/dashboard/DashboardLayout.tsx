@@ -57,6 +57,7 @@ export type DashboardContextValue = {
   readonly projects: Project[];
   readonly selectedProject: Project | null;
   readonly selectedEnvironment: DashboardEnvironment;
+  readonly selectedTimeRange: DashboardTimeRange;
   readonly isLoadingProjects: boolean;
   readonly projectError: string | null;
   readonly refreshProjects: (preferredProjectId?: string) => Promise<Project[]>;
@@ -114,6 +115,7 @@ export function DashboardLayout() {
       const nextSelectedProject =
         nextProjects.find((project) => project.id === preferredProjectId) ??
         nextProjects.find((project) => project.id === selectedProjectId) ??
+        nextProjects.find((project) => project.status === "active") ??
         nextProjects[0] ??
         null;
 
@@ -173,6 +175,7 @@ export function DashboardLayout() {
       projects,
       selectedProject,
       selectedEnvironment,
+      selectedTimeRange,
       isLoadingProjects,
       projectError,
       refreshProjects,
@@ -192,6 +195,7 @@ export function DashboardLayout() {
       refreshProjects,
       selectedEnvironment,
       selectedProject,
+      selectedTimeRange,
     ],
   );
 

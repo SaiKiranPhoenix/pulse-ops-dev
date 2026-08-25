@@ -17,6 +17,11 @@ export type OpsSummaryDto = {
   readonly generatedAt: string;
   readonly workers: {
     readonly active: number;
+    readonly stale: number;
+    readonly processed: number;
+    readonly failed: number;
+    readonly retries: number;
+    readonly poisonMessages: number;
   };
   readonly queues: {
     readonly observed: number;
@@ -53,6 +58,11 @@ export class OpsService {
       generatedAt: new Date().toISOString(),
       workers: {
         active: workers.length,
+        stale: workers.filter((worker) => worker.ageSeconds > 30).length,
+        processed: workers.reduce((total, worker) => total + worker.metrics.processed, 0),
+        failed: workers.reduce((total, worker) => total + worker.metrics.failed, 0),
+        retries: workers.reduce((total, worker) => total + worker.metrics.retries, 0),
+        poisonMessages: workers.reduce((total, worker) => total + worker.metrics.poisonMessages, 0),
       },
       queues: {
         observed: queues.length,
