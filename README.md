@@ -86,9 +86,11 @@ pnpm.cmd demo:smoke
 
 1. Start the stack with `pnpm.cmd stack:up`.
 2. Run `pnpm.cmd demo:smoke` to prove the backend path end-to-end.
-3. Open `http://localhost:3000` and log in or register a user.
-4. Create a project and API key from the dashboard.
-5. Run one of the k6 scripts with that API key:
+3. Open `http://localhost:3000`. Returning users go directly to the product shell; new users can register and are sent to setup.
+4. Create a project from Setup. The dashboard environments are `development`, `staging`, and `production`.
+5. Create an API key and keep the raw key shown once.
+6. Use the Setup connection snippets to send a test log, error, and metric from the UI.
+7. Run one of the k6 scripts with that API key:
 
 ```powershell
 $env:PULSEOPS_API_KEY="<raw-api-key-shown-once>"
@@ -98,8 +100,17 @@ k6 run scripts/load/high-latency.js
 k6 run scripts/load/rate-limit.js
 ```
 
-6. Show the dashboard events, incidents, worker status, queue status, vault page, and audit events.
-7. Open RabbitMQ management at `http://localhost:15672` to inspect queues.
+8. Show logs, metrics, errors, incidents, traces, workers, queue health, realtime state, vault secrets, and vault audit events.
+9. Open RabbitMQ management at `http://localhost:15672` to inspect queues.
+
+Suggested screenshot/GIF proof points:
+
+- `01-register-to-setup`: register, then land on Setup without signing in again.
+- `02-project-api-key`: create the first project and ingestion API key.
+- `03-connect-app`: copy endpoint, headers, cURL, Node example, and environment variables.
+- `04-live-telemetry`: send a UI test event and watch Logs/Metrics/Errors update.
+- `05-vault`: create/reveal a vault secret and show audit logs without secret values.
+- `06-shell`: project selector, environment selector, time range, realtime badge, mobile navigation, and user menu.
 
 ## Common Commands
 

@@ -124,7 +124,10 @@ class InMemoryTokenRepository implements VaultTokenRepository {
   }
 
   async findActiveByHash(tokenHash: string): Promise<VaultTokenWithHashRecord | null> {
-    return this.tokens.find((token) => token.tokenHash === tokenHash && token.status === "active") ?? null;
+    return (
+      this.tokens.find((token) => token.tokenHash === tokenHash && token.status === "active") ??
+      null
+    );
   }
 
   async revoke(projectId: string, tokenId: string): Promise<SafeVaultTokenRecord | null> {

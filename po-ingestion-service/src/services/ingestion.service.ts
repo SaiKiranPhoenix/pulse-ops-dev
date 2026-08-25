@@ -173,4 +173,3 @@ function toEventDto(
     idempotentReplay,
   };
 }
-

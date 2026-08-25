@@ -12,8 +12,7 @@ export type IngestionApiKeyReadModelRecord = {
   updatedAt: Date;
 };
 
-export type IngestionApiKeyReadModelDocument =
-  HydratedDocument<IngestionApiKeyReadModelRecord>;
+export type IngestionApiKeyReadModelDocument = HydratedDocument<IngestionApiKeyReadModelRecord>;
 
 const ingestionApiKeyReadModelSchema = new Schema<IngestionApiKeyReadModelRecord>(
   {

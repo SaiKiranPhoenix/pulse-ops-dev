@@ -1,7 +1,4 @@
-import {
-  connectRedisClient,
-  type PulseRedisClient,
-} from "@pulseops/shared";
+import { connectRedisClient, type PulseRedisClient } from "@pulseops/shared";
 
 export type RateLimitDecision = {
   readonly allowed: boolean;

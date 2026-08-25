@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { OAuthCallbackPage } from "@/pages/auth/OAuthCallbackPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { AccountPage } from "@/pages/dashboard/AccountPage";
 import { AlertsPage } from "@/pages/dashboard/AlertsPage";
 import { ApiKeysPage } from "@/pages/dashboard/ApiKeysPage";
 import { DashboardLayout } from "@/pages/dashboard/DashboardLayout";
@@ -15,14 +16,14 @@ import { TracesPage } from "@/pages/dashboard/TracesPage";
 import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
 import { VaultPage } from "@/pages/dashboard/VaultPage";
 import { WorkersPage } from "@/pages/dashboard/WorkersPage";
-import { LandingPage } from "@/pages/LandingPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { ProductEntryRoute } from "./ProductEntryRoute";
 import { ProtectedRoute } from "./ProtectedRoute";
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<ProductEntryRoute />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
@@ -40,6 +41,7 @@ export function AppRoutes() {
           <Route path="vault-audit" element={<VaultAuditPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
           <Route path="projects" element={<ProjectSettingsPage />} />
+          <Route path="account" element={<AccountPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

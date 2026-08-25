@@ -217,7 +217,9 @@ describe("ingestion routes", () => {
   });
 });
 
-function createTestDependencies(options: { readonly rateLimit?: number } = {}): IngestionServiceDependencies & {
+function createTestDependencies(
+  options: { readonly rateLimit?: number } = {},
+): IngestionServiceDependencies & {
   readonly apiKeys: InMemoryApiKeyRepository;
   readonly publisher: InMemoryTelemetryPublisher;
   readonly rateLimiter: InMemoryRateLimiter;

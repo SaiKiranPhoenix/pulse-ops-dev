@@ -23,6 +23,12 @@ export const loginUserBodySchema = z.object({
 
 export type LoginUserBody = z.infer<typeof loginUserBodySchema>;
 
+export const updateCurrentUserBodySchema = z.object({
+  name: z.string().trim().min(1).max(USER_LIMITS.nameMaxLength).nullable(),
+});
+
+export type UpdateCurrentUserBody = z.infer<typeof updateCurrentUserBodySchema>;
+
 export const oauthProviderParamsSchema = z.object({
   provider: z.enum(OAUTH_LIMITS.providers),
 });

@@ -44,6 +44,10 @@ export interface UserRepository {
   create(input: CreateUserRecordInput): Promise<SafeUserRecord>;
   createFromOAuth(input: CreateOAuthUserRecordInput): Promise<SafeUserRecord>;
   linkOAuthAccount(userId: string, input: CreateOAuthAccountInput): Promise<SafeUserRecord | null>;
+  updateProfile(
+    userId: string,
+    input: { readonly name: string | null },
+  ): Promise<SafeUserRecord | null>;
 }
 
 export class MongoUserRepository implements UserRepository {
@@ -120,6 +124,19 @@ export class MongoUserRepository implements UserRepository {
     ).exec();
 
     return this.findById(userId);
+  }
+
+  async updateProfile(
+    userId: string,
+    input: { readonly name: string | null },
+  ): Promise<SafeUserRecord | null> {
+    const user = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { name: input.name } },
+      { new: true },
+    ).exec();
+
+    return user === null ? null : toSafeUserRecord(user);
   }
 }
 

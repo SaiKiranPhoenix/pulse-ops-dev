@@ -25,6 +25,7 @@ import type {
 } from "../../src/repositories/user.repository.js";
 import { HmacApiKeyHasher } from "../../src/services/api-key-hasher.service.js";
 import { ApiKeyService } from "../../src/services/api-key.service.js";
+import type { AuthEvent, AuthEventLogger } from "../../src/services/auth-event-logger.service.js";
 import type {
   OAuthProfile,
   OAuthProviderClient,
@@ -118,6 +119,26 @@ export class InMemoryUserRepository implements UserRepository {
     this.oauthAccounts.set(toOAuthAccountKey(input), user.id);
     return toSafeUser(user);
   }
+
+  async updateProfile(
+    userId: string,
+    input: { readonly name: string | null },
+  ): Promise<SafeUserRecord | null> {
+    const user = [...this.users.values()].find((candidate) => candidate.id === userId);
+
+    if (user === undefined) {
+      return null;
+    }
+
+    const updatedUser = {
+      ...user,
+      name: input.name,
+      updatedAt: fixedDate,
+    };
+
+    this.users.set(updatedUser.email, updatedUser);
+    return toSafeUser(updatedUser);
+  }
 }
 
 export class InMemoryProjectRepository implements ProjectRepository {
@@ -201,9 +222,7 @@ export class InMemoryApiKeyRepository implements ApiKeyRepository {
   }
 }
 
-export class InMemoryIngestionApiKeyReadModelRepository
-  implements IngestionApiKeyReadModelRepository
-{
+export class InMemoryIngestionApiKeyReadModelRepository implements IngestionApiKeyReadModelRepository {
   readonly records = new Map<string, SafeIngestionApiKeyReadModelRecord>();
 
   async sync(apiKey: SafeApiKeyRecord): Promise<SafeIngestionApiKeyReadModelRecord> {
@@ -223,9 +242,7 @@ export class InMemoryIngestionApiKeyReadModelRepository
   }
 }
 
-export class InMemoryApiKeyCacheInvalidationRepository
-  implements ApiKeyCacheInvalidationRepository
-{
+export class InMemoryApiKeyCacheInvalidationRepository implements ApiKeyCacheInvalidationRepository {
   readonly invalidatedKeyHashes: string[] = [];
 
   async invalidate(keyHash: string): Promise<void> {
@@ -280,6 +297,14 @@ export class FakeOAuthProviderClient implements OAuthProviderClient {
   }
 }
 
+export class InMemoryAuthEventLogger implements AuthEventLogger {
+  readonly events: AuthEvent[] = [];
+
+  record(event: AuthEvent): void {
+    this.events.push(event);
+  }
+}
+
 export type TestDependencyHarness = {
   readonly dependencies: AuthProjectServiceDependencies;
   readonly users: InMemoryUserRepository;
@@ -288,6 +313,7 @@ export type TestDependencyHarness = {
   readonly ingestionApiKeys: InMemoryIngestionApiKeyReadModelRepository;
   readonly apiKeyCacheInvalidator: InMemoryApiKeyCacheInvalidationRepository;
   readonly oauthProviders: FakeOAuthProviderClient;
+  readonly authEvents: InMemoryAuthEventLogger;
 };
 
 export function createTestDependencies(): TestDependencyHarness {
@@ -298,8 +324,9 @@ export function createTestDependencies(): TestDependencyHarness {
   const apiKeyCacheInvalidator = new InMemoryApiKeyCacheInvalidationRepository();
   const passwordHasher = new FakePasswordHasher();
   const tokenService = new HmacJwtTokenService(validJwtSecret(), 3600);
+  const authEvents = new InMemoryAuthEventLogger();
   const userRegistrationService = new UserRegistrationService(users, passwordHasher);
-  const sessionService = new SessionService(users, passwordHasher, tokenService);
+  const sessionService = new SessionService(users, passwordHasher, tokenService, authEvents);
   const oauthProviders = new FakeOAuthProviderClient();
   const oauthService = new OAuthService(
     "http://localhost:4000",
@@ -336,6 +363,7 @@ export function createTestDependencies(): TestDependencyHarness {
     ingestionApiKeys,
     apiKeyCacheInvalidator,
     oauthProviders,
+    authEvents,
   };
 }
 

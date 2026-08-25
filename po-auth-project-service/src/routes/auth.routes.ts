@@ -9,6 +9,7 @@ import {
   oauthCallbackQuerySchema,
   oauthProviderParamsSchema,
   registerUserBodySchema,
+  updateCurrentUserBodySchema,
 } from "../validators/auth.validator.js";
 
 export function createAuthRouter(controller: AuthController, tokenService: TokenService): Router {
@@ -29,6 +30,12 @@ export function createAuthRouter(controller: AuthController, tokenService: Token
     asyncHandler(controller.oauthCallback),
   );
   router.get("/me", requireAuth, asyncHandler(controller.currentUser));
+  router.patch(
+    "/me",
+    requireAuth,
+    validateBody(updateCurrentUserBodySchema),
+    asyncHandler(controller.updateCurrentUser),
+  );
 
   return router;
 }

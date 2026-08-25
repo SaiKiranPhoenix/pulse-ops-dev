@@ -1,7 +1,4 @@
-import {
-  closeRedisClient,
-  createRedisClient,
-} from "@pulseops/shared";
+import { closeRedisClient, createRedisClient } from "@pulseops/shared";
 import { IngestionController } from "../controllers/ingestion.controller.js";
 import { INGESTION_LIMITS } from "../config/constants.js";
 import { loadEnv } from "../config/env.js";

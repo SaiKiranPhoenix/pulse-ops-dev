@@ -20,9 +20,7 @@ export interface IngestionApiKeyReadModelRepository {
   sync(apiKey: SafeApiKeyRecord): Promise<SafeIngestionApiKeyReadModelRecord>;
 }
 
-export class MongoIngestionApiKeyReadModelRepository
-  implements IngestionApiKeyReadModelRepository
-{
+export class MongoIngestionApiKeyReadModelRepository implements IngestionApiKeyReadModelRepository {
   async sync(apiKey: SafeApiKeyRecord): Promise<SafeIngestionApiKeyReadModelRecord> {
     const readModel = await IngestionApiKeyReadModelModel.findOneAndUpdate(
       { keyHash: apiKey.keyHash },

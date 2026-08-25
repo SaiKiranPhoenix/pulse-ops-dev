@@ -1,8 +1,4 @@
-import {
-  connectRedisClient,
-  toApiKeyCacheKey,
-  type PulseRedisClient,
-} from "@pulseops/shared";
+import { connectRedisClient, toApiKeyCacheKey, type PulseRedisClient } from "@pulseops/shared";
 import { z } from "zod";
 import type { VerifiedIngestionApiKey } from "./ingestion-api-key.repository.js";
 

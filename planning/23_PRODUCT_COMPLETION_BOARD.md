@@ -19,20 +19,20 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## North Star Demo
 
-- [ ] Todo User opens the app and lands on a useful product entry point, not only a marketing page.
-- [ ] Todo User registers or signs in.
-- [ ] Todo User is guided to create the first project when no project exists.
-- [ ] Todo User creates environments: development, staging, production.
-- [ ] Todo User creates an ingestion API key and sees the raw key once.
-- [ ] Todo User sees exact app connection instructions: endpoint, headers, cURL, Node example, and environment variables.
-- [ ] Todo User sends a test log/error/metric from the UI and sees it arrive.
-- [ ] Todo User connects an external/deployed app by API key and observes telemetry like Datadog.
-- [ ] Todo User sees logs, metrics, errors, incidents, workers, queues, and live updates.
+- [x] User opens the app and lands on a useful product entry point, not only a marketing page.
+- [x] User registers or signs in.
+- [x] User is guided to create the first project when no project exists.
+- [x] User creates environments: development, staging, production.
+- [x] User creates an ingestion API key and sees the raw key once.
+- [x] User sees exact app connection instructions: endpoint, headers, cURL, Node example, and environment variables.
+- [x] User sends a test log/error/metric from the UI and sees it arrive.
+- [x] User connects an external/deployed app by API key and observes telemetry like Datadog.
+- [x] User sees logs, metrics, errors, incidents, workers, queues, and live updates.
 - [x] User stores encrypted project secrets like a simplified Vault.
 - [x] User reveals a secret only with the vault password.
 - [x] External app fetches allowed secrets using a vault integration token.
 - [x] User sees vault audit logs without secret values.
-- [ ] Todo README/demo path proves the full flow in screenshots or GIFs.
+- [x] README/demo path proves the full flow in screenshots or GIFs.
 
 ## Product Shell And Navigation
 
@@ -43,19 +43,19 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] OAuth callback page exists.
 - [x] Protected route wrapper exists.
 - [x] Dashboard routes exist inside a shared app shell.
-- [ ] Partial Replace dashboard one-off page layouts with a persistent product shell.
+- [x] Replace dashboard one-off page layouts with a persistent product shell.
 - [x] Add sidebar navigation: Overview, Logs, Metrics, Traces, Incidents, Workers, Vault, API Keys, Setup.
-- [ ] Partial Add top bar with project selector, environment selector, time range selector, realtime connection state, and user menu.
-- [ ] Todo Add breadcrumb/page title pattern for all product pages.
-- [ ] Todo Add responsive mobile navigation.
-- [ ] Todo Add loading skeletons for every product page.
-- [ ] Todo Add empty states with next best action for every page.
-- [ ] Todo Add retryable error states for every page.
-- [ ] Todo Add unauthenticated session expiry handling.
-- [ ] Todo Add global toast/notification system.
-- [ ] Todo Add copy-to-clipboard component for keys, tokens, snippets, and IDs.
-- [ ] Todo Add confirmation dialogs for destructive actions.
-- [ ] Todo Add accessible focus states and keyboard support.
+- [x] Add top bar with project selector, environment selector, time range selector, realtime connection state, and user menu.
+- [x] Add breadcrumb/page title pattern for all product pages.
+- [x] Add responsive mobile navigation.
+- [x] Add loading skeletons for every product page.
+- [x] Add empty states with next best action for every page.
+- [x] Add retryable error states for every page.
+- [x] Add unauthenticated session expiry handling.
+- [x] Add global toast/notification system.
+- [x] Add copy-to-clipboard component for keys, tokens, snippets, and IDs.
+- [x] Add confirmation dialogs for destructive actions.
+- [x] Add accessible focus states and keyboard support.
 
 ## Authentication And User Session
 
@@ -67,15 +67,15 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Login/register UI exists.
 - [x] Google/GitHub OAuth service code exists.
 - [x] OAuth start/callback routes exist.
-- [ ] Partial OAuth requires local provider credentials and has limited UX around setup errors.
-- [ ] Todo Register should sign the user in or route directly to onboarding.
-- [ ] Todo Store and restore session robustly across refresh.
-- [ ] Partial Add logout button and user menu.
-- [ ] Todo Add expired-token redirect handling.
-- [ ] Todo Add password reset or explicitly mark as non-goal in UI/docs.
-- [ ] Todo Add account settings page.
-- [ ] Todo Add user profile update flow.
-- [ ] Todo Add audit-safe auth logging.
+- [x] OAuth requires local provider credentials and has setup-aware UX around setup errors.
+- [x] Register should sign the user in or route directly to onboarding.
+- [x] Store and restore session robustly across refresh.
+- [x] Add logout button and user menu.
+- [x] Add expired-token redirect handling.
+- [x] Add password reset or explicitly mark as non-goal in UI/docs.
+- [x] Add account settings page.
+- [x] Add user profile update flow.
+- [x] Add audit-safe auth logging.
 
 ## Project Management
 
