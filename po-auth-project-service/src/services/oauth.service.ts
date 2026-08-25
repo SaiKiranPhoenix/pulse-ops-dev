@@ -50,9 +50,9 @@ export class OAuthService {
     return redirectUrl.toString();
   }
 
-  createFailureRedirectUrl(): string {
+  createFailureRedirectUrl(message = "OAuth sign-in failed"): string {
     const redirectUrl = new URL(this.failureRedirectUrl);
-    redirectUrl.searchParams.set("oauth_error", "OAuth sign-in failed");
+    redirectUrl.searchParams.set("oauth_error", message);
     return redirectUrl.toString();
   }
 

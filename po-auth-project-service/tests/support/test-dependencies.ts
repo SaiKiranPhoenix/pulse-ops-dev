@@ -290,6 +290,7 @@ export class FakeOAuthStateService implements OAuthStateService {
 }
 
 export class FakeOAuthProviderClient implements OAuthProviderClient {
+  authorizationUrlError: Error | null = null;
   profile: OAuthProfile = {
     provider: "github",
     providerUserId: "123",
@@ -303,6 +304,10 @@ export class FakeOAuthProviderClient implements OAuthProviderClient {
     readonly redirectUri: string;
     readonly state: string;
   }): URL {
+    if (this.authorizationUrlError !== null) {
+      throw this.authorizationUrlError;
+    }
+
     const url = new URL(`https://${input.provider}.example.test/oauth`);
     url.searchParams.set("redirect_uri", input.redirectUri);
     url.searchParams.set("state", input.state);

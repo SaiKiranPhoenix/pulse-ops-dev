@@ -84,7 +84,20 @@ export async function updateCurrentUser(input: {
 }
 
 export function getOAuthStartUrl(provider: OAuthProvider): string {
-  return `${apiClient.defaults.baseURL ?? ""}/auth/oauth/${provider}/start`;
+  return `${getApiBaseUrl()}/auth/oauth/${provider}/start`;
+}
+
+export function getApiBaseUrl(): string {
+  return String(apiClient.defaults.baseURL ?? "");
+}
+
+export async function checkApiGatewayHealth(): Promise<boolean> {
+  try {
+    await apiClient.get("/health", { timeout: 3_000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function createProject(input: {

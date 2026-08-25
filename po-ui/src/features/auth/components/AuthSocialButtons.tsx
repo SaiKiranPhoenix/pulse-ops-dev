@@ -2,7 +2,12 @@ import { Github } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getOAuthStartUrl, type OAuthProvider } from "@/features/auth/api";
+import {
+  checkApiGatewayHealth,
+  getApiBaseUrl,
+  getOAuthStartUrl,
+  type OAuthProvider,
+} from "@/features/auth/api";
 
 const socialProviders: ReadonlyArray<{
   readonly provider: OAuthProvider;
@@ -23,9 +28,22 @@ const socialProviders: ReadonlyArray<{
 
 export function AuthSocialButtons() {
   const [providerState, setProviderState] = useState<OAuthProvider | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
-  function handleSocialSignIn(provider: OAuthProvider): void {
+  async function handleSocialSignIn(provider: OAuthProvider): Promise<void> {
     setProviderState(provider);
+    setSetupError(null);
+
+    const isApiReachable = await checkApiGatewayHealth();
+
+    if (!isApiReachable) {
+      setSetupError(
+        `PulseOps API gateway is not reachable at ${formatApiBaseUrl()}. Start the backend stack, then retry Google sign-in.`,
+      );
+      setProviderState(null);
+      return;
+    }
+
     window.location.assign(getOAuthStartUrl(provider));
   }
 
@@ -39,12 +57,22 @@ export function AuthSocialButtons() {
           variant="outline"
           disabled={providerState !== null}
           onClick={() => {
-            handleSocialSignIn(item.provider);
+            void handleSocialSignIn(item.provider);
           }}
         >
           {providerState === item.provider ? "Redirecting..." : item.label}
         </Button>
       ))}
+      {setupError !== null ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {setupError}
+        </p>
+      ) : null}
     </div>
   );
+}
+
+function formatApiBaseUrl(): string {
+  const apiBaseUrl = getApiBaseUrl();
+  return apiBaseUrl.length > 0 ? apiBaseUrl : "the configured API gateway";
 }
