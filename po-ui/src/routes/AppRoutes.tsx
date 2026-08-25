@@ -9,6 +9,7 @@ import { ErrorsPage } from "@/pages/dashboard/ErrorsPage";
 import { LogsPage } from "@/pages/dashboard/LogsPage";
 import { MetricsPage } from "@/pages/dashboard/MetricsPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
+import { ProjectSettingsPage } from "@/pages/dashboard/ProjectSettingsPage";
 import { SetupPage } from "@/pages/dashboard/SetupPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
 import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
@@ -38,6 +39,7 @@ export function AppRoutes() {
           <Route path="vault" element={<VaultPage />} />
           <Route path="vault-audit" element={<VaultAuditPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
+          <Route path="projects" element={<ProjectSettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

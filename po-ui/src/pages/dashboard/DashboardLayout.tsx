@@ -60,6 +60,7 @@ const navItems = [
   { to: "/dashboard/vault", label: "Vault", icon: LockKeyhole },
   { to: "/dashboard/vault-audit", label: "Vault Audit", icon: ShieldCheck },
   { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
+  { to: "/dashboard/projects", label: "Projects", icon: Settings },
 ] as const;
 
 export function DashboardLayout() {
@@ -193,7 +194,11 @@ export function DashboardLayout() {
     );
   }
 
-  if (projects.length === 0 && location.pathname !== "/dashboard/setup") {
+  if (
+    projects.length === 0 &&
+    location.pathname !== "/dashboard/setup" &&
+    location.pathname !== "/dashboard/projects"
+  ) {
     return <Navigate to="/dashboard/setup" replace />;
   }
 
@@ -347,9 +352,9 @@ function DashboardFrame({
               </label>
 
               <Button asChild className="w-auto" variant="outline">
-                <Link to="/dashboard/setup">
+                <Link to="/dashboard/projects">
                   <Settings className="h-4 w-4" />
-                  Setup
+                  Projects
                 </Link>
               </Button>
 
