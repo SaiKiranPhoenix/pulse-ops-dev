@@ -67,7 +67,15 @@ export class AuthController {
 
   oauthStart = async (_request: Request, response: Response): Promise<void> => {
     const { provider } = response.locals.validatedParams as OAuthProviderParams;
-    response.redirect(302, this.oauth.createProviderRedirectUrl(provider));
+
+    try {
+      response.redirect(302, this.oauth.createProviderRedirectUrl(provider));
+    } catch (error) {
+      response.redirect(
+        302,
+        this.oauth.createFailureRedirectUrl(toOAuthStartFailureMessage(error)),
+      );
+    }
   };
 
   oauthCallback = async (_request: Request, response: Response): Promise<void> => {
@@ -86,4 +94,12 @@ export class AuthController {
       response.redirect(302, this.oauth.createFailureRedirectUrl());
     }
   };
+}
+
+function toOAuthStartFailureMessage(error: unknown): string {
+  if (error instanceof Error && error.message === "OAuth provider is not configured") {
+    return error.message;
+  }
+
+  return "OAuth sign-in failed";
 }

@@ -20,6 +20,18 @@ describe("OAuth routes", () => {
     );
   });
 
+  it("redirects back to login when the selected OAuth provider is not configured", async () => {
+    const harness = createTestDependencies();
+    harness.oauthProviders.authorizationUrlError = new Error("OAuth provider is not configured");
+    const app = createApp({ dependencies: harness.dependencies });
+
+    const response = await request(app).get("/auth/oauth/google/start").expect(302);
+    const location = new URL(String(response.headers.location));
+
+    expect(location.origin + location.pathname).toBe("http://localhost:3000/login");
+    expect(location.searchParams.get("oauth_error")).toBe("OAuth provider is not configured");
+  });
+
   it("creates an OAuth-only user and redirects with the session token in the URL fragment", async () => {
     const harness = createTestDependencies();
     const app = createApp({ dependencies: harness.dependencies });
