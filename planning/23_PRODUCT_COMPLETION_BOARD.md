@@ -106,17 +106,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Redis cache invalidation for API key changes exists.
 - [x] UI API client has create/list/rotate/disable functions.
 - [x] Build API keys/settings page.
-- [ ] Partial Build create API key dialog with scopes.
+- [x] Build create API key dialog/form with scopes.
 - [x] Show raw API key once with copy action and warning.
-- [ ] Partial Build API key table with prefix, status, scopes, last used, expiration, created date.
+- [x] Build API key table with prefix, status, scopes, last used, expiration, created date.
 - [x] Build rotate API key flow with raw replacement key shown once.
-- [ ] Partial Build disable API key confirmation.
+- [x] Build disable API key confirmation.
 - [x] Build app connection wizard after project creation.
 - [x] Show ingestion endpoint URLs for Docker/local development.
-- [ ] Partial Show deployed-app setup examples: cURL, Node fetch, environment variables, Docker env.
+- [x] Show deployed-app setup examples: cURL, Node fetch, environment variables, Docker env.
 - [x] Add "Send test event" button using the selected API key.
-- [ ] Todo Add "copy Datadog-like agent config" placeholder or MVP equivalent.
-- [ ] Todo Add last-used update visibility in UI.
+- [x] Add "copy Datadog-like agent config" placeholder or MVP equivalent.
+- [x] Add last-used update visibility in UI.
 
 ## Telemetry Ingestion
 
