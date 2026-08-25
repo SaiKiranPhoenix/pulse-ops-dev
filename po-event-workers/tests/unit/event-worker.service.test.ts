@@ -1,10 +1,11 @@
-import type { IncidentEvaluationMessage, TelemetryEventMessage } from "@pulseops/shared";
+import type {
+  IncidentEvaluationMessage,
+  RealtimeEventCreatedMessage,
+  TelemetryEventMessage,
+} from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
 import type { IncidentEvaluationPublisher } from "../../src/events/publishers/incident-evaluation.publisher.js";
-import type {
-  EventRepository,
-  SafeEventRecord,
-} from "../../src/repositories/event.repository.js";
+import type { EventRepository, SafeEventRecord } from "../../src/repositories/event.repository.js";
 import { EventWorkerService } from "../../src/services/event-worker.service.js";
 
 class InMemoryEventRepository implements EventRepository {
@@ -22,6 +23,7 @@ class InMemoryEventRepository implements EventRepository {
       fingerprint: message.fingerprint,
       receivedAt: new Date(message.acceptedAt),
       processedAt: new Date("2026-08-18T00:00:01.000Z"),
+      wasCreated: true,
     };
   }
 
@@ -40,11 +42,22 @@ class InMemoryIncidentEvaluationPublisher implements IncidentEvaluationPublisher
   async close(): Promise<void> {}
 }
 
+class InMemoryRealtimeEventPublisher {
+  readonly messages: RealtimeEventCreatedMessage[] = [];
+
+  async publish(message: RealtimeEventCreatedMessage): Promise<void> {
+    this.messages.push(message);
+  }
+
+  async close(): Promise<void> {}
+}
+
 describe("EventWorkerService", () => {
   it("validates telemetry messages and persists them", async () => {
     const events = new InMemoryEventRepository();
     const incidentEvaluations = new InMemoryIncidentEvaluationPublisher();
-    const worker = new EventWorkerService(events, incidentEvaluations);
+    const realtimeEvents = new InMemoryRealtimeEventPublisher();
+    const worker = new EventWorkerService(events, incidentEvaluations, realtimeEvents);
 
     await worker.process(validMessage());
 
@@ -56,6 +69,15 @@ describe("EventWorkerService", () => {
       source: "checkout-api",
     });
     expect(incidentEvaluations.messages).toHaveLength(0);
+    expect(realtimeEvents.messages).toHaveLength(1);
+    expect(realtimeEvents.messages[0]).toMatchObject({
+      messageId: "ing_1:event-created",
+      projectId: "project_1",
+      event: {
+        id: "event_1",
+        source: "checkout-api",
+      },
+    });
   });
 
   it("publishes incident evaluations for error telemetry", async () => {

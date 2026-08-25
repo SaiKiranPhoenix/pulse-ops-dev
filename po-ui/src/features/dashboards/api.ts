@@ -9,6 +9,7 @@ export type DashboardSummary = {
 
 export type DashboardEvent = {
   readonly id: string;
+  readonly projectId: string;
   readonly type: "log" | "error" | "metric";
   readonly source: string;
   readonly level: string | null;
@@ -19,6 +20,11 @@ export type DashboardEvent = {
   readonly attributes: Record<string, unknown>;
   readonly observedAt: string;
   readonly receivedAt: string;
+};
+
+export type DashboardEventPage = {
+  readonly events: DashboardEvent[];
+  readonly nextCursor: string | null;
 };
 
 export type DashboardIncident = {
@@ -71,6 +77,14 @@ export type RealtimeIncidentUpdate = {
   readonly occurredAt: string;
 };
 
+export type RealtimeEventCreated = {
+  readonly messageId: string;
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly event: DashboardEvent;
+  readonly occurredAt: string;
+};
+
 export async function getDashboardSummary(projectId: string): Promise<DashboardSummary> {
   const response = await apiClient.get<ApiSuccessResponse<{ readonly summary: DashboardSummary }>>(
     "/dashboard/summary",
@@ -80,11 +94,30 @@ export async function getDashboardSummary(projectId: string): Promise<DashboardS
 }
 
 export async function listDashboardEvents(projectId: string): Promise<DashboardEvent[]> {
-  const response = await apiClient.get<ApiSuccessResponse<{ readonly events: DashboardEvent[] }>>(
+  const page = await listDashboardEventPage(projectId);
+  return page.events;
+}
+
+export async function listDashboardEventPage(
+  projectId: string,
+  options: {
+    readonly cursor?: string | null;
+    readonly limit?: number;
+  } = {},
+): Promise<DashboardEventPage> {
+  const response = await apiClient.get<ApiSuccessResponse<DashboardEventPage>>(
     "/dashboard/events",
-    { params: { projectId } },
+    {
+      params: {
+        projectId,
+        ...(options.cursor === undefined || options.cursor === null
+          ? {}
+          : { cursor: options.cursor }),
+        ...(options.limit === undefined ? {} : { limit: options.limit }),
+      },
+    },
   );
-  return response.data.data.events;
+  return response.data.data;
 }
 
 export async function listDashboardIncidents(projectId: string): Promise<DashboardIncident[]> {

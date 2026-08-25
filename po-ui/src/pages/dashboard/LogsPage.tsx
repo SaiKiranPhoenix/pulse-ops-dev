@@ -14,14 +14,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listDashboardEvents, type DashboardEvent } from "@/features/dashboards/api";
+import {
+  listDashboardEventPage,
+  type DashboardEvent,
+  type RealtimeEventCreated,
+} from "@/features/dashboards/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "./dashboard-utils";
 import { dashboardEnvironments, useDashboardContext } from "./DashboardLayout";
 
 const eventTypes = ["all", "log", "error", "metric"] as const;
 const levels = ["all", "debug", "info", "warn", "error"] as const;
+const eventPageSize = 50;
 const timeRanges = [
   { label: "15m", value: "15m", minutes: 15 },
   { label: "1h", value: "1h", minutes: 60 },
@@ -46,7 +52,10 @@ export function LogsPage() {
   const [search, setSearch] = useState("");
   const [isLive, setIsLive] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState("offline");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -63,8 +72,9 @@ export function LogsPage() {
     setError(null);
 
     try {
-      const nextEvents = await listDashboardEvents(selectedProject.id);
-      setEvents(nextEvents);
+      const page = await listDashboardEventPage(selectedProject.id, { limit: eventPageSize });
+      setEvents(page.events);
+      setNextCursor(page.nextCursor);
       setLastLoadedAt(new Date().toISOString());
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -79,15 +89,65 @@ export function LogsPage() {
 
   useEffect(() => {
     if (!isLive || selectedProject === null) {
+      setConnectionState("paused");
       return;
     }
 
-    const timer = window.setInterval(() => {
-      void loadEvents({ silent: true });
-    }, 10_000);
+    const projectId = selectedProject.id;
+    const socket = createPulseOpsSocket();
 
-    return () => window.clearInterval(timer);
+    if (socket === null) {
+      setConnectionState("unavailable");
+      return;
+    }
+
+    socket.on("connect", () => {
+      setConnectionState("connected");
+      void joinProjectRoom(socket, projectId);
+    });
+    socket.on("disconnect", () => {
+      setConnectionState("offline");
+    });
+    socket.on("connect_error", () => {
+      setConnectionState("error");
+    });
+    socket.on("event.created", (update: RealtimeEventCreated) => {
+      if (update.projectId !== projectId) {
+        return;
+      }
+
+      setEvents((current) => upsertEvent(current, update.event));
+      setLastLoadedAt(update.occurredAt);
+    });
+    socket.connect();
+
+    return () => {
+      leaveProjectRoom(socket, projectId);
+      socket.disconnect();
+    };
   }, [isLive, selectedProject?.id]);
+
+  async function loadMoreEvents(): Promise<void> {
+    if (selectedProject === null || nextCursor === null) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setError(null);
+
+    try {
+      const page = await listDashboardEventPage(selectedProject.id, {
+        cursor: nextCursor,
+        limit: eventPageSize,
+      });
+      setEvents((current) => mergeEvents(current, page.events));
+      setNextCursor(page.nextCursor);
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   const services = useMemo(
     () =>
@@ -176,8 +236,8 @@ export function LogsPage() {
           </p>
           <h1 className="text-2xl font-semibold tracking-normal">Log event explorer</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Inspect logs, errors, and metrics from connected apps with filters, live polling, and
-            redacted event details.
+            Inspect logs, errors, and metrics from connected apps with filters, realtime updates,
+            cursor paging, and redacted event details.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -279,7 +339,7 @@ export function LogsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          <span>{isLive ? "Live polling every 10 seconds" : "Live polling paused"}</span>
+          <span>{isLive ? `Realtime ${connectionState}` : "Realtime paused"}</span>
           <span>/</span>
           <span>
             {lastLoadedAt === null
@@ -300,49 +360,61 @@ export function LogsPage() {
             <span className="text-right">Received</span>
           </div>
 
-          {filteredEvents.length === 0 ? (
-            <EmptyLogs isLoading={isLoading} />
-          ) : (
-            <div className="min-w-[62rem] divide-y divide-slate-100">
-              {filteredEvents.map((event) => (
-                <button
-                  className={cn(
-                    "grid w-full grid-cols-[6rem_8rem_9rem_1fr_11rem_9rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50",
-                    selectedEventId === event.id && "bg-cyan-50 hover:bg-cyan-50",
-                  )}
-                  key={event.id}
-                  onClick={() => setSelectedEventId(event.id)}
-                  type="button"
-                >
-                  <span
+          <div className="min-w-[62rem]">
+            {filteredEvents.length === 0 ? (
+              <EmptyLogs isLoading={isLoading} />
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredEvents.map((event) => (
+                  <button
                     className={cn(
-                      "w-fit rounded-md border px-2 py-1 text-xs font-medium",
-                      typeClass(event),
+                      "grid w-full grid-cols-[6rem_8rem_9rem_1fr_11rem_9rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50",
+                      selectedEventId === event.id && "bg-cyan-50 hover:bg-cyan-50",
                     )}
+                    key={event.id}
+                    onClick={() => setSelectedEventId(event.id)}
+                    type="button"
                   >
-                    {event.type}
-                  </span>
-                  <span className="text-sm capitalize text-slate-600">{event.level ?? "-"}</span>
-                  <span className="truncate text-sm text-slate-600">{event.source}</span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-900">
-                      {event.message ?? event.name ?? event.fingerprint}
+                    <span
+                      className={cn(
+                        "w-fit rounded-md border px-2 py-1 text-xs font-medium",
+                        typeClass(event),
+                      )}
+                    >
+                      {event.type}
                     </span>
-                    <span className="mt-1 block truncate font-mono text-xs text-slate-500">
-                      {readAttribute(event.attributes, "environment") ?? "unknown"} /{" "}
-                      {event.fingerprint}
+                    <span className="text-sm capitalize text-slate-600">{event.level ?? "-"}</span>
+                    <span className="truncate text-sm text-slate-600">{event.source}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-slate-900">
+                        {event.message ?? event.name ?? event.fingerprint}
+                      </span>
+                      <span className="mt-1 block truncate font-mono text-xs text-slate-500">
+                        {readAttribute(event.attributes, "environment") ?? "unknown"} /{" "}
+                        {event.fingerprint}
+                      </span>
                     </span>
-                  </span>
-                  <span className="truncate font-mono text-xs text-slate-500">
-                    {readAttribute(event.attributes, "traceId") ?? "-"}
-                  </span>
-                  <span className="text-right text-xs text-slate-500">
-                    {formatRelativeTime(event.receivedAt)}
-                  </span>
-                </button>
-              ))}
+                    <span className="truncate font-mono text-xs text-slate-500">
+                      {readAttribute(event.attributes, "traceId") ?? "-"}
+                    </span>
+                    <span className="text-right text-xs text-slate-500">
+                      {formatRelativeTime(event.receivedAt)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="border-t border-slate-100 p-3">
+              <Button
+                disabled={nextCursor === null || isLoadingMore}
+                onClick={() => void loadMoreEvents()}
+                type="button"
+                variant="outline"
+              >
+                {isLoadingMore ? "Loading older events" : "Load older events"}
+              </Button>
             </div>
-          )}
+          </div>
         </div>
 
         <EventDetail event={selectedEvent} onCopy={copy} />
@@ -579,4 +651,20 @@ function isSensitiveKey(key: string): boolean {
 
 function formatFilterLabel(value: string): string {
   return value === "all" ? "All" : value;
+}
+
+function upsertEvent(events: DashboardEvent[], incoming: DashboardEvent): DashboardEvent[] {
+  return mergeEvents([incoming], events);
+}
+
+function mergeEvents(current: DashboardEvent[], incoming: DashboardEvent[]): DashboardEvent[] {
+  const eventsById = new Map<string, DashboardEvent>();
+
+  for (const event of [...current, ...incoming]) {
+    eventsById.set(event.id, event);
+  }
+
+  return [...eventsById.values()].sort(
+    (left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt),
+  );
 }

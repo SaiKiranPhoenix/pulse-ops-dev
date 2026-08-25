@@ -1,4 +1,5 @@
 import { GATEWAY_LIMITS } from "../config/constants.js";
+import mongoose from "mongoose";
 import {
   DashboardEventModel,
   DashboardIncidentModel,
@@ -10,6 +11,7 @@ import {
 
 export type DashboardEvent = {
   readonly id: string;
+  readonly projectId: string;
   readonly type: "log" | "error" | "metric";
   readonly source: string;
   readonly level: string | null;
@@ -20,6 +22,16 @@ export type DashboardEvent = {
   readonly attributes: Record<string, unknown>;
   readonly observedAt: Date;
   readonly receivedAt: Date;
+};
+
+export type DashboardEventPageOptions = {
+  readonly cursor?: string;
+  readonly limit: number;
+};
+
+export type DashboardEventPage = {
+  readonly events: DashboardEvent[];
+  readonly nextCursor: string | null;
 };
 
 export type DashboardIncident = {
@@ -43,6 +55,7 @@ export interface DashboardRepository {
   countEvents(projectId: string): Promise<number>;
   countOpenIncidents(projectId: string): Promise<number>;
   latestEvents(projectId: string): Promise<DashboardEvent[]>;
+  pagedEvents(projectId: string, options: DashboardEventPageOptions): Promise<DashboardEventPage>;
   latestIncidents(projectId: string): Promise<DashboardIncident[]>;
   latestVaultActivity(projectId: string): Promise<DashboardVaultActivity[]>;
 }
@@ -57,12 +70,44 @@ export class MongoDashboardRepository implements DashboardRepository {
   }
 
   async latestEvents(projectId: string): Promise<DashboardEvent[]> {
-    const events = await DashboardEventModel.find({ projectId })
-      .sort({ receivedAt: -1 })
-      .limit(GATEWAY_LIMITS.dashboardLimit)
+    const page = await this.pagedEvents(projectId, {
+      limit: GATEWAY_LIMITS.dashboardLimit,
+    });
+    return page.events;
+  }
+
+  async pagedEvents(
+    projectId: string,
+    options: DashboardEventPageOptions,
+  ): Promise<DashboardEventPage> {
+    const limit = Math.min(Math.max(options.limit, 1), GATEWAY_LIMITS.dashboardLimit);
+    const cursor = options.cursor === undefined ? null : decodeEventCursor(options.cursor);
+    const query =
+      cursor === null
+        ? { projectId }
+        : {
+            projectId,
+            $or: [
+              { receivedAt: { $lt: cursor.receivedAt } },
+              {
+                receivedAt: cursor.receivedAt,
+                _id: { $lt: new mongoose.Types.ObjectId(cursor.id) },
+              },
+            ],
+          };
+
+    const events = await DashboardEventModel.find(query)
+      .sort({ receivedAt: -1, _id: -1 })
+      .limit(limit + 1)
       .exec();
 
-    return events.map(toDashboardEvent);
+    const visibleEvents = events.slice(0, limit).map(toDashboardEvent);
+    const nextEvent = events.length > limit ? visibleEvents.at(-1) : undefined;
+
+    return {
+      events: visibleEvents,
+      nextCursor: nextEvent === undefined ? null : encodeEventCursor(nextEvent),
+    };
   }
 
   async latestIncidents(projectId: string): Promise<DashboardIncident[]> {
@@ -87,6 +132,7 @@ export class MongoDashboardRepository implements DashboardRepository {
 function toDashboardEvent(event: DashboardEventDocument): DashboardEvent {
   return {
     id: event.id,
+    projectId: event.projectId,
     type: event.type,
     source: event.source,
     level: event.level,
@@ -98,6 +144,44 @@ function toDashboardEvent(event: DashboardEventDocument): DashboardEvent {
     observedAt: event.observedAt,
     receivedAt: event.receivedAt,
   };
+}
+
+function encodeEventCursor(event: DashboardEvent): string {
+  return Buffer.from(
+    JSON.stringify({
+      id: event.id,
+      receivedAt: event.receivedAt.toISOString(),
+    }),
+  ).toString("base64url");
+}
+
+function decodeEventCursor(
+  cursor: string,
+): { readonly id: string; readonly receivedAt: Date } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+      readonly id?: unknown;
+      readonly receivedAt?: unknown;
+    };
+
+    if (
+      typeof parsed.id !== "string" ||
+      !mongoose.Types.ObjectId.isValid(parsed.id) ||
+      typeof parsed.receivedAt !== "string"
+    ) {
+      return null;
+    }
+
+    const receivedAt = new Date(parsed.receivedAt);
+
+    if (Number.isNaN(receivedAt.getTime())) {
+      return null;
+    }
+
+    return { id: parsed.id, receivedAt };
+  } catch {
+    return null;
+  }
 }
 
 function toDashboardIncident(incident: DashboardIncidentDocument): DashboardIncident {

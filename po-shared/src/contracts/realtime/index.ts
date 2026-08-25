@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const REALTIME_SOCKET_EVENTS = {
+  eventCreated: "event.created",
   incidentUpdated: "incident.updated",
 } as const;
 
@@ -45,6 +46,31 @@ export const realtimeIncidentUpdateMessageSchema = z.object({
   occurredAt: z.string().datetime(),
 });
 
-export type RealtimeIncidentUpdateMessage = z.infer<
-  typeof realtimeIncidentUpdateMessageSchema
->;
+export type RealtimeIncidentUpdateMessage = z.infer<typeof realtimeIncidentUpdateMessageSchema>;
+
+export const realtimeTelemetryEventSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  type: z.enum(["log", "error", "metric"]),
+  source: z.string().min(1),
+  level: z.string().min(1).nullable(),
+  message: z.string().min(1).nullable(),
+  name: z.string().min(1).nullable(),
+  value: z.number().finite().nullable(),
+  fingerprint: z.string().min(1),
+  attributes: z.record(z.string(), z.unknown()),
+  observedAt: z.string().datetime(),
+  receivedAt: z.string().datetime(),
+});
+
+export type RealtimeTelemetryEvent = z.infer<typeof realtimeTelemetryEventSchema>;
+
+export const realtimeEventCreatedMessageSchema = z.object({
+  messageId: z.string().min(1),
+  schemaVersion: z.literal(1),
+  projectId: z.string().min(1),
+  event: realtimeTelemetryEventSchema,
+  occurredAt: z.string().datetime(),
+});
+
+export type RealtimeEventCreatedMessage = z.infer<typeof realtimeEventCreatedMessageSchema>;
