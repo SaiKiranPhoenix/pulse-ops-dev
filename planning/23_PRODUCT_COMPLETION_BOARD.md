@@ -257,7 +257,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add chart section for throughput, errors, latency.
 - [x] Add environment and time range selectors.
 - [x] Add project selector.
-- [ ] Todo Add "send test traffic" controls.
+- [x] Add "send test traffic" controls.
 - [x] Add dashboard auto-refresh and stale data indicator.
 - [x] Add deep links from cards to Logs, Metrics, Incidents, Workers, Vault.
 - [ ] Todo Add better no-data demo guidance.
@@ -361,6 +361,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add gateway health aggregation.
 - [x] Add service unavailable UX mapping.
 - [x] Add rate limit at gateway.
+- [x] Add Platform UI for service health, OpenAPI routes, backend coverage, and runtime config.
 
 ## Data Model And Storage
 
@@ -905,7 +906,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [ ] Todo Add audit export.
 - [ ] Todo Add import seed data for demos.
 - [ ] Todo Add Postman/Bruno collection.
-- [ ] Todo Add OpenAPI spec export.
+- [x] Add OpenAPI spec export.
 - [ ] Todo Add sample JSON payload library.
 
 ## Governance Of Scope
@@ -920,16 +921,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Suggested Implementation Order From Here
 
-1. [ ] Todo Build product shell and project onboarding.
-2. [ ] Todo Build API key/app connection wizard.
-3. [ ] Todo Build send-test-event flow and demo seed/reset scripts.
-4. [ ] Todo Replace Logs placeholder with a real live logs page.
-5. [ ] Todo Replace Metrics placeholder with real charts.
-6. [ ] Todo Build dedicated Workers/Queues page.
-7. [ ] Todo Upgrade Incidents into a full triage workbench.
+1. [x] Build product shell and project onboarding.
+2. [x] Build API key/app connection wizard.
+3. [ ] Partial Build send-test-event flow and demo seed/reset scripts.
+4. [x] Replace Logs placeholder with a real live logs page.
+5. [x] Replace Metrics placeholder with real charts.
+6. [x] Build dedicated Workers/Queues page.
+7. [x] Upgrade Incidents into a full triage workbench.
 8. [x] Upgrade Vault into setup, secrets, tokens, reveal modal, and integration docs.
 9. [x] Build Vault Audit page.
-10. [ ] Todo Add realtime events beyond incidents.
+10. [x] Add realtime events beyond incidents.
 11. [ ] Todo Add browser E2E tests for the full demo.
 12. [ ] Todo Write final README and troubleshooting guide.
 
@@ -939,7 +940,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [ ] Todo A deployed/local app can send logs, errors, and metrics with an ingestion API key.
 - [ ] Todo The dashboard shows Datadog-like observability: logs, error groups, metrics charts, incidents, workers, queues, and realtime updates.
 - [ ] Todo The vault shows Vault-like secret management: encrypted secrets, reveal flow, integration tokens, scoped external fetch, and audit logs.
-- [ ] Todo The UI is not placeholder-based; every visible product area is functional.
+- [x] The UI is not placeholder-based; every visible product area is functional.
 - [ ] Todo The Docker stack starts reliably.
 - [ ] Todo Tests prove the primary flows.
 - [ ] Todo Documentation lets another developer run and demo it end to end.

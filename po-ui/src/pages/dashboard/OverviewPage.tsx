@@ -7,6 +7,7 @@ import {
   LineChart,
   RefreshCw,
   RadioTower,
+  ServerCog,
   type LucideIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -31,6 +32,7 @@ import {
   type TraceSummary,
   type WorkerHealth,
 } from "@/features/dashboards/api";
+import { getGatewayHealth, type GatewayHealth } from "@/features/platform/api";
 import { Button } from "@/components/ui/button";
 import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { formatRelativeTime, severityClass } from "./dashboard-utils";
@@ -46,6 +48,7 @@ type DashboardState = {
   readonly ingestion: IngestionStats | null;
   readonly metrics: MetricSummary | null;
   readonly traces: TraceSummary | null;
+  readonly platform: GatewayHealth | null;
   readonly lastLoadedAt: string | null;
 };
 
@@ -59,6 +62,7 @@ const emptyDashboard: DashboardState = {
   ingestion: null,
   metrics: null,
   traces: null,
+  platform: null,
   lastLoadedAt: null,
 };
 
@@ -81,26 +85,36 @@ export function OverviewPage() {
         return;
       }
 
-      const [summary, events, incidents, workerStatus, queueStatus, ingestion, metrics, traces] =
-        await Promise.all([
-          getDashboardSummary(project.id),
-          listDashboardEvents(project.id),
-          listDashboardIncidents(project.id),
-          getWorkerStatus(),
-          getQueueStatus(),
-          getIngestionStats(project.id, {
-            environment: selectedEnvironment,
-            timeRange: selectedTimeRange,
-          }),
-          getMetricSummary(project.id, {
-            environment: selectedEnvironment,
-            timeRange: selectedTimeRange,
-          }),
-          getTraceSummary(project.id, {
-            environment: selectedEnvironment,
-            timeRange: selectedTimeRange,
-          }),
-        ]);
+      const [
+        summary,
+        events,
+        incidents,
+        workerStatus,
+        queueStatus,
+        ingestion,
+        metrics,
+        traces,
+        platform,
+      ] = await Promise.all([
+        getDashboardSummary(project.id),
+        listDashboardEvents(project.id),
+        listDashboardIncidents(project.id),
+        getWorkerStatus(),
+        getQueueStatus(),
+        getIngestionStats(project.id, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        }),
+        getMetricSummary(project.id, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        }),
+        getTraceSummary(project.id, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        }),
+        getGatewayHealth(),
+      ]);
 
       setDashboard({
         project,
@@ -112,6 +126,7 @@ export function OverviewPage() {
         ingestion,
         metrics,
         traces,
+        platform,
         lastLoadedAt: new Date().toISOString(),
       });
     } catch {
@@ -288,10 +303,10 @@ export function OverviewPage() {
             icon={GitBranch}
           />
           <Metric
-            href="/dashboard/setup"
-            label="Backlog"
-            value={dashboard.ingestion?.processingBacklog ?? 0}
-            icon={Boxes}
+            href="/dashboard/platform"
+            label="Platform"
+            value={dashboard.platform?.status ?? "unknown"}
+            icon={ServerCog}
           />
         </section>
 
