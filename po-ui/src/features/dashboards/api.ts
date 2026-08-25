@@ -16,6 +16,7 @@ export type DashboardEvent = {
   readonly name: string | null;
   readonly value: number | null;
   readonly fingerprint: string;
+  readonly attributes: Record<string, unknown>;
   readonly observedAt: string;
   readonly receivedAt: string;
 };

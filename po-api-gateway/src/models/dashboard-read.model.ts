@@ -9,6 +9,7 @@ export type DashboardEventRecord = {
   name: string | null;
   value: number | null;
   fingerprint: string;
+  attributes: Record<string, unknown>;
   observedAt: Date;
   receivedAt: Date;
   createdAt: Date;
@@ -42,6 +43,7 @@ const dashboardEventSchema = new Schema<DashboardEventRecord>(
     name: String,
     value: Number,
     fingerprint: String,
+    attributes: { type: Schema.Types.Mixed, default: {} },
     observedAt: Date,
     receivedAt: Date,
   },

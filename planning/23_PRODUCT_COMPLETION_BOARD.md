@@ -211,14 +211,14 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Traces/APM Experience
 
-- [ ] Todo Decide MVP scope: keep Traces as "not implemented" or build minimal trace/span model.
-- [ ] Todo Replace placeholder Traces page with an honest MVP surface.
-- [ ] Todo Add trace ingestion contract if traces enter MVP.
-- [ ] Todo Add span model and indexes if traces enter MVP.
-- [ ] Todo Add service map if traces enter MVP.
-- [ ] Todo Add waterfall trace detail if traces enter MVP.
-- [ ] Todo Add correlation from logs/errors/metrics to trace ID if traces enter MVP.
-- [ ] Todo If out of MVP, hide Traces navigation until implemented.
+- [x] Decide MVP scope: build trace correlation from telemetry attributes for MVP.
+- [x] Replace placeholder Traces page with an honest MVP surface.
+- [x] Add trace ingestion contract through existing log/error/metric attributes: traceId, spanId, parentSpanId, operation, durationMs.
+- [ ] Partial Add span model and indexes if traces enter MVP; dashboard events now preserve attributes, dedicated span storage remains pending.
+- [x] Add service map if traces enter MVP.
+- [x] Add waterfall trace detail if traces enter MVP.
+- [x] Add correlation from logs/errors/metrics to trace ID if traces enter MVP.
+- [x] Keep Traces navigation because MVP trace correlation is implemented.
 
 ## Incidents And Alerting
 
@@ -675,17 +675,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## APM And Distributed Tracing
 
-- [ ] Todo Decide whether traces are MVP, v1.5, or v2; hide UI until honest.
+- [x] Decide whether traces are MVP, v1.5, or v2; MVP is trace correlation from telemetry attributes.
 - [ ] Todo Add trace ingestion endpoint.
 - [ ] Todo Add span ingestion endpoint.
-- [ ] Todo Add trace/span data model.
-- [ ] Todo Add trace ID correlation across logs, errors, and metrics.
-- [ ] Todo Add service dependency map.
-- [ ] Todo Add trace search.
-- [ ] Todo Add trace waterfall view.
-- [ ] Todo Add slow trace detection.
+- [ ] Partial Add trace/span data model; dashboard events retain trace/span attributes, dedicated trace collections remain pending.
+- [x] Add trace ID correlation across logs, errors, and metrics.
+- [x] Add service dependency map.
+- [x] Add trace search.
+- [x] Add trace waterfall view.
+- [ ] Partial Add slow trace detection; span durations are visible, thresholding remains pending.
 - [ ] Todo Add endpoint/resource performance table.
-- [ ] Todo Add error traces.
+- [x] Add error traces.
 - [ ] Todo Add distributed context propagation docs.
 - [ ] Todo Add SDK helpers for trace propagation.
 - [ ] Todo Add OpenTelemetry compatibility investigation.
