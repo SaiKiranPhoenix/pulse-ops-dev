@@ -84,16 +84,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Project ownership repository exists.
 - [x] Project API client functions exist in UI.
 - [ ] Partial Dashboard pages choose the first project automatically.
-- [ ] Todo Build project list page.
-- [ ] Partial Build create project page/dialog.
+- [x] Build project list page.
+- [x] Build create project page/dialog.
 - [x] Build first-project onboarding screen after login.
 - [x] Add project switcher to product shell.
-- [ ] Todo Add project details/settings page.
+- [x] Add project details/settings page.
 - [ ] Todo Add project archive/restore flow.
-- [ ] Todo Add project slug editing rules or immutable slug policy.
+- [x] Add project slug editing rules or immutable slug policy.
 - [ ] Todo Add project description field support if product keeps it.
-- [ ] Todo Add environment management UI.
-- [ ] Todo Enforce standard environments in UI: development, staging, production.
+- [x] Add environment management UI.
+- [x] Enforce standard environments in UI: development, staging, production.
 - [ ] Partial Add no-project empty state on every dashboard surface.
 - [ ] Todo Add owner-only access verification tests across all project APIs.
 
