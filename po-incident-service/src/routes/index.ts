@@ -1,8 +1,12 @@
 import { Router } from "express";
 import type { IncidentController } from "../controllers/incident.controller.js";
-import { validateParams, validateQuery } from "../middlewares/validate.middleware.js";
+import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import { incidentListQuerySchema, incidentParamsSchema } from "../validators/incident.validator.js";
+import {
+  incidentListQuerySchema,
+  incidentParamsSchema,
+  resolveIncidentBodySchema,
+} from "../validators/incident.validator.js";
 
 export type RouteDependencies = {
   readonly incidentController: IncidentController;
@@ -29,7 +33,14 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/incidents/:incidentId/resolve",
     validateParams(incidentParamsSchema),
     validateQuery(incidentListQuerySchema),
+    validateBody(resolveIncidentBodySchema),
     asyncHandler(dependencies.incidentController.resolve),
+  );
+  router.post(
+    "/incidents/:incidentId/acknowledge",
+    validateParams(incidentParamsSchema),
+    validateQuery(incidentListQuerySchema),
+    asyncHandler(dependencies.incidentController.acknowledge),
   );
   router.post(
     "/incidents/:incidentId/reopen",

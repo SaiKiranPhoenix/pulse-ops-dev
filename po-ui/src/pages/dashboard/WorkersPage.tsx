@@ -34,6 +34,12 @@ export function WorkersPage() {
 
   useEffect(() => {
     void loadOps();
+
+    const refreshInterval = window.setInterval(() => {
+      void loadOps();
+    }, 15_000);
+
+    return () => window.clearInterval(refreshInterval);
   }, []);
 
   const totalMessages = useMemo(
@@ -59,6 +65,10 @@ export function WorkersPage() {
   const poisonMessages = useMemo(
     () => workers.reduce((total, worker) => total + worker.metrics.poisonMessages, 0),
     [workers],
+  );
+  const blockedQueues = useMemo(
+    () => queues.filter((queue) => queue.health === "blocked").length,
+    [queues],
   );
   const selectedWorker =
     workers.find((worker) => worker.workerId === selectedWorkerId) ?? workers[0] ?? null;
@@ -95,7 +105,11 @@ export function WorkersPage() {
       <section className="grid gap-3 md:grid-cols-4">
         <Summary label="Queued messages" value={totalMessages} />
         <Summary label="Consumers" value={totalConsumers} />
+        <Summary label="Blocked queues" value={blockedQueues} />
         <Summary label="Poison messages" value={poisonMessages} />
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-4">
         <Summary
           label="Retries"
           value={workers.reduce((total, worker) => total + worker.metrics.retries, 0)}
@@ -180,7 +194,9 @@ export function WorkersPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">{queue.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{queue.status}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {queue.backlogWarning ?? queue.status}
+                  </p>
                 </div>
                 <span className="text-right font-mono text-sm text-slate-700">
                   {queue.messageCount ?? "-"}
@@ -188,8 +204,8 @@ export function WorkersPage() {
                 <span className="text-right font-mono text-sm text-slate-700">
                   {queue.consumerCount ?? "-"}
                 </span>
-                <span className={queue.status === "available" ? healthyClass : staleClass}>
-                  {queue.status}
+                <span className={queue.health === "clear" ? healthyClass : staleClass}>
+                  {queue.health}
                 </span>
               </article>
             ))}

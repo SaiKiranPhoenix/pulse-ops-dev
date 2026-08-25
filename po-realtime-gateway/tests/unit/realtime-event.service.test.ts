@@ -1,4 +1,8 @@
-import type { RealtimeEventCreatedMessage, RealtimeIncidentUpdateMessage } from "@pulseops/shared";
+import type {
+  RealtimeEventCreatedMessage,
+  RealtimeIncidentUpdateMessage,
+  RealtimeVaultAuditCreatedMessage,
+} from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
 import type { SocketRoomEmitter } from "../../src/services/realtime-event.service.js";
 import { RealtimeEventService } from "../../src/services/realtime-event.service.js";
@@ -7,13 +11,19 @@ class InMemorySocketRoomEmitter implements SocketRoomEmitter {
   readonly emitted: Array<{
     readonly room: string;
     readonly event: string;
-    readonly payload: RealtimeEventCreatedMessage | RealtimeIncidentUpdateMessage;
+    readonly payload:
+      | RealtimeEventCreatedMessage
+      | RealtimeIncidentUpdateMessage
+      | RealtimeVaultAuditCreatedMessage;
   }> = [];
 
   to(room: string): {
     emit: (
       event: string,
-      payload: RealtimeEventCreatedMessage | RealtimeIncidentUpdateMessage,
+      payload:
+        | RealtimeEventCreatedMessage
+        | RealtimeIncidentUpdateMessage
+        | RealtimeVaultAuditCreatedMessage,
     ) => void;
   } {
     return {
@@ -65,6 +75,26 @@ describe("RealtimeEventService", () => {
       },
     });
   });
+
+  it("emits vault audit events to the project room", () => {
+    const emitter = new InMemorySocketRoomEmitter();
+    const service = new RealtimeEventService(emitter);
+
+    service.emitVaultAuditCreated(validVaultAuditCreated());
+
+    expect(emitter.emitted).toHaveLength(1);
+    expect(emitter.emitted[0]).toMatchObject({
+      room: "project:project_1",
+      event: "vault.audit.created",
+      payload: {
+        projectId: "project_1",
+        auditEvent: {
+          id: "audit_1",
+          action: "vault.secret.reveal",
+        },
+      },
+    });
+  });
 });
 
 function validIncidentUpdate(): RealtimeIncidentUpdateMessage {
@@ -83,9 +113,39 @@ function validIncidentUpdate(): RealtimeIncidentUpdateMessage {
       severity: "high",
       status: "open",
       eventCount: 1,
+      creationReason: "Repeated error telemetry matched by fingerprint",
+      acknowledgedAt: null,
+      resolutionNote: null,
+      samples: [],
       firstSeenAt: "2026-08-18T00:00:00.000Z",
       lastSeenAt: "2026-08-18T00:00:00.000Z",
       resolvedAt: null,
+      createdAt: "2026-08-18T00:00:00.000Z",
+      updatedAt: "2026-08-18T00:00:00.000Z",
+    },
+  };
+}
+
+function validVaultAuditCreated(): RealtimeVaultAuditCreatedMessage {
+  return {
+    messageId: "vault-audit:audit_1:1",
+    schemaVersion: 1,
+    projectId: "project_1",
+    occurredAt: "2026-08-18T00:00:01.000Z",
+    auditEvent: {
+      id: "audit_1",
+      messageId: "audit-message-1",
+      projectId: "project_1",
+      actorType: "user",
+      actorId: "user_1",
+      action: "vault.secret.reveal",
+      result: "success",
+      environment: "production",
+      secretKey: "DATABASE_URL",
+      tokenPrefix: null,
+      reason: null,
+      correlationId: "req_1",
+      occurredAt: "2026-08-18T00:00:00.000Z",
       createdAt: "2026-08-18T00:00:00.000Z",
       updatedAt: "2026-08-18T00:00:00.000Z",
     },

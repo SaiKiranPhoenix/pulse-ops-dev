@@ -23,6 +23,18 @@ export type IncidentDto = {
   readonly severity: SafeIncidentRecord["severity"];
   readonly status: SafeIncidentRecord["status"];
   readonly eventCount: number;
+  readonly creationReason: string;
+  readonly acknowledgedAt: string | null;
+  readonly resolutionNote: string | null;
+  readonly samples: Array<{
+    readonly eventId: string;
+    readonly telemetryMessageId: string;
+    readonly source: string;
+    readonly level: string | null;
+    readonly message: string | null;
+    readonly observedAt: string;
+    readonly receivedAt: string;
+  }>;
   readonly firstSeenAt: string;
   readonly lastSeenAt: string;
   readonly resolvedAt: string | null;
@@ -44,6 +56,8 @@ export class IncidentService {
       title: toIncidentTitle(message),
       summary: toIncidentSummary(message),
       severity: toIncidentSeverity(message.level),
+      creationReason: toCreationReason(message),
+      sample: toEventSample(message),
       firstSeenAt: occurredAt,
       lastSeenAt: occurredAt,
     });
@@ -67,13 +81,34 @@ export class IncidentService {
     return toIncidentDto(incident);
   }
 
-  async resolve(projectId: string, incidentId: string): Promise<IncidentDto> {
-    const incident = await this.incidents.resolve(projectId, incidentId, new Date());
+  async acknowledge(projectId: string, incidentId: string): Promise<IncidentDto> {
+    const incident = await this.incidents.acknowledge(projectId, incidentId, new Date());
 
     if (incident === null) {
       throw notFound("Incident not found");
     }
 
+    await this.publishIncidentUpdate("acknowledged", incident);
+    return toIncidentDto(incident);
+  }
+
+  async resolve(
+    projectId: string,
+    incidentId: string,
+    resolutionNote: string | null = null,
+  ): Promise<IncidentDto> {
+    const incident = await this.incidents.resolve(
+      projectId,
+      incidentId,
+      new Date(),
+      resolutionNote,
+    );
+
+    if (incident === null) {
+      throw notFound("Incident not found");
+    }
+
+    await this.publishIncidentUpdate("resolved", incident);
     return toIncidentDto(incident);
   }
 
@@ -126,6 +161,25 @@ function toIncidentSeverity(level: string | null): SafeIncidentRecord["severity"
   return "medium";
 }
 
+function toCreationReason(message: IncidentEvaluationMessage): string {
+  return trimToLength(
+    `Repeated ${message.level ?? "error"} telemetry from ${message.source} matched fingerprint ${message.fingerprint}.`,
+    240,
+  );
+}
+
+function toEventSample(message: IncidentEvaluationMessage): SafeIncidentRecord["samples"][number] {
+  return {
+    eventId: message.eventId,
+    telemetryMessageId: message.telemetryMessageId,
+    source: message.source,
+    level: message.level,
+    message: message.message,
+    observedAt: new Date(message.observedAt),
+    receivedAt: new Date(message.receivedAt),
+  };
+}
+
 function trimToLength(value: string, maxLength: number): string {
   return value.length <= maxLength ? value : value.slice(0, maxLength);
 }
@@ -154,6 +208,14 @@ function toIncidentDto(incident: SafeIncidentRecord): IncidentDto {
     severity: incident.severity,
     status: incident.status,
     eventCount: incident.eventCount,
+    creationReason: incident.creationReason,
+    acknowledgedAt: incident.acknowledgedAt?.toISOString() ?? null,
+    resolutionNote: incident.resolutionNote,
+    samples: incident.samples.map((sample) => ({
+      ...sample,
+      observedAt: sample.observedAt.toISOString(),
+      receivedAt: sample.receivedAt.toISOString(),
+    })),
     firstSeenAt: incident.firstSeenAt.toISOString(),
     lastSeenAt: incident.lastSeenAt.toISOString(),
     resolvedAt: incident.resolvedAt?.toISOString() ?? null,

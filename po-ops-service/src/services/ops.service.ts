@@ -12,6 +12,11 @@ export type WorkerHealthDto = WorkerHealthRecord & {
 };
 
 export type QueueStatusDto = QueueStatusRecord;
+export type QueueHealthStatus = "clear" | "backlog" | "blocked" | "missing";
+export type QueueHealthDto = QueueStatusRecord & {
+  readonly health: QueueHealthStatus;
+  readonly backlogWarning: string | null;
+};
 
 export type OpsSummaryDto = {
   readonly generatedAt: string;
@@ -47,8 +52,9 @@ export class OpsService {
     }));
   }
 
-  async queues(): Promise<QueueStatusDto[]> {
-    return this.queuesRepository.inspect();
+  async queues(): Promise<QueueHealthDto[]> {
+    const queues = await this.queuesRepository.inspect();
+    return queues.map(toQueueHealth);
   }
 
   async summary(): Promise<OpsSummaryDto> {
@@ -73,4 +79,39 @@ export class OpsService {
       },
     };
   }
+}
+
+function toQueueHealth(queue: QueueStatusRecord): QueueHealthDto {
+  if (queue.status === "missing") {
+    return {
+      ...queue,
+      health: "missing",
+      backlogWarning: "Queue has not been declared by a producer or consumer.",
+    };
+  }
+
+  const messageCount = queue.messageCount ?? 0;
+  const consumerCount = queue.consumerCount ?? 0;
+
+  if (messageCount > 0 && consumerCount === 0) {
+    return {
+      ...queue,
+      health: "blocked",
+      backlogWarning: "Messages are waiting but no consumers are attached.",
+    };
+  }
+
+  if (messageCount >= 100) {
+    return {
+      ...queue,
+      health: "backlog",
+      backlogWarning: "Queue depth is above the local backlog threshold.",
+    };
+  }
+
+  return {
+    ...queue,
+    health: "clear",
+    backlogWarning: null,
+  };
 }

@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
 import type { IncidentService } from "../services/incident.service.js";
-import type { IncidentListQuery, IncidentParams } from "../validators/incident.validator.js";
+import type {
+  IncidentListQuery,
+  IncidentParams,
+  ResolveIncidentBody,
+} from "../validators/incident.validator.js";
 
 export class IncidentController {
   constructor(private readonly incidents: IncidentService) {}
@@ -27,7 +31,20 @@ export class IncidentController {
   resolve = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as IncidentListQuery;
     const params = response.locals.validatedParams as IncidentParams;
-    const incident = await this.incidents.resolve(query.projectId, params.incidentId);
+    const body = response.locals.validatedBody as ResolveIncidentBody;
+    const incident = await this.incidents.resolve(
+      query.projectId,
+      params.incidentId,
+      body.resolutionNote ?? null,
+    );
+
+    response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
+  };
+
+  acknowledge = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as IncidentListQuery;
+    const params = response.locals.validatedParams as IncidentParams;
+    const incident = await this.incidents.acknowledge(query.projectId, params.incidentId);
 
     response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
   };

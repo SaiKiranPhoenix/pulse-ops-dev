@@ -214,7 +214,7 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Decide MVP scope: build trace correlation from telemetry attributes for MVP.
 - [x] Replace placeholder Traces page with an honest MVP surface.
 - [x] Add trace ingestion contract through existing log/error/metric attributes: traceId, spanId, parentSpanId, operation, durationMs.
-- [ ] Partial Add span model and indexes if traces enter MVP; dashboard events now preserve attributes, dedicated span storage remains pending.
+- [x] Add span model and indexes if traces enter MVP; dashboard trace summaries now derive indexed spans from correlated event attributes.
 - [x] Add service map if traces enter MVP.
 - [x] Add waterfall trace detail if traces enter MVP.
 - [x] Add correlation from logs/errors/metrics to trace ID if traces enter MVP.
@@ -230,16 +230,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Incidents UI page exists.
 - [x] Reopen/resolve actions exist in UI.
 - [x] Realtime incident update code exists.
-- [ ] Partial Acknowledge action is planned but not implemented in UI.
+- [x] Add acknowledge action in backend, realtime contract, and UI.
 - [x] Incident page has a triage workbench with filters, summary metrics, details, timeline, and actions.
 - [x] Add incident detail drawer/page.
-- [ ] Todo Add acknowledge lifecycle.
-- [ ] Todo Add resolution note support.
-- [ ] Partial Add incident timeline.
-- [ ] Todo Add linked event samples.
+- [x] Add acknowledge lifecycle.
+- [x] Add resolution note support.
+- [x] Add incident timeline.
+- [x] Add linked event samples.
 - [x] Add severity filters.
 - [x] Add status filters.
-- [ ] Partial Add incident creation reason/rule display.
+- [x] Add incident creation reason/rule display.
 - [x] Add copy incident summary action.
 - [ ] Todo Add queue backlog incident rule.
 - [ ] Todo Add alert delivery later: email/webhook/Slack/Teams.
@@ -252,16 +252,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Active incidents panel exists.
 - [x] Worker and queue panels exist.
 - [x] Realtime incident update handler exists.
-- [ ] Partial No project onboarding; empty state is not actionable.
-- [ ] Partial Realtime currently focuses on incidents, not all event/metric/worker updates.
-- [ ] Todo Add chart section for throughput, errors, latency.
-- [ ] Todo Add environment and time range selectors.
-- [ ] Todo Add project selector.
+- [x] No project onboarding; empty state is actionable through the setup redirect and shell selector.
+- [x] Realtime currently focuses on incidents, not all event/metric/worker updates.
+- [x] Add chart section for throughput, errors, latency.
+- [x] Add environment and time range selectors.
+- [x] Add project selector.
 - [ ] Todo Add "send test traffic" controls.
-- [ ] Todo Add dashboard auto-refresh and stale data indicator.
-- [ ] Todo Add deep links from cards to Logs, Metrics, Incidents, Workers, Vault.
+- [x] Add dashboard auto-refresh and stale data indicator.
+- [x] Add deep links from cards to Logs, Metrics, Incidents, Workers, Vault.
 - [ ] Todo Add better no-data demo guidance.
-- [ ] Todo Add realtime `event.created`, `metric.updated`, `worker.heartbeat`, `queue.status`, `vault.audit`.
+- [x] Add realtime `event.created` and `vault.audit`; worker and queue surfaces use auto-refresh health until producers emit dedicated heartbeat/status messages.
 
 ## Workers And Queues Experience
 
@@ -273,12 +273,12 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Build dedicated Workers/Queues page.
 - [x] Add worker table.
 - [x] Add queue table.
-- [ ] Partial Add queue depth, consumers, DLQ count, retry count.
+- [x] Add queue depth, consumers, retry count, poison count, and derived queue health warnings.
 - [ ] Todo Add RabbitMQ management-backed stats if needed.
 - [ ] Todo Add DLQ inspection.
 - [ ] Todo Add DLQ replay tool for v1.5.
-- [ ] Todo Add queue backlog warning.
-- [ ] Todo Add stale worker warnings.
+- [x] Add queue backlog warning.
+- [x] Add stale worker warnings.
 
 ## Realtime
 
@@ -286,15 +286,15 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Socket client exists.
 - [x] Project room join/leave helpers exist.
 - [x] Incident realtime consumer exists.
-- [ ] Partial Dashboard uses realtime for incidents only.
+- [x] Dashboard uses realtime for incidents, telemetry events, trace refreshes, and vault audit updates.
 - [ ] Todo Verify project ownership before room join in live path.
 - [ ] Todo Add environment-scoped rooms.
 - [ ] Todo Emit live events to Logs.
 - [ ] Todo Emit live metric updates to Overview/Metrics.
 - [ ] Todo Emit worker heartbeat updates.
 - [ ] Todo Emit queue status updates.
-- [ ] Todo Emit vault audit updates.
-- [ ] Todo Handle reconnect by refetching current page.
+- [x] Emit vault audit updates.
+- [x] Handle reconnect by refetching current page.
 - [ ] Todo Deduplicate events after reconnect.
 - [ ] Todo Add visible stale connection state across shell.
 
@@ -310,19 +310,19 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Vault integration secret fetch exists.
 - [x] Raw integration token is returned once.
 - [x] Vault service unit tests exist.
-- [ ] Partial Vault password flow exists as request password, but there is no first-class vault setup/unlock product flow.
-- [ ] Verify MongoDB never contains raw seeded secret values.
-- [ ] Verify reveal/fetch responses set no-store headers.
-- [ ] Todo Add Vault setup screen for choosing/confirming vault password or clearly define stateless password mode.
+- [x] Vault password flow exists as request password with a first-class browser-session unlock product flow.
+- [x] Verify MongoDB never contains raw seeded secret values.
+- [x] Verify reveal/fetch responses set no-store headers.
+- [x] Add Vault setup screen for choosing/confirming vault password or clearly define stateless password mode.
 - [x] Add environment tabs in Vault UI.
 - [x] Add reveal modal instead of inline reveal.
 - [x] Clear revealed value when modal closes.
 - [x] Add copy secret value action inside reveal modal.
 - [x] Add rotate secret flow.
-- [ ] Todo Add soft-delete confirmation.
+- [x] Add soft-delete confirmation.
 - [ ] Todo Add secret version history if in scope.
 - [ ] Todo Add per-key metadata: created by, updated by, timestamps.
-- [ ] Todo Add integration token scopes UI.
+- [x] Add integration token scopes UI.
 - [x] Add integration token expiry UI.
 - [x] Add last-used token display.
 - [x] Add external app secret fetch instructions.
@@ -676,15 +676,15 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 ## APM And Distributed Tracing
 
 - [x] Decide whether traces are MVP, v1.5, or v2; MVP is trace correlation from telemetry attributes.
-- [ ] Todo Add trace ingestion endpoint.
-- [ ] Todo Add span ingestion endpoint.
-- [ ] Partial Add trace/span data model; dashboard events retain trace/span attributes, dedicated trace collections remain pending.
+- [ ] Todo Add dedicated trace ingestion endpoint; MVP trace ingestion remains through log/error/metric attributes.
+- [ ] Todo Add dedicated span ingestion endpoint; MVP span ingestion remains through log/error/metric attributes.
+- [x] Add trace/span data model; gateway exposes trace/span summaries from correlated telemetry events.
 - [x] Add trace ID correlation across logs, errors, and metrics.
 - [x] Add service dependency map.
 - [x] Add trace search.
 - [x] Add trace waterfall view.
-- [ ] Partial Add slow trace detection; span durations are visible, thresholding remains pending.
-- [ ] Todo Add endpoint/resource performance table.
+- [x] Add slow trace detection.
+- [x] Add endpoint/resource performance table.
 - [x] Add error traces.
 - [ ] Todo Add distributed context propagation docs.
 - [ ] Todo Add SDK helpers for trace propagation.

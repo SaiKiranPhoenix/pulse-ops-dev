@@ -1,40 +1,22 @@
-import { Clipboard, GitBranch, RefreshCw, Search, Send, Timer } from "lucide-react";
+import { Clipboard, GitBranch, RefreshCw, Search, Send, Timer, TriangleAlert } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listDashboardEvents, type DashboardEvent } from "@/features/dashboards/api";
+import {
+  getTraceSummary,
+  type RealtimeEventCreated,
+  type TraceGroup,
+  type TraceSummary,
+} from "@/features/dashboards/api";
 import { ingestError, ingestLog, ingestMetric } from "@/features/ingestion/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
-type TraceSpan = {
-  readonly id: string;
-  readonly traceId: string;
-  readonly spanId: string;
-  readonly parentSpanId: string | null;
-  readonly service: string;
-  readonly operation: string;
-  readonly event: DashboardEvent;
-  readonly startedAt: string;
-  readonly durationMs: number;
-  readonly status: "ok" | "error";
-};
-
-type TraceGroup = {
-  readonly traceId: string;
-  readonly rootService: string;
-  readonly startedAt: string;
-  readonly endedAt: string;
-  readonly durationMs: number;
-  readonly errorCount: number;
-  readonly spans: TraceSpan[];
-  readonly services: string[];
-};
-
 export function TracesPage() {
-  const { selectedEnvironment, selectedProject } = useDashboardContext();
-  const [events, setEvents] = useState<DashboardEvent[]>([]);
+  const { selectedEnvironment, selectedProject, selectedTimeRange } = useDashboardContext();
+  const [summary, setSummary] = useState<TraceSummary | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [testApiKey, setTestApiKey] = useState("");
@@ -45,7 +27,7 @@ export function TracesPage() {
 
   async function loadTraces(): Promise<void> {
     if (selectedProject === null) {
-      setEvents([]);
+      setSummary(null);
       setSelectedTraceId(null);
       return;
     }
@@ -54,7 +36,12 @@ export function TracesPage() {
     setError(null);
 
     try {
-      setEvents(await listDashboardEvents(selectedProject.id));
+      setSummary(
+        await getTraceSummary(selectedProject.id, {
+          environment: selectedEnvironment,
+          timeRange: selectedTimeRange,
+        }),
+      );
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -64,9 +51,43 @@ export function TracesPage() {
 
   useEffect(() => {
     void loadTraces();
-  }, [selectedProject?.id]);
+  }, [selectedEnvironment, selectedProject?.id, selectedTimeRange]);
 
-  const traces = useMemo(() => buildTraceGroups(events), [events]);
+  useEffect(() => {
+    if (selectedProject === null) {
+      return;
+    }
+
+    const socket = createPulseOpsSocket();
+
+    if (socket === null) {
+      return;
+    }
+
+    let refreshTimeout: number | null = null;
+    socket.on("connect", () => {
+      void joinProjectRoom(socket, selectedProject.id);
+    });
+    socket.on("event.created", (update: RealtimeEventCreated) => {
+      if (update.event.attributes.traceId !== undefined && refreshTimeout === null) {
+        refreshTimeout = window.setTimeout(() => {
+          refreshTimeout = null;
+          void loadTraces();
+        }, 750);
+      }
+    });
+    socket.connect();
+
+    return () => {
+      if (refreshTimeout !== null) {
+        window.clearTimeout(refreshTimeout);
+      }
+      leaveProjectRoom(socket, selectedProject.id);
+      socket.disconnect();
+    };
+  }, [selectedEnvironment, selectedProject, selectedTimeRange]);
+
+  const traces = summary?.traces ?? [];
   const filteredTraces = useMemo(
     () =>
       traces.filter((trace) => {
@@ -88,20 +109,7 @@ export function TracesPage() {
     );
   }, [filteredTraces]);
 
-  const selectedTrace = useMemo(
-    () => filteredTraces.find((trace) => trace.traceId === selectedTraceId) ?? null,
-    [filteredTraces, selectedTraceId],
-  );
-
-  const summary = useMemo(
-    () => ({
-      traces: traces.length,
-      spans: traces.reduce((total, trace) => total + trace.spans.length, 0),
-      errors: traces.reduce((total, trace) => total + trace.errorCount, 0),
-      services: new Set(traces.flatMap((trace) => trace.services)).size,
-    }),
-    [traces],
-  );
+  const selectedTrace = filteredTraces.find((trace) => trace.traceId === selectedTraceId) ?? null;
 
   async function sendSyntheticTrace(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -157,7 +165,7 @@ export function TracesPage() {
         },
       );
 
-      setMessage("Synthetic trace accepted. Refresh after workers process the events.");
+      setMessage("Synthetic trace accepted. The page refreshes when processed events arrive.");
       await loadTraces();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -176,12 +184,13 @@ export function TracesPage() {
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-medium text-cyan-700">
-            {selectedProject?.name ?? "No project selected"} / {selectedEnvironment}
+            {selectedProject?.name ?? "No project selected"} / {selectedEnvironment} /{" "}
+            {selectedTimeRange}
           </p>
-          <h1 className="text-2xl font-semibold tracking-normal">Trace correlation</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">Traces and APM</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Correlate logs, errors, and metrics into traces using telemetry attributes: `traceId`,
-            `spanId`, and `parentSpanId`.
+            Inspect distributed traces, slow spans, service dependencies, and endpoint latency from
+            correlated telemetry.
           </p>
         </div>
         <Button
@@ -207,11 +216,12 @@ export function TracesPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <Summary label="Traces" value={summary.traces} />
-        <Summary label="Spans" value={summary.spans} />
-        <Summary label="Errored spans" value={summary.errors} />
-        <Summary label="Services" value={summary.services} />
+      <section className="grid gap-3 md:grid-cols-5">
+        <Summary label="Traces" value={summary?.totalTraces ?? 0} />
+        <Summary label="Spans" value={summary?.totalSpans ?? 0} />
+        <Summary label="Errored traces" value={summary?.errorTraces ?? 0} />
+        <Summary label="Slow traces" value={summary?.slowTraces ?? 0} />
+        <Summary label="Services" value={summary?.serviceCount ?? 0} />
       </section>
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 xl:grid-cols-[1fr_22rem]">
@@ -240,45 +250,12 @@ export function TracesPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[25rem_1fr]">
-        <div className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
-            <span>Trace</span>
-            <span>Spans</span>
-            <span className="text-right">Duration</span>
-          </div>
-          {filteredTraces.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">
-              {isLoading ? "Loading traces" : "No trace-correlated events yet"}
-            </p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredTraces.map((trace) => (
-                <button
-                  className="grid w-full grid-cols-[1fr_6rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                  key={trace.traceId}
-                  onClick={() => setSelectedTraceId(trace.traceId)}
-                  type="button"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <GitBranch className="h-4 w-4 shrink-0 text-cyan-700" />
-                      <p className="truncate font-mono text-sm font-semibold text-slate-900">
-                        {trace.traceId}
-                      </p>
-                    </div>
-                    <p className="mt-1 truncate text-xs text-slate-500">
-                      {trace.rootService} - {trace.services.join(", ")}
-                    </p>
-                  </div>
-                  <span className="font-mono text-sm text-slate-700">{trace.spans.length}</span>
-                  <span className="text-right font-mono text-sm text-slate-700">
-                    {trace.durationMs}ms
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <TraceList
+          isLoading={isLoading}
+          onSelect={setSelectedTraceId}
+          selectedTraceId={selectedTraceId}
+          traces={filteredTraces}
+        />
 
         <aside className="rounded-md border border-slate-200 bg-white p-4">
           {selectedTrace === null ? (
@@ -288,7 +265,126 @@ export function TracesPage() {
           )}
         </aside>
       </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <section className="rounded-md border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-normal text-slate-500">
+            Endpoint performance
+          </div>
+          <div className="divide-y divide-slate-100">
+            {(summary?.endpoints ?? []).length === 0 ? (
+              <p className="px-4 py-6 text-sm text-slate-500">No span endpoints observed.</p>
+            ) : (
+              summary?.endpoints.slice(0, 10).map((endpoint) => (
+                <article
+                  className="grid grid-cols-[1fr_5rem_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
+                  key={`${endpoint.service}:${endpoint.operation}`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">{endpoint.operation}</p>
+                    <p className="truncate text-xs text-slate-500">{endpoint.service}</p>
+                  </div>
+                  <span className="text-right font-mono text-slate-700">{endpoint.spanCount}</span>
+                  <span className="text-right font-mono text-red-700">{endpoint.errorCount}</span>
+                  <span className="text-right font-mono text-slate-700">
+                    {endpoint.p95DurationMs}ms
+                  </span>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-md border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-normal text-slate-500">
+            Service dependencies
+          </div>
+          <div className="divide-y divide-slate-100">
+            {(summary?.serviceMap ?? []).length === 0 ? (
+              <p className="px-4 py-6 text-sm text-slate-500">No cross-service edges observed.</p>
+            ) : (
+              summary?.serviceMap.map((edge) => (
+                <article
+                  className="grid grid-cols-[1fr_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
+                  key={`${edge.from}:${edge.to}`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">
+                      {edge.from} -&gt; {edge.to}
+                    </p>
+                    <p className="text-xs text-slate-500">{edge.errorCount} errored spans</p>
+                  </div>
+                  <span className="text-right font-mono text-slate-700">{edge.spanCount}</span>
+                  <span className="text-right font-mono text-slate-700">
+                    {edge.avgDurationMs}ms
+                  </span>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+      </section>
     </main>
+  );
+}
+
+function TraceList({
+  isLoading,
+  onSelect,
+  selectedTraceId,
+  traces,
+}: {
+  readonly isLoading: boolean;
+  readonly onSelect: (traceId: string) => void;
+  readonly selectedTraceId: string | null;
+  readonly traces: TraceGroup[];
+}) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white">
+      <div className="grid grid-cols-[1fr_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <span>Trace</span>
+        <span>Spans</span>
+        <span className="text-right">Duration</span>
+      </div>
+      {traces.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-slate-500">
+          {isLoading ? "Loading traces" : "No trace-correlated events yet"}
+        </p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {traces.map((trace) => (
+            <button
+              className={`grid w-full grid-cols-[1fr_6rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50 ${
+                selectedTraceId === trace.traceId ? "bg-cyan-50" : ""
+              }`}
+              key={trace.traceId}
+              onClick={() => onSelect(trace.traceId)}
+              type="button"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {trace.isSlow || trace.errorCount > 0 ? (
+                    <TriangleAlert className="h-4 w-4 shrink-0 text-amber-600" />
+                  ) : (
+                    <GitBranch className="h-4 w-4 shrink-0 text-cyan-700" />
+                  )}
+                  <p className="truncate font-mono text-sm font-semibold text-slate-900">
+                    {trace.traceId}
+                  </p>
+                </div>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {trace.rootService} - {trace.services.join(", ")}
+                </p>
+              </div>
+              <span className="font-mono text-sm text-slate-700">{trace.spanCount}</span>
+              <span className="text-right font-mono text-sm text-slate-700">
+                {trace.durationMs}ms
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -318,28 +414,11 @@ function TraceDetail({
         </Button>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-4">
         <SmallMetric label="Duration" value={`${trace.durationMs}ms`} />
-        <SmallMetric label="Spans" value={String(trace.spans.length)} />
+        <SmallMetric label="Spans" value={String(trace.spanCount)} />
         <SmallMetric label="Errors" value={String(trace.errorCount)} />
-      </section>
-
-      <section>
-        <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-          Service map
-        </h3>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {trace.services.map((service, index) => (
-            <span className="flex items-center gap-2" key={service}>
-              <span className="rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-700">
-                {service}
-              </span>
-              {index < trace.services.length - 1 ? (
-                <span className="text-xs text-slate-400">-&gt;</span>
-              ) : null}
-            </span>
-          ))}
-        </div>
+        <SmallMetric label="Slow spans" value={String(trace.slowSpanCount)} />
       </section>
 
       <section>
@@ -362,7 +441,9 @@ function TraceDetail({
               </div>
               <div className="mt-3 h-2 rounded-full bg-slate-200">
                 <div
-                  className={`h-2 rounded-full ${span.status === "error" ? "bg-red-500" : "bg-cyan-600"}`}
+                  className={`h-2 rounded-full ${
+                    span.status === "error" ? "bg-red-500" : "bg-cyan-600"
+                  }`}
                   style={{
                     width: `${Math.max(8, Math.min(100, (span.durationMs / Math.max(trace.durationMs, 1)) * 100))}%`,
                   }}
@@ -398,83 +479,6 @@ function SmallMetric({ label, value }: { readonly label: string; readonly value:
   );
 }
 
-function buildTraceGroups(events: DashboardEvent[]): TraceGroup[] {
-  const spans = events.map(toTraceSpan).filter((span): span is TraceSpan => span !== null);
-  const traces = new Map<string, TraceSpan[]>();
-
-  for (const span of spans) {
-    const traceSpans = traces.get(span.traceId) ?? [];
-    traceSpans.push(span);
-    traces.set(span.traceId, traceSpans);
-  }
-
-  return [...traces.entries()]
-    .map(([traceId, traceSpans]) => {
-      const sortedSpans = traceSpans
-        .slice()
-        .sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt));
-      const startedAt = sortedSpans[0]?.startedAt ?? new Date().toISOString();
-      const endedAt = sortedSpans.at(-1)?.startedAt ?? startedAt;
-      const durationMs = Math.max(
-        ...sortedSpans.map(
-          (span) => Date.parse(span.startedAt) - Date.parse(startedAt) + span.durationMs,
-        ),
-        1,
-      );
-
-      return {
-        traceId,
-        rootService:
-          sortedSpans.find((span) => span.parentSpanId === null)?.service ??
-          sortedSpans[0]?.service ??
-          "unknown",
-        startedAt,
-        endedAt,
-        durationMs,
-        errorCount: sortedSpans.filter((span) => span.status === "error").length,
-        spans: sortedSpans,
-        services: [...new Set(sortedSpans.map((span) => span.service))],
-      };
-    })
-    .sort((left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt));
-}
-
-function toTraceSpan(event: DashboardEvent): TraceSpan | null {
-  const traceId = readAttribute(event.attributes, "traceId");
-  const spanId = readAttribute(event.attributes, "spanId");
-
-  if (traceId === null || spanId === null) {
-    return null;
-  }
-
-  return {
-    id: event.id,
-    traceId,
-    spanId,
-    parentSpanId: readAttribute(event.attributes, "parentSpanId"),
-    service: event.source,
-    operation:
-      readAttribute(event.attributes, "operation") ??
-      event.message ??
-      event.name ??
-      event.fingerprint,
-    event,
-    startedAt: event.observedAt,
-    durationMs: readNumberAttribute(event.attributes, "durationMs") ?? event.value ?? 1,
-    status: event.type === "error" || event.level === "error" ? "error" : "ok",
-  };
-}
-
-function readAttribute(attributes: Record<string, unknown>, key: string): string | null {
-  const value = attributes[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function readNumberAttribute(attributes: Record<string, unknown>, key: string): number | null {
-  const value = attributes[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function traceAttributes(
   traceId: string,
   spanId: string,
@@ -496,8 +500,9 @@ function toTraceSummary(trace: TraceGroup): string {
     `Trace: ${trace.traceId}`,
     `Root service: ${trace.rootService}`,
     `Duration: ${trace.durationMs}ms`,
-    `Spans: ${trace.spans.length}`,
+    `Spans: ${trace.spanCount}`,
     `Errors: ${trace.errorCount}`,
+    `Slow spans: ${trace.slowSpanCount}`,
     `Services: ${trace.services.join(", ")}`,
   ].join("\n");
 }

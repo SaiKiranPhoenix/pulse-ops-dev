@@ -6,6 +6,7 @@ import type {
   DashboardIncident,
   DashboardMetricSummary,
   DashboardRepository,
+  DashboardTraceSummary,
   DashboardVaultActivity,
 } from "../repositories/dashboard.repository.js";
 
@@ -27,11 +28,24 @@ export type DashboardEventPageDto = {
 
 export type DashboardIncidentDto = Omit<
   DashboardIncident,
-  "createdAt" | "firstSeenAt" | "lastSeenAt" | "resolvedAt" | "updatedAt"
+  | "acknowledgedAt"
+  | "createdAt"
+  | "firstSeenAt"
+  | "lastSeenAt"
+  | "resolvedAt"
+  | "samples"
+  | "updatedAt"
 > & {
+  readonly acknowledgedAt: string | null;
   readonly firstSeenAt: string;
   readonly lastSeenAt: string;
   readonly resolvedAt: string | null;
+  readonly samples: Array<
+    Omit<DashboardIncident["samples"][number], "observedAt" | "receivedAt"> & {
+      readonly observedAt: string;
+      readonly receivedAt: string;
+    }
+  >;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
@@ -87,6 +101,28 @@ export type DashboardMetricSummaryDto = Omit<
       readonly observedAt: string;
     }
   >;
+};
+
+export type DashboardTraceSummaryDto = Omit<
+  DashboardTraceSummary,
+  "traces" | "endpoints" | "serviceMap"
+> & {
+  readonly projectId: string;
+  readonly environment: string | null;
+  readonly timeRange: string;
+  readonly traces: Array<
+    Omit<DashboardTraceSummary["traces"][number], "startedAt" | "endedAt" | "spans"> & {
+      readonly startedAt: string;
+      readonly endedAt: string;
+      readonly spans: Array<
+        Omit<DashboardTraceSummary["traces"][number]["spans"][number], "startedAt"> & {
+          readonly startedAt: string;
+        }
+      >;
+    }
+  >;
+  readonly endpoints: DashboardTraceSummary["endpoints"];
+  readonly serviceMap: DashboardTraceSummary["serviceMap"];
 };
 
 export class DashboardService {
@@ -185,6 +221,29 @@ export class DashboardService {
       })),
     };
   }
+
+  async traceSummary(
+    projectId: string,
+    options: DashboardAnalyticsOptionsDto,
+  ): Promise<DashboardTraceSummaryDto> {
+    const summary = await this.dashboard.traceSummary(projectId, toAnalyticsOptions(options));
+
+    return {
+      ...summary,
+      projectId,
+      environment: options.environment ?? null,
+      timeRange: options.timeRange ?? "1h",
+      traces: summary.traces.map((trace) => ({
+        ...trace,
+        startedAt: trace.startedAt.toISOString(),
+        endedAt: trace.endedAt.toISOString(),
+        spans: trace.spans.map((span) => ({
+          ...span,
+          startedAt: span.startedAt.toISOString(),
+        })),
+      })),
+    };
+  }
 }
 
 function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
@@ -198,9 +257,15 @@ function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
 function toDashboardIncidentDto(incident: DashboardIncident): DashboardIncidentDto {
   return {
     ...incident,
+    acknowledgedAt: incident.acknowledgedAt?.toISOString() ?? null,
     firstSeenAt: incident.firstSeenAt.toISOString(),
     lastSeenAt: incident.lastSeenAt.toISOString(),
     resolvedAt: incident.resolvedAt?.toISOString() ?? null,
+    samples: incident.samples.map((sample) => ({
+      ...sample,
+      observedAt: sample.observedAt.toISOString(),
+      receivedAt: sample.receivedAt.toISOString(),
+    })),
     createdAt: incident.createdAt.toISOString(),
     updatedAt: incident.updatedAt.toISOString(),
   };

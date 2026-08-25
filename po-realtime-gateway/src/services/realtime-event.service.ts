@@ -2,12 +2,15 @@ import {
   REALTIME_SOCKET_EVENTS,
   realtimeEventCreatedMessageSchema,
   realtimeIncidentUpdateMessageSchema,
+  realtimeVaultAuditCreatedMessageSchema,
   toProjectRoom,
   type RealtimeEventCreatedMessage,
   type RealtimeIncidentUpdateMessage,
+  type RealtimeVaultAuditCreatedMessage,
 } from "@pulseops/shared";
 
-type RealtimeSocketPayload = RealtimeIncidentUpdateMessage | RealtimeEventCreatedMessage;
+type RealtimeSocketPayload =
+  RealtimeIncidentUpdateMessage | RealtimeEventCreatedMessage | RealtimeVaultAuditCreatedMessage;
 
 export type SocketRoomEmitter = {
   to(room: string): {
@@ -30,5 +33,12 @@ export class RealtimeEventService {
     this.emitter
       .to(toProjectRoom(message.projectId))
       .emit(REALTIME_SOCKET_EVENTS.eventCreated, message);
+  }
+
+  emitVaultAuditCreated(content: unknown): void {
+    const message = realtimeVaultAuditCreatedMessageSchema.parse(content);
+    this.emitter
+      .to(toProjectRoom(message.projectId))
+      .emit(REALTIME_SOCKET_EVENTS.vaultAuditCreated, message);
   }
 }

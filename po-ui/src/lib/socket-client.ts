@@ -1,14 +1,24 @@
 import { io, type Socket } from "socket.io-client";
 import { getAccessToken } from "@/lib/api-client";
 import type { RealtimeEventCreated, RealtimeIncidentUpdate } from "@/features/dashboards/api";
+import type { VaultAuditEvent } from "@/features/vault/api";
 
 export const realtimeUrl = import.meta.env.VITE_REALTIME_URL ?? "http://localhost:4130";
 
 type ServerToClientEvents = {
   "event.created": (message: RealtimeEventCreated) => void;
   "incident.updated": (message: RealtimeIncidentUpdate) => void;
+  "vault.audit.created": (message: RealtimeVaultAuditCreated) => void;
   "project:joined": (message: { readonly projectId: string }) => void;
   "project:left": (message: { readonly projectId: string }) => void;
+};
+
+export type RealtimeVaultAuditCreated = {
+  readonly messageId: string;
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly auditEvent: VaultAuditEvent;
+  readonly occurredAt: string;
 };
 
 type ClientToServerEvents = {
