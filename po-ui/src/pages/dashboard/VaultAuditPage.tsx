@@ -2,7 +2,11 @@ import { Clipboard, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listVaultAuditEvents, type VaultAuditEvent } from "@/features/vault/api";
+import {
+  listVaultAuditEvents,
+  type VaultAuditEvent,
+  type VaultAuditFilters,
+} from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import {
   createPulseOpsSocket,
@@ -11,13 +15,15 @@ import {
   type RealtimeVaultAuditCreated,
 } from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
-import { useDashboardContext } from "./DashboardLayout";
+import { dashboardEnvironments, useDashboardContext } from "./DashboardLayout";
 
 const results = ["all", "success", "failure"] as const;
 const actorTypes = ["all", "user", "integration", "service"] as const;
+const auditTimeRanges = ["1h", "6h", "24h", "7d", "all"] as const;
 
 type ResultFilter = (typeof results)[number];
 type ActorTypeFilter = (typeof actorTypes)[number];
+type AuditTimeRange = (typeof auditTimeRanges)[number];
 
 export function VaultAuditPage() {
   const { selectedEnvironment, selectedProject } = useDashboardContext();
@@ -25,6 +31,11 @@ export function VaultAuditPage() {
   const [selectedEvent, setSelectedEvent] = useState<VaultAuditEvent | null>(null);
   const [resultFilter, setResultFilter] = useState<ResultFilter>("all");
   const [actorTypeFilter, setActorTypeFilter] = useState<ActorTypeFilter>("all");
+  const [environmentFilter, setEnvironmentFilter] = useState<string>(selectedEnvironment);
+  const [actionFilter, setActionFilter] = useState("");
+  const [secretKeyFilter, setSecretKeyFilter] = useState("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [timeRange, setTimeRange] = useState<AuditTimeRange>("24h");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,7 +51,17 @@ export function VaultAuditPage() {
     setError(null);
 
     try {
-      const nextEvents = await listVaultAuditEvents(selectedProject.id);
+      const nextEvents = await listVaultAuditEvents(
+        selectedProject.id,
+        buildAuditFilters({
+          actionFilter,
+          actorFilter,
+          environmentFilter,
+          resultFilter,
+          secretKeyFilter,
+          timeRange,
+        }),
+      );
       setEvents(nextEvents);
       setSelectedEvent((current) =>
         current === null
@@ -56,7 +77,19 @@ export function VaultAuditPage() {
 
   useEffect(() => {
     void loadAudit();
-  }, [selectedProject?.id]);
+  }, [
+    actionFilter,
+    actorFilter,
+    environmentFilter,
+    resultFilter,
+    secretKeyFilter,
+    selectedProject?.id,
+    timeRange,
+  ]);
+
+  useEffect(() => {
+    setEnvironmentFilter(selectedEnvironment);
+  }, [selectedEnvironment]);
 
   useEffect(() => {
     if (selectedProject === null) {
@@ -70,19 +103,43 @@ export function VaultAuditPage() {
     }
 
     socket.on("connect", () => {
-      void joinProjectRoom(socket, selectedProject.id);
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
     });
     socket.on("vault.audit.created", (update: RealtimeVaultAuditCreated) => {
+      const filters = buildAuditFilters({
+        actionFilter,
+        actorFilter,
+        environmentFilter,
+        resultFilter,
+        secretKeyFilter,
+        timeRange,
+      });
+
+      if (!auditEventMatchesFilters(update.auditEvent, filters, actorTypeFilter, search)) {
+        return;
+      }
+
       setEvents((current) => upsertAuditEvent(current, update.auditEvent).slice(0, 100));
       setSelectedEvent((current) => current ?? update.auditEvent);
     });
     socket.connect();
 
     return () => {
-      leaveProjectRoom(socket, selectedProject.id);
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
-  }, [selectedProject]);
+  }, [
+    actionFilter,
+    actorFilter,
+    actorTypeFilter,
+    environmentFilter,
+    resultFilter,
+    search,
+    secretKeyFilter,
+    selectedEnvironment,
+    selectedProject,
+    timeRange,
+  ]);
 
   const filteredEvents = useMemo(
     () =>
@@ -102,12 +159,11 @@ export function VaultAuditPage() {
           .toLowerCase();
 
         return (
-          (resultFilter === "all" || event.result === resultFilter) &&
           (actorTypeFilter === "all" || event.actorType === actorTypeFilter) &&
           (search.trim().length === 0 || searchable.includes(search.trim().toLowerCase()))
         );
       }),
-    [actorTypeFilter, events, resultFilter, search],
+    [actorTypeFilter, events, search],
   );
 
   const summary = useMemo(
@@ -163,7 +219,7 @@ export function VaultAuditPage() {
         <Summary label="Reveals" value={summary.reveals} />
       </section>
 
-      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_10rem_10rem]">
+      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_10rem_10rem_10rem]">
         <label className="relative block">
           <span className="sr-only">Search audit events</span>
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -174,6 +230,12 @@ export function VaultAuditPage() {
             value={search}
           />
         </label>
+
+        <Input
+          onChange={(event) => setActionFilter(event.target.value)}
+          placeholder="Action"
+          value={actionFilter}
+        />
 
         <select
           className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm capitalize shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
@@ -195,6 +257,43 @@ export function VaultAuditPage() {
           {actorTypes.map((actorType) => (
             <option key={actorType} value={actorType}>
               {actorType}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm capitalize shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+          onChange={(event) => setEnvironmentFilter(event.target.value)}
+          value={environmentFilter}
+        >
+          <option value="all">all envs</option>
+          {dashboardEnvironments.map((environment) => (
+            <option key={environment} value={environment}>
+              {environment}
+            </option>
+          ))}
+        </select>
+
+        <Input
+          onChange={(event) => setSecretKeyFilter(event.target.value)}
+          placeholder="Secret key"
+          value={secretKeyFilter}
+        />
+
+        <Input
+          onChange={(event) => setActorFilter(event.target.value)}
+          placeholder="Actor id"
+          value={actorFilter}
+        />
+
+        <select
+          className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+          onChange={(event) => setTimeRange(event.target.value as AuditTimeRange)}
+          value={timeRange}
+        >
+          {auditTimeRanges.map((range) => (
+            <option key={range} value={range}>
+              {range}
             </option>
           ))}
         </select>
@@ -331,5 +430,77 @@ function upsertAuditEvent(events: VaultAuditEvent[], incoming: VaultAuditEvent):
 
   return [...eventsById.values()].sort(
     (left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt),
+  );
+}
+
+function buildAuditFilters(input: {
+  readonly actionFilter: string;
+  readonly actorFilter: string;
+  readonly environmentFilter: string;
+  readonly resultFilter: ResultFilter;
+  readonly secretKeyFilter: string;
+  readonly timeRange: AuditTimeRange;
+}): VaultAuditFilters {
+  return {
+    ...(input.actionFilter.trim().length === 0 ? {} : { action: input.actionFilter.trim() }),
+    ...(input.actorFilter.trim().length === 0 ? {} : { actor: input.actorFilter.trim() }),
+    ...(input.environmentFilter === "all" ? {} : { environment: input.environmentFilter }),
+    ...(input.resultFilter === "all" ? {} : { result: input.resultFilter }),
+    ...(input.secretKeyFilter.trim().length === 0
+      ? {}
+      : { secretKey: input.secretKeyFilter.trim() }),
+    ...toTimeFilter(input.timeRange),
+  };
+}
+
+function toTimeFilter(timeRange: AuditTimeRange): Pick<VaultAuditFilters, "occurredAfter"> {
+  if (timeRange === "all") {
+    return {};
+  }
+
+  const millisecondsByRange: Record<Exclude<AuditTimeRange, "all">, number> = {
+    "1h": 60 * 60 * 1000,
+    "6h": 6 * 60 * 60 * 1000,
+    "24h": 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+  };
+
+  return {
+    occurredAfter: new Date(Date.now() - millisecondsByRange[timeRange]).toISOString(),
+  };
+}
+
+function auditEventMatchesFilters(
+  event: VaultAuditEvent,
+  filters: VaultAuditFilters,
+  actorTypeFilter: ActorTypeFilter,
+  search: string,
+): boolean {
+  const searchable = [
+    event.action,
+    event.actorType,
+    event.actorId,
+    event.environment,
+    event.secretKey,
+    event.tokenPrefix,
+    event.reason,
+    event.correlationId,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    (filters.action === undefined || event.action === filters.action) &&
+    (filters.result === undefined || event.result === filters.result) &&
+    (filters.environment === undefined || event.environment === filters.environment) &&
+    (filters.secretKey === undefined || event.secretKey === filters.secretKey) &&
+    (filters.actor === undefined ||
+      event.actorId === filters.actor ||
+      event.actorType === filters.actor) &&
+    (filters.occurredAfter === undefined ||
+      Date.parse(event.occurredAt) >= Date.parse(filters.occurredAfter)) &&
+    (actorTypeFilter === "all" || event.actorType === actorTypeFilter) &&
+    (search.trim().length === 0 || searchable.includes(search.trim().toLowerCase()))
   );
 }

@@ -99,6 +99,28 @@ export type QueueStatusResponse = {
   readonly queues: QueueStatus[];
 };
 
+export type DeadLetterMessage = {
+  readonly id: string;
+  readonly routingKey: string;
+  readonly exchange: string;
+  readonly redelivered: boolean;
+  readonly contentType: string | undefined;
+  readonly deadLetterReason: string | null;
+  readonly originalExchange: string | null;
+  readonly originalRoutingKey: string | null;
+  readonly payload: unknown;
+};
+
+export type DeadLetterResponse = {
+  readonly messages: DeadLetterMessage[];
+};
+
+export type DeadLetterReplayResponse = {
+  readonly replay: {
+    readonly replayed: number;
+  };
+};
+
 export type RealtimeIncidentUpdate = {
   readonly messageId: string;
   readonly schemaVersion: 1;
@@ -305,6 +327,22 @@ export async function getQueueStatus(): Promise<QueueStatusResponse> {
   const response =
     await apiClient.get<ApiSuccessResponse<QueueStatusResponse>>("/dashboard/queues");
   return response.data.data;
+}
+
+export async function listDeadLetters(limit = 20): Promise<DeadLetterMessage[]> {
+  const response = await apiClient.get<ApiSuccessResponse<DeadLetterResponse>>(
+    "/dashboard/dead-letters",
+    { params: { limit } },
+  );
+  return response.data.data.messages;
+}
+
+export async function replayDeadLetters(limit = 10): Promise<number> {
+  const response = await apiClient.post<ApiSuccessResponse<DeadLetterReplayResponse>>(
+    "/ops/dead-letters/replay",
+    { limit },
+  );
+  return response.data.data.replay.replayed;
 }
 
 export async function getIngestionStats(

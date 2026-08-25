@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { getMetricSummary, type MetricSummary } from "@/features/dashboards/api";
 import { ingestMetric } from "@/features/ingestion/api";
 import { getApiErrorMessage } from "@/lib/api-client";
+import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { useDashboardContext } from "./DashboardLayout";
 
 export function MetricsPage() {
@@ -53,6 +54,43 @@ export function MetricsPage() {
   useEffect(() => {
     void loadMetrics();
   }, [selectedEnvironment, selectedProject?.id, selectedTimeRange]);
+
+  useEffect(() => {
+    if (selectedProject === null) {
+      return;
+    }
+
+    const socket = createPulseOpsSocket();
+
+    if (socket === null) {
+      return;
+    }
+
+    let refreshTimeout: number | null = null;
+    socket.on("connect", () => {
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
+      void loadMetrics();
+    });
+    socket.on("event.created", (update) => {
+      if (update.event.type !== "metric" || refreshTimeout !== null) {
+        return;
+      }
+
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null;
+        void loadMetrics();
+      }, 750);
+    });
+    socket.connect();
+
+    return () => {
+      if (refreshTimeout !== null) {
+        window.clearTimeout(refreshTimeout);
+      }
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
+      socket.disconnect();
+    };
+  }, [selectedEnvironment, selectedProject, selectedTimeRange]);
 
   async function sendHighLatencyTest(): Promise<void> {
     if (testApiKey.trim().length === 0) {

@@ -60,6 +60,14 @@ export class VaultController {
     response.status(200).json(successResponse({ secret }, String(response.locals.requestId)));
   };
 
+  versions = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const params = response.locals.validatedParams as SecretParams;
+    const versions = await this.vault.versions(query.projectId, params.environment, params.key);
+
+    response.status(200).json(successResponse({ versions }, String(response.locals.requestId)));
+  };
+
   delete = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as SecretQuery;
     const params = response.locals.validatedParams as SecretParams;

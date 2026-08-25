@@ -3,13 +3,20 @@ import { z } from "zod";
 export const REALTIME_SOCKET_EVENTS = {
   eventCreated: "event.created",
   incidentUpdated: "incident.updated",
+  queueStatus: "queue.status",
   vaultAuditCreated: "vault.audit.created",
+  workerHeartbeat: "worker.heartbeat",
 } as const;
 
 export const PROJECT_ROOM_PREFIX = "project";
+export const OPS_ROOM = "ops";
 
 export function toProjectRoom(projectId: string): string {
   return `${PROJECT_ROOM_PREFIX}:${projectId}`;
+}
+
+export function toProjectEnvironmentRoom(projectId: string, environment: string): string {
+  return `${toProjectRoom(projectId)}:env:${environment}`;
 }
 
 export const realtimeIncidentSchema = z.object({
@@ -91,6 +98,54 @@ export const realtimeEventCreatedMessageSchema = z.object({
 });
 
 export type RealtimeEventCreatedMessage = z.infer<typeof realtimeEventCreatedMessageSchema>;
+
+export const realtimeWorkerMetricsSchema = z.object({
+  processed: z.number().int().min(0),
+  processedByType: z.object({
+    log: z.number().int().min(0),
+    error: z.number().int().min(0),
+    metric: z.number().int().min(0),
+  }),
+  failed: z.number().int().min(0),
+  retries: z.number().int().min(0),
+  poisonMessages: z.number().int().min(0),
+  lastProcessedAt: z.string().datetime().nullable(),
+  lastErrorAt: z.string().datetime().nullable(),
+  lastErrorMessage: z.string().nullable(),
+});
+
+export const realtimeWorkerHeartbeatMessageSchema = z.object({
+  messageId: z.string().min(1),
+  schemaVersion: z.literal(1),
+  worker: z.object({
+    workerId: z.string().min(1),
+    service: z.string().min(1),
+    status: z.enum(["running", "stopping", "stopped"]),
+    queues: z.array(z.string().min(1)),
+    metrics: realtimeWorkerMetricsSchema,
+    startedAt: z.string().datetime(),
+    lastSeenAt: z.string().datetime(),
+  }),
+  occurredAt: z.string().datetime(),
+});
+
+export type RealtimeWorkerHeartbeatMessage = z.infer<typeof realtimeWorkerHeartbeatMessageSchema>;
+
+export const realtimeQueueStatusMessageSchema = z.object({
+  messageId: z.string().min(1),
+  schemaVersion: z.literal(1),
+  queues: z.array(
+    z.object({
+      name: z.string().min(1),
+      status: z.enum(["available", "missing"]),
+      messageCount: z.number().int().min(0).nullable(),
+      consumerCount: z.number().int().min(0).nullable(),
+    }),
+  ),
+  occurredAt: z.string().datetime(),
+});
+
+export type RealtimeQueueStatusMessage = z.infer<typeof realtimeQueueStatusMessageSchema>;
 
 export const realtimeVaultAuditEventSchema = z.object({
   id: z.string().min(1),

@@ -66,7 +66,8 @@ export function TracesPage() {
 
     let refreshTimeout: number | null = null;
     socket.on("connect", () => {
-      void joinProjectRoom(socket, selectedProject.id);
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
+      void loadTraces();
     });
     socket.on("event.created", (update: RealtimeEventCreated) => {
       if (update.event.attributes.traceId !== undefined && refreshTimeout === null) {
@@ -82,7 +83,7 @@ export function TracesPage() {
       if (refreshTimeout !== null) {
         window.clearTimeout(refreshTimeout);
       }
-      leaveProjectRoom(socket, selectedProject.id);
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
   }, [selectedEnvironment, selectedProject, selectedTimeRange]);

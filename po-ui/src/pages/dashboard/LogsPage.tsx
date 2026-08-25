@@ -103,7 +103,8 @@ export function LogsPage() {
 
     socket.on("connect", () => {
       setConnectionState("connected");
-      void joinProjectRoom(socket, projectId);
+      void joinProjectRoom(socket, projectId, selectedEnvironment);
+      void loadEvents({ silent: true });
     });
     socket.on("disconnect", () => {
       setConnectionState("offline");
@@ -122,10 +123,10 @@ export function LogsPage() {
     socket.connect();
 
     return () => {
-      leaveProjectRoom(socket, projectId);
+      leaveProjectRoom(socket, projectId, selectedEnvironment);
       socket.disconnect();
     };
-  }, [isLive, selectedProject?.id]);
+  }, [isLive, selectedEnvironment, selectedProject?.id]);
 
   async function loadMoreEvents(): Promise<void> {
     if (selectedProject === null || nextCursor === null) {

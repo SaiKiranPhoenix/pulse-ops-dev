@@ -58,7 +58,18 @@ export function subscribeToSessionExpired(listener: () => void): () => void {
 
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
-    const responseData = error.response?.data as { readonly error?: { readonly message?: string } };
+    const responseData = error.response?.data as {
+      readonly error?: { readonly code?: string; readonly message?: string };
+    };
+
+    if (responseData.error?.code === "DEPENDENCY_UNAVAILABLE") {
+      return "A PulseOps service is unavailable. Check the stack health and retry.";
+    }
+
+    if (responseData.error?.code === "RATE_LIMITED") {
+      return "Too many requests. Wait a moment and retry.";
+    }
+
     return responseData.error?.message ?? "Request failed";
   }
 

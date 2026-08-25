@@ -2,7 +2,7 @@ import { createServer, type Server as HttpServer } from "node:http";
 import express, { type Express } from "express";
 import { Server as SocketIoServer, type Socket } from "socket.io";
 import { z } from "zod";
-import { toProjectRoom } from "@pulseops/shared";
+import { OPS_ROOM, toProjectEnvironmentRoom, toProjectRoom } from "@pulseops/shared";
 import { SOCKET_EVENTS } from "./config/constants.js";
 import type { ProjectAuthorizationRepository } from "./repositories/project-authorization.repository.js";
 import { AccessTokenService } from "./services/access-token.service.js";
@@ -10,6 +10,7 @@ import { RealtimeEventService } from "./services/realtime-event.service.js";
 
 const projectRoomPayloadSchema = z.object({
   projectId: z.string().trim().min(1).max(128),
+  environment: z.string().trim().min(1).max(80).optional(),
 });
 
 export type SocketAck = (response: { readonly ok: boolean; readonly error?: string }) => void;
@@ -56,6 +57,8 @@ export function createRealtimeGateway(options: CreateRealtimeGatewayOptions): Re
   });
 
   io.on("connection", (socket) => {
+    void socket.join(OPS_ROOM);
+
     socket.on(SOCKET_EVENTS.joinProject, (payload: unknown, acknowledge?: SocketAck) => {
       void handleProjectJoin(socket, payload, options.projectAuthorization, acknowledge);
     });
@@ -110,9 +113,17 @@ async function handleProjectJoin(
     return;
   }
 
-  const room = toProjectRoom(parsedPayload.data.projectId);
-  await socket.join(room);
-  socket.emit(SOCKET_EVENTS.joinedProject, { projectId: parsedPayload.data.projectId });
+  await socket.join(toProjectRoom(parsedPayload.data.projectId));
+
+  if (parsedPayload.data.environment !== undefined) {
+    await socket.join(
+      toProjectEnvironmentRoom(parsedPayload.data.projectId, parsedPayload.data.environment),
+    );
+  }
+  socket.emit(SOCKET_EVENTS.joinedProject, {
+    projectId: parsedPayload.data.projectId,
+    environment: parsedPayload.data.environment ?? null,
+  });
   acknowledge?.({ ok: true });
 }
 
@@ -125,7 +136,16 @@ function handleProjectLeave(socket: Socket, payload: unknown, acknowledge?: Sock
   }
 
   socket.leave(toProjectRoom(parsedPayload.data.projectId));
-  socket.emit(SOCKET_EVENTS.leftProject, { projectId: parsedPayload.data.projectId });
+
+  if (parsedPayload.data.environment !== undefined) {
+    socket.leave(
+      toProjectEnvironmentRoom(parsedPayload.data.projectId, parsedPayload.data.environment),
+    );
+  }
+  socket.emit(SOCKET_EVENTS.leftProject, {
+    projectId: parsedPayload.data.projectId,
+    environment: parsedPayload.data.environment ?? null,
+  });
   acknowledge?.({ ok: true });
 }
 

@@ -2,6 +2,7 @@ import {
   conflict,
   forbidden,
   notFound,
+  rateLimited,
   unauthorized,
   type VaultAuditEventMessage,
 } from "@pulseops/shared";
@@ -12,6 +13,7 @@ import {
 import { VAULT_LIMITS } from "../config/constants.js";
 import type {
   SafeVaultSecretRecord,
+  SafeVaultSecretVersionRecord,
   VaultSecretRepository,
 } from "../repositories/vault-secret.repository.js";
 import type {
@@ -77,6 +79,8 @@ export type SecretMetadataDto = {
   readonly key: string;
   readonly version: number;
   readonly status: SafeVaultSecretRecord["status"];
+  readonly createdBy: string | null;
+  readonly updatedBy: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
@@ -85,7 +89,21 @@ export type RevealedSecretDto = SecretMetadataDto & {
   readonly value: string;
 };
 
+export type SecretVersionDto = {
+  readonly version: number;
+  readonly status: SafeVaultSecretVersionRecord["status"];
+  readonly actorId: string | null;
+  readonly occurredAt: string;
+};
+
+type RateLimitBucket = {
+  count: number;
+  resetAt: number;
+};
+
 export class VaultService {
+  private readonly accessBuckets = new Map<string, RateLimitBucket>();
+
   constructor(
     private readonly secrets: VaultSecretRepository,
     private readonly tokens: VaultTokenRepository,
@@ -108,6 +126,7 @@ export class VaultService {
       environment,
       key,
       encryptedValue: await this.crypto.encrypt(input.value),
+      actorId: input.actorId ?? null,
     });
     await this.publishAudit("vault.secret.create", "success", secret, input);
 
@@ -123,11 +142,14 @@ export class VaultService {
   }
 
   async reveal(input: RevealSecretInput): Promise<RevealedSecretDto> {
-    const secret = await this.secrets.findActiveWithValue(
-      input.projectId,
-      normalizeEnvironment(input.environment),
-      normalizeKey(input.key),
+    const environment = normalizeEnvironment(input.environment);
+    const key = normalizeKey(input.key);
+
+    this.assertSecretAccessAllowed(
+      `reveal:${input.actorId ?? "unknown"}:${input.projectId}:${environment}:${key}`,
     );
+
+    const secret = await this.secrets.findActiveWithValue(input.projectId, environment, key);
 
     if (secret === null) {
       throw notFound("Secret not found");
@@ -154,6 +176,7 @@ export class VaultService {
       normalizeEnvironment(input.environment),
       normalizeKey(input.key),
       await this.crypto.encrypt(input.value),
+      input.actorId ?? null,
     );
 
     if (secret === null) {
@@ -209,8 +232,12 @@ export class VaultService {
     readonly key: string;
     readonly correlationId?: string;
   }): Promise<RevealedSecretDto> {
-    const token = await this.findUsableToken(input.rawToken);
+    const tokenHash = this.tokenHasher.hash(input.rawToken);
+    this.assertSecretAccessAllowed(`token-auth:${tokenHash}`);
+    const token = await this.findUsableToken(tokenHash);
     const environment = normalizeEnvironment(input.environment);
+    const key = normalizeKey(input.key);
+    this.assertSecretAccessAllowed(`token-fetch:${token.id}:${environment}:${key}`);
 
     if (!token.scopes.includes("secrets:read")) {
       await this.publishTokenAudit("vault.integration.fetch", "failure", token, {
@@ -230,11 +257,7 @@ export class VaultService {
       throw forbidden("Vault token environment denied");
     }
 
-    const secret = await this.secrets.findActiveWithValue(
-      token.projectId,
-      environment,
-      normalizeKey(input.key),
-    );
+    const secret = await this.secrets.findActiveWithValue(token.projectId, environment, key);
 
     if (secret === null) {
       await this.publishTokenAudit("vault.integration.fetch", "failure", token, {
@@ -257,8 +280,8 @@ export class VaultService {
     };
   }
 
-  private async findUsableToken(rawToken: string): Promise<VaultTokenWithHashRecord> {
-    const token = await this.tokens.findActiveByHash(this.tokenHasher.hash(rawToken));
+  private async findUsableToken(tokenHash: string): Promise<VaultTokenWithHashRecord> {
+    const token = await this.tokens.findActiveByHash(tokenHash);
 
     if (token === null) {
       throw unauthorized("Invalid vault token");
@@ -281,6 +304,7 @@ export class VaultService {
       projectId,
       normalizeEnvironment(environment),
       normalizeKey(key),
+      context.actorId ?? null,
     );
 
     if (secret === null) {
@@ -289,6 +313,40 @@ export class VaultService {
 
     await this.publishAudit("vault.secret.delete", "success", secret, context);
     return toMetadataDto(secret);
+  }
+
+  async versions(projectId: string, environment: string, key: string): Promise<SecretVersionDto[]> {
+    const versions = await this.secrets.listVersions(
+      projectId,
+      normalizeEnvironment(environment),
+      normalizeKey(key),
+    );
+
+    if (versions === null) {
+      throw notFound("Secret not found");
+    }
+
+    return versions.map(toVersionDto);
+  }
+
+  private assertSecretAccessAllowed(bucketKey: string): void {
+    const now = Date.now();
+    const existingBucket = this.accessBuckets.get(bucketKey);
+    const resetAt = now + VAULT_LIMITS.secretReadWindowMs;
+    const bucket =
+      existingBucket === undefined || existingBucket.resetAt <= now
+        ? { count: 0, resetAt }
+        : existingBucket;
+
+    bucket.count += 1;
+    this.accessBuckets.set(bucketKey, bucket);
+
+    if (bucket.count > VAULT_LIMITS.secretReadLimit) {
+      throw rateLimited("Vault secret read rate limit exceeded", {
+        limit: VAULT_LIMITS.secretReadLimit,
+        resetAt: new Date(bucket.resetAt).toISOString(),
+      });
+    }
   }
 
   private async publishAudit(
@@ -362,8 +420,19 @@ function toMetadataDto(secret: SafeVaultSecretRecord): SecretMetadataDto {
     key: secret.key,
     version: secret.version,
     status: secret.status,
+    createdBy: secret.createdBy,
+    updatedBy: secret.updatedBy,
     createdAt: secret.createdAt.toISOString(),
     updatedAt: secret.updatedAt.toISOString(),
+  };
+}
+
+function toVersionDto(version: SafeVaultSecretVersionRecord): SecretVersionDto {
+  return {
+    version: version.version,
+    status: version.status,
+    actorId: version.actorId,
+    occurredAt: version.occurredAt.toISOString(),
   };
 }
 

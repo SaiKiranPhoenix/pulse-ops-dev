@@ -3,6 +3,8 @@ export const SERVICE_NAME = "po-api-gateway";
 export const GATEWAY_LIMITS = {
   bodyLimit: "512kb",
   dashboardLimit: 100,
+  requestsPerMinute: 900,
+  rateLimitWindowMs: 60_000,
 } as const;
 
 export const TOKEN_SETTINGS = {

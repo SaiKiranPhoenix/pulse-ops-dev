@@ -20,6 +20,7 @@ import {
   deleteSecret,
   fetchSecretWithIntegrationToken,
   listSecrets,
+  listSecretVersions,
   listVaultAuditEvents,
   listVaultTokens,
   revealSecret,
@@ -28,6 +29,7 @@ import {
   type RevealedVaultSecret,
   type VaultAuditEvent,
   type VaultSecretMetadata,
+  type VaultSecretVersion,
   type VaultToken,
 } from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
@@ -59,6 +61,7 @@ export function VaultPage() {
   const [tokens, setTokens] = useState<VaultToken[]>([]);
   const [auditEvents, setAuditEvents] = useState<VaultAuditEvent[]>([]);
   const [activeSecret, setActiveSecret] = useState<VaultSecretMetadata | null>(null);
+  const [activeSecretVersions, setActiveSecretVersions] = useState<VaultSecretVersion[]>([]);
   const [pendingDeleteSecret, setPendingDeleteSecret] = useState<VaultSecretMetadata | null>(null);
   const [revealedSecret, setRevealedSecret] = useState<RevealedVaultSecret | null>(null);
   const [rawToken, setRawToken] = useState<string | null>(null);
@@ -134,7 +137,7 @@ export function VaultPage() {
     }
 
     socket.on("connect", () => {
-      void joinProjectRoom(socket, selectedProject.id);
+      void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
     });
     socket.on("vault.audit.created", (update: RealtimeVaultAuditCreated) => {
       setAuditEvents((current) => upsertAuditEvent(current, update.auditEvent).slice(0, 100));
@@ -142,10 +145,35 @@ export function VaultPage() {
     socket.connect();
 
     return () => {
-      leaveProjectRoom(socket, selectedProject.id);
+      leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
-  }, [selectedProject]);
+  }, [selectedEnvironment, selectedProject]);
+
+  useEffect(() => {
+    if (activeSecret === null) {
+      setActiveSecretVersions([]);
+      return;
+    }
+
+    const selectedSecret = activeSecret;
+
+    async function loadVersions(): Promise<void> {
+      try {
+        setActiveSecretVersions(
+          await listSecretVersions(
+            selectedSecret.projectId,
+            selectedSecret.environment,
+            selectedSecret.key,
+          ),
+        );
+      } catch {
+        setActiveSecretVersions([]);
+      }
+    }
+
+    void loadVersions();
+  }, [activeSecret]);
 
   const vaultSummary = useMemo(
     () => ({
@@ -819,6 +847,7 @@ export function VaultPage() {
           onCopy={copy}
           onReveal={() => void revealActiveSecret()}
           secret={activeSecret}
+          versions={activeSecretVersions}
           setVaultPassword={setVaultPassword}
           vaultPassword={vaultPassword}
           revealedSecret={revealedSecret}
@@ -852,6 +881,7 @@ function RevealPanel({
   revealedSecret,
   secret,
   setVaultPassword,
+  versions,
   vaultPassword,
 }: {
   readonly onClose: () => void;
@@ -860,6 +890,7 @@ function RevealPanel({
   readonly revealedSecret: RevealedVaultSecret | null;
   readonly secret: VaultSecretMetadata;
   readonly setVaultPassword: (value: string) => void;
+  readonly versions: VaultSecretVersion[];
   readonly vaultPassword: string;
 }) {
   return (
@@ -877,6 +908,12 @@ function RevealPanel({
           <EyeOff className="h-4 w-4" />
         </Button>
       </div>
+      <dl className="mt-4 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs md:grid-cols-2">
+        <SecretDetail label="Created by" value={secret.createdBy ?? "unknown"} />
+        <SecretDetail label="Updated by" value={secret.updatedBy ?? "unknown"} />
+        <SecretDetail label="Created" value={formatRelativeTime(secret.createdAt)} />
+        <SecretDetail label="Updated" value={formatRelativeTime(secret.updatedAt)} />
+      </dl>
       <Input
         className="mt-4"
         onChange={(event) => setVaultPassword(event.target.value)}
@@ -911,7 +948,41 @@ function RevealPanel({
           Enter the vault password to reveal. The value clears when this panel closes.
         </p>
       )}
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">
+          Version history
+        </p>
+        <div className="mt-2 grid gap-2">
+          {versions.length === 0 ? (
+            <p className="text-sm text-slate-500">No version history recorded yet.</p>
+          ) : (
+            versions.map((version) => (
+              <div
+                className="grid grid-cols-[4rem_1fr_8rem] items-center gap-2 text-xs"
+                key={`${version.version}:${version.occurredAt}`}
+              >
+                <span className="font-mono text-slate-900">v{version.version}</span>
+                <span className="truncate text-slate-600">
+                  {version.status} by {version.actorId ?? "unknown"}
+                </span>
+                <span className="text-right text-slate-500">
+                  {formatRelativeTime(version.occurredAt)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </section>
+  );
+}
+
+function SecretDetail({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div>
+      <dt className="font-semibold uppercase tracking-normal text-slate-500">{label}</dt>
+      <dd className="mt-1 truncate text-slate-900">{value}</dd>
+    </div>
   );
 }
 

@@ -9,6 +9,8 @@ export const VAULT_LIMITS = {
   rawTokenBytes: 32,
   tokenPrefixLength: 16,
   defaultTokenScopes: ["secrets:read"] as const,
+  secretReadLimit: 30,
+  secretReadWindowMs: 60_000,
 } as const;
 
 export const VAULT_CRYPTO = {

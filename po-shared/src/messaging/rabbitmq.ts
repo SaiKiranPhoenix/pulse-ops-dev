@@ -1,5 +1,12 @@
 import { Buffer } from "node:buffer";
-import { connect, type ChannelModel, type ConfirmChannel, type ConsumeMessage } from "amqplib";
+import {
+  connect,
+  type ChannelModel,
+  type ConfirmChannel,
+  type ConsumeMessage,
+  type GetMessage,
+  type Options,
+} from "amqplib";
 import { DEAD_LETTER_EXCHANGE, DEAD_LETTER_QUEUE } from "../contracts/queues/index.js";
 
 export type RabbitQueueBinding = {
@@ -14,6 +21,24 @@ export type RabbitQueueSnapshot = {
   readonly messageCount: number | null;
   readonly consumerCount: number | null;
 };
+
+export type RabbitDeadLetterMessage = {
+  readonly id: string;
+  readonly routingKey: string;
+  readonly exchange: string;
+  readonly redelivered: boolean;
+  readonly contentType: string | undefined;
+  readonly deadLetterReason: string | null;
+  readonly originalExchange: string | null;
+  readonly originalRoutingKey: string | null;
+  readonly payload: unknown;
+};
+
+export type RabbitDeadLetterReplayResult = {
+  readonly replayed: number;
+};
+
+type RabbitHeaders = Record<string, unknown>;
 
 export type RabbitPublisherOptions = {
   readonly url: string;
@@ -101,6 +126,74 @@ export class RabbitQueueInspector {
     return Promise.all(queueNames.map((queueName) => this.inspectOne(queueName)));
   }
 
+  async peekDeadLetters(limit: number): Promise<RabbitDeadLetterMessage[]> {
+    const connection = await connect(this.url);
+    const channel = await connection.createConfirmChannel();
+    const messages: RabbitDeadLetterMessage[] = [];
+
+    try {
+      await assertDeadLetterTopology(channel);
+
+      for (let index = 0; index < limit; index += 1) {
+        const message = await channel.get(DEAD_LETTER_QUEUE, { noAck: false });
+
+        if (message === false) {
+          break;
+        }
+
+        messages.push(toDeadLetterMessage(message));
+        channel.nack(message, false, true);
+      }
+
+      return messages;
+    } finally {
+      await closeRabbitResources(channel, connection);
+    }
+  }
+
+  async replayDeadLetters(limit: number): Promise<RabbitDeadLetterReplayResult> {
+    const connection = await connect(this.url);
+    const channel = await connection.createConfirmChannel();
+    let replayed = 0;
+
+    try {
+      await assertDeadLetterTopology(channel);
+
+      for (let index = 0; index < limit; index += 1) {
+        const message = await channel.get(DEAD_LETTER_QUEUE, { noAck: false });
+
+        if (message === false) {
+          break;
+        }
+
+        const originalRoutingKey = readOriginalRoutingKey(message);
+        const originalExchange = readOriginalExchange(message);
+
+        if (originalRoutingKey === null || originalExchange === null) {
+          channel.nack(message, false, true);
+          break;
+        }
+
+        channel.publish(originalExchange, originalRoutingKey, message.content, {
+          contentType: message.properties.contentType,
+          deliveryMode: 2,
+          persistent: true,
+          headers: {
+            ...message.properties.headers,
+            "x-pulseops-replayed-at": new Date().toISOString(),
+          },
+        });
+        channel.ack(message);
+        replayed += 1;
+      }
+
+      await channel.waitForConfirms();
+      return { replayed };
+    } finally {
+      await closeRabbitResources(channel, connection);
+    }
+  }
+
   private async inspectOne(queueName: string): Promise<RabbitQueueSnapshot> {
     const connection = await connect(this.url);
     const channel = await connection.createConfirmChannel();
@@ -121,13 +214,7 @@ export class RabbitQueueInspector {
         consumerCount: null,
       };
     } finally {
-      try {
-        await channel.close();
-      } catch {
-        // Missing queues close the channel in RabbitMQ; the connection close below is enough.
-      }
-
-      await connection.close();
+      await closeRabbitResources(channel, connection);
     }
   }
 }
@@ -199,4 +286,72 @@ async function assertDeadLetterTopology(channel: ConfirmChannel): Promise<void> 
   await channel.assertExchange(DEAD_LETTER_EXCHANGE, "direct", { durable: true });
   await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
   await channel.bindQueue(DEAD_LETTER_QUEUE, DEAD_LETTER_EXCHANGE, "dead.telemetry");
+}
+
+async function closeRabbitResources(
+  channel: ConfirmChannel,
+  connection: ChannelModel,
+): Promise<void> {
+  try {
+    await channel.close();
+  } catch {
+    // Missing queues close the channel in RabbitMQ; the connection close below is enough.
+  }
+
+  await connection.close();
+}
+
+function toDeadLetterMessage(message: GetMessage): RabbitDeadLetterMessage {
+  return {
+    id: `${message.fields.deliveryTag}`,
+    routingKey: message.fields.routingKey,
+    exchange: message.fields.exchange,
+    redelivered: message.fields.redelivered,
+    contentType: message.properties.contentType,
+    deadLetterReason: readDeadLetterReason(message),
+    originalExchange: readOriginalExchange(message),
+    originalRoutingKey: readOriginalRoutingKey(message),
+    payload: parsePayload(message.content),
+  };
+}
+
+function readDeadLetterReason(message: GetMessage): string | null {
+  const death = readLatestDeath(message);
+  return readHeaderString(death, "reason");
+}
+
+function readOriginalExchange(message: GetMessage): string | null {
+  const death = readLatestDeath(message);
+  return readHeaderString(death, "exchange");
+}
+
+function readOriginalRoutingKey(message: GetMessage): string | null {
+  const death = readLatestDeath(message);
+  const routingKeys = death?.["routing-keys"];
+
+  if (Array.isArray(routingKeys) && typeof routingKeys[0] === "string") {
+    return routingKeys[0];
+  }
+
+  return null;
+}
+
+function readLatestDeath(message: GetMessage): RabbitHeaders | null {
+  const death = message.properties.headers?.["x-death"];
+  return Array.isArray(death) && typeof death[0] === "object" && death[0] !== null
+    ? (death[0] as unknown as RabbitHeaders)
+    : null;
+}
+
+function readHeaderString(headers: RabbitHeaders | null, key: string): string | null {
+  const value = headers?.[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function parsePayload(payload: Buffer): unknown {
+  try {
+    return JSON.parse(payload.toString("utf8")) as unknown;
+  } catch {
+    return payload.toString("utf8");
+  }
 }

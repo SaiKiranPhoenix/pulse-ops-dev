@@ -5,7 +5,9 @@ import { connectMongo, disconnectMongo } from "./config/database.js";
 import { loadEnv, parseAllowedOrigins } from "./config/env.js";
 import { RealtimeIncidentConsumerService } from "./events/consumers/realtime-incident.consumer.js";
 import { RealtimeTelemetryEventConsumerService } from "./events/consumers/realtime-event.consumer.js";
+import { RealtimeQueueStatusConsumerService } from "./events/consumers/realtime-queue-status.consumer.js";
 import { RealtimeVaultAuditConsumerService } from "./events/consumers/realtime-vault-audit.consumer.js";
+import { RealtimeWorkerHeartbeatConsumerService } from "./events/consumers/realtime-worker-heartbeat.consumer.js";
 import { MongoProjectAuthorizationRepository } from "./repositories/project-authorization.repository.js";
 
 const logger = createLogger({ service: SERVICE_NAME });
@@ -39,10 +41,26 @@ const vaultAuditConsumer = new RealtimeVaultAuditConsumerService(
   },
   gateway.realtimeEvents,
 );
+const workerHeartbeatConsumer = new RealtimeWorkerHeartbeatConsumerService(
+  {
+    rabbitMqUrl: env.RABBITMQ_URL,
+    prefetch: env.REALTIME_WORKER_PREFETCH,
+  },
+  gateway.realtimeEvents,
+);
+const queueStatusConsumer = new RealtimeQueueStatusConsumerService(
+  {
+    rabbitMqUrl: env.RABBITMQ_URL,
+    prefetch: env.REALTIME_WORKER_PREFETCH,
+  },
+  gateway.realtimeEvents,
+);
 
 await incidentConsumer.start();
 await telemetryEventConsumer.start();
 await vaultAuditConsumer.start();
+await workerHeartbeatConsumer.start();
+await queueStatusConsumer.start();
 
 gateway.httpServer.listen(env.PORT, () => {
   logger.info("Realtime gateway started", {
@@ -57,6 +75,8 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   await incidentConsumer.close();
   await telemetryEventConsumer.close();
   await vaultAuditConsumer.close();
+  await workerHeartbeatConsumer.close();
+  await queueStatusConsumer.close();
   await gateway.close();
   await disconnectMongo();
   process.exit(0);

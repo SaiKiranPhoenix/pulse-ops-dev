@@ -147,7 +147,7 @@ export function OverviewPage() {
 
     socket.on("connect", () => {
       setConnectionState("connected");
-      void joinProjectRoom(socket, projectId);
+      void joinProjectRoom(socket, projectId, selectedEnvironment);
       void loadDashboard();
     });
     socket.on("disconnect", () => {
@@ -188,10 +188,10 @@ export function OverviewPage() {
     socket.connect();
 
     return () => {
-      leaveProjectRoom(socket, projectId);
+      leaveProjectRoom(socket, projectId, selectedEnvironment);
       socket.disconnect();
     };
-  }, [dashboard.project]);
+  }, [dashboard.project, selectedEnvironment, selectedTimeRange]);
 
   const totalQueuedMessages = useMemo(
     () => dashboard.queues.reduce((total, queue) => total + (queue.messageCount ?? 0), 0),
