@@ -301,16 +301,19 @@ export function WorkersPage() {
           <div className="divide-y divide-slate-100">
             {deadLetters.map((deadLetter) => (
               <article className="grid gap-3 px-4 py-3" key={deadLetter.id}>
-                <div className="grid gap-3 md:grid-cols-[1fr_10rem_10rem]">
+                <div className="grid gap-3 md:grid-cols-[1fr_7rem_10rem_10rem]">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-900">
                       {deadLetter.originalRoutingKey ?? deadLetter.routingKey}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {deadLetter.deadLetterReason ?? "unknown reason"} /{" "}
-                      {deadLetter.originalExchange ?? deadLetter.exchange}
+                      {deadLetter.failureReason ?? deadLetter.deadLetterReason ?? "unknown reason"}{" "}
+                      / {deadLetter.originalExchange ?? deadLetter.exchange}
                     </p>
                   </div>
+                  <span className="font-mono text-xs text-slate-500">
+                    retry {deadLetter.retryCount}
+                  </span>
                   <span className="font-mono text-xs text-slate-500">
                     {deadLetter.contentType ?? "-"}
                   </span>

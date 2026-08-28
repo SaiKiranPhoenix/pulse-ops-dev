@@ -53,7 +53,7 @@ export class EventWorkerService {
 
       this.recordProcessed(message.type);
     } catch (error) {
-      this.recordFailure(error, context.redelivered ?? false);
+      this.recordFailure(error, context);
       throw error;
     }
   }
@@ -71,10 +71,10 @@ export class EventWorkerService {
     this.stats.lastProcessedAt = new Date().toISOString();
   }
 
-  private recordFailure(error: unknown, redelivered: boolean): void {
+  private recordFailure(error: unknown, context: WorkerProcessContext): void {
     this.stats.failed += 1;
     this.stats.poisonMessages += 1;
-    this.stats.retries += redelivered ? 1 : 0;
+    this.stats.retries += Math.max(context.retryCount ?? (context.redelivered === true ? 1 : 0), 0);
     this.stats.lastErrorAt = new Date().toISOString();
     this.stats.lastErrorMessage = error instanceof Error ? error.message : "Unknown worker error";
   }
@@ -82,6 +82,7 @@ export class EventWorkerService {
 
 export type WorkerProcessContext = {
   readonly redelivered?: boolean;
+  readonly retryCount?: number;
 };
 
 export type WorkerProcessingStats = {
