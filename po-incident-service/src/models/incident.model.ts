@@ -104,6 +104,15 @@ incidentSchema.index(
   { projectId: 1, status: 1, lastSeenAt: -1 },
   { name: "idx_incidents_project_status_last_seen" },
 );
+incidentSchema.index({ projectId: 1, lastSeenAt: -1 }, { name: "idx_incidents_project_last_seen" });
+incidentSchema.index(
+  { projectId: 1, fingerprint: 1, lastSeenAt: -1 },
+  { name: "idx_incidents_project_fingerprint_last_seen" },
+);
+incidentSchema.index(
+  { projectId: 1, "samples.eventId": 1 },
+  { name: "idx_incidents_project_sample_event" },
+);
 
 export const IncidentModel: Model<IncidentRecord> =
   mongoose.models.Incident ?? model<IncidentRecord>("Incident", incidentSchema);
