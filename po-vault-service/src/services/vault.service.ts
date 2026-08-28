@@ -62,6 +62,15 @@ export type VaultTokenDto = {
   readonly updatedAt: string;
 };
 
+export type VaultTokenCacheDiagnosticsDto = {
+  readonly projectId: string;
+  readonly status: "disabled";
+  readonly validationMode: "database";
+  readonly cachedTokens: 0;
+  readonly cacheKeyPrefix: null;
+  readonly inspectedAt: string;
+};
+
 export type CreatedVaultTokenDto = {
   readonly token: VaultTokenDto;
   readonly rawToken: string;
@@ -209,6 +218,17 @@ export class VaultService {
   async listTokens(projectId: string): Promise<VaultTokenDto[]> {
     const tokens = await this.tokens.findByProject(projectId);
     return tokens.map(toTokenDto);
+  }
+
+  tokenCacheDiagnostics(projectId: string, now: Date = new Date()): VaultTokenCacheDiagnosticsDto {
+    return {
+      projectId,
+      status: "disabled",
+      validationMode: "database",
+      cachedTokens: 0,
+      cacheKeyPrefix: null,
+      inspectedAt: now.toISOString(),
+    };
   }
 
   async revokeToken(

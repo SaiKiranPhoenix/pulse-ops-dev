@@ -46,6 +46,16 @@ class InMemoryApiKeyCache implements ApiKeyValidationCacheRepository {
   }
 }
 
+class FailingApiKeyCache implements ApiKeyValidationCacheRepository {
+  async get(): Promise<VerifiedIngestionApiKey | null> {
+    throw new Error("redis get failed");
+  }
+
+  async set(): Promise<void> {
+    throw new Error("redis set failed");
+  }
+}
+
 class InMemoryTelemetryPublisher implements TelemetryMessagePublisher {
   readonly published: Array<{ routingKey: string; message: TelemetryEventMessage }> = [];
 
@@ -94,6 +104,12 @@ class InMemoryRateLimiter implements IngestionRateLimiter {
       remaining: Math.max(this.limit - this.consumeCount, 0),
       retryAfterSeconds: 60,
     };
+  }
+}
+
+class FailingRateLimiter implements IngestionRateLimiter {
+  async consume(): Promise<RateLimitDecision> {
+    throw new Error("redis unavailable");
   }
 }
 
@@ -150,7 +166,7 @@ describe("ingestion routes", () => {
       idempotentReplay: true,
     });
     expect(dependencies.publisher.published).toHaveLength(1);
-    expect(dependencies.rateLimiter.consumeCount).toBe(1);
+    expect((dependencies.rateLimiter as InMemoryRateLimiter).consumeCount).toBe(1);
     expect(dependencies.apiKeys.lookupCount).toBe(1);
   });
 
@@ -174,6 +190,49 @@ describe("ingestion routes", () => {
       },
       requestId: "req_missing_key",
     });
+  });
+
+  it("accepts valid ingestion when the API key cache is unavailable", async () => {
+    const dependencies = createTestDependencies({ cache: new FailingApiKeyCache() });
+    const app = createApp({ dependencies });
+
+    await request(app)
+      .post("/ingest/logs")
+      .set("x-api-key", validApiKey())
+      .send({
+        source: "checkout-api",
+        level: "info",
+        message: "Redis cache outage should not block validation fallback",
+      })
+      .expect(202);
+
+    expect(dependencies.apiKeys.lookupCount).toBe(1);
+    expect(dependencies.publisher.published).toHaveLength(1);
+  });
+
+  it("fails closed when the Redis-backed rate limiter is unavailable", async () => {
+    const dependencies = createTestDependencies({ rateLimiter: new FailingRateLimiter() });
+    const app = createApp({ dependencies });
+
+    const response = await request(app)
+      .post("/ingest/logs")
+      .set("x-api-key", validApiKey())
+      .set("x-request-id", "req_redis_down")
+      .send({
+        source: "checkout-api",
+        level: "info",
+        message: "Redis rate limiter unavailable",
+      })
+      .expect(503);
+
+    expect(response.body).toMatchObject({
+      error: {
+        code: "DEPENDENCY_UNAVAILABLE",
+        message: "Rate limiter unavailable",
+      },
+      requestId: "req_redis_down",
+    });
+    expect(dependencies.publisher.published).toHaveLength(0);
   });
 
   it("rate limits new accepted events per project", async () => {
@@ -218,11 +277,15 @@ describe("ingestion routes", () => {
 });
 
 function createTestDependencies(
-  options: { readonly rateLimit?: number } = {},
+  options: {
+    readonly cache?: ApiKeyValidationCacheRepository;
+    readonly rateLimit?: number;
+    readonly rateLimiter?: IngestionRateLimiter;
+  } = {},
 ): IngestionServiceDependencies & {
   readonly apiKeys: InMemoryApiKeyRepository;
   readonly publisher: InMemoryTelemetryPublisher;
-  readonly rateLimiter: InMemoryRateLimiter;
+  readonly rateLimiter: IngestionRateLimiter;
 } {
   const apiKeys = new Map<string, VerifiedIngestionApiKey>();
   apiKeys.set(hashApiKey(validApiKey()), {
@@ -234,13 +297,13 @@ function createTestDependencies(
   });
   const apiKeyRepository = new InMemoryApiKeyRepository(apiKeys);
   const publisher = new InMemoryTelemetryPublisher();
-  const rateLimiter = new InMemoryRateLimiter(options.rateLimit);
+  const rateLimiter = options.rateLimiter ?? new InMemoryRateLimiter(options.rateLimit);
 
   const ingestionService = new IngestionService(
     new ApiKeyAuthenticatorService(
       apiKeyRepository,
       validApiKeyPepper(),
-      new InMemoryApiKeyCache(),
+      options.cache ?? new InMemoryApiKeyCache(),
     ),
     publisher,
     new InMemoryAcceptanceRepository(),

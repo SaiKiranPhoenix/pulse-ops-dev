@@ -67,6 +67,11 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.listTokens),
   );
+  router.get(
+    "/vault/token-cache/diagnostics",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.tokenCacheDiagnostics),
+  );
   router.post(
     "/vault/tokens/:tokenId/revoke",
     validateParams(vaultTokenParamsSchema),

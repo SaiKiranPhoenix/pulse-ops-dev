@@ -328,6 +328,21 @@ describe("VaultService", () => {
     ).resolves.toMatchObject({ value: "secret-value" });
   });
 
+  it("reports vault token cache diagnostics for the current validation mode", () => {
+    const service = createService();
+
+    expect(
+      service.tokenCacheDiagnostics("project_1", new Date("2026-08-18T00:00:00.000Z")),
+    ).toEqual({
+      projectId: "project_1",
+      status: "disabled",
+      validationMode: "database",
+      cachedTokens: 0,
+      cacheKeyPrefix: null,
+      inspectedAt: "2026-08-18T00:00:00.000Z",
+    });
+  });
+
   it("publishes sanitized audit events for failed reveals and token fetches", async () => {
     const audits = new CapturingAuditPublisher();
     const service = createService(undefined, audits);

@@ -154,8 +154,13 @@ export type IngestionStats = {
   readonly latestAcceptedAt: string | null;
   readonly latestProcessedAt: string | null;
   readonly rateLimit: {
+    readonly status: "available" | "unavailable";
     readonly limitPerMinute: number;
     readonly windowSeconds: number;
+    readonly currentUsage: number | null;
+    readonly remaining: number | null;
+    readonly retryAfterSeconds: number | null;
+    readonly resetsAt: string | null;
   };
 };
 
