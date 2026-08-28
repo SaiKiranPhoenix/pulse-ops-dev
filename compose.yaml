@@ -7,6 +7,9 @@ services:
       context: .
       dockerfile: po-ui/Dockerfile
     restart: unless-stopped
+    environment:
+      PULSEOPS_API_BASE_URL: ${PULSEOPS_API_BASE_URL:-http://localhost:4000}
+      PULSEOPS_REALTIME_URL: ${PULSEOPS_REALTIME_URL:-http://localhost:4130}
     ports:
       - "3000:8080"
     depends_on:

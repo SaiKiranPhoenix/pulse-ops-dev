@@ -4,7 +4,7 @@ const accessTokenStorageKey = "pulseops.accessToken";
 export const sessionExpiredEventName = "pulseops:session-expired";
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000",
+  baseURL: resolveApiBaseUrl(),
   timeout: 10_000,
   headers: {
     "content-type": "application/json",
@@ -74,4 +74,12 @@ export function getApiErrorMessage(error: unknown): string {
   }
 
   return "Unexpected request failure";
+}
+
+function resolveApiBaseUrl(): string {
+  return (
+    window.__PULSEOPS_CONFIG__?.apiBaseUrl ??
+    import.meta.env.VITE_API_BASE_URL ??
+    "http://localhost:4000"
+  );
 }

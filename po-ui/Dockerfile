@@ -15,7 +15,11 @@ COPY po-ui ./po-ui
 RUN pnpm --filter po-ui build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+ENV PULSEOPS_API_BASE_URL=http://localhost:4000
+ENV PULSEOPS_REALTIME_URL=http://localhost:4130
 COPY po-ui/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /repo/po-ui/dist /usr/share/nginx/html
+COPY --chmod=755 po-ui/docker-entrypoint.d/40-pulseops-runtime-config.sh /docker-entrypoint.d/40-pulseops-runtime-config.sh
+COPY --chown=nginx:nginx --from=build /repo/po-ui/dist /usr/share/nginx/html
 USER nginx
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -qO- http://127.0.0.1:8080/health || exit 1

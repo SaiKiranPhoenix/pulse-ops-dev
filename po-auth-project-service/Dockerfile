@@ -28,4 +28,5 @@ COPY --from=build /repo/po-auth-project-service/dist ./po-auth-project-service/d
 WORKDIR /app/po-auth-project-service
 USER node
 EXPOSE 4010
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "const port = process.env.PORT || '4010'; fetch('http://127.0.0.1:' + port + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["node", "dist/server.js"]

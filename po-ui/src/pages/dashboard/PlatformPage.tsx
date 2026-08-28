@@ -199,8 +199,8 @@ export function PlatformPage() {
             health.services.length,
         );
   const runtimeConfig = [
-    `VITE_API_BASE_URL=${String(apiClient.defaults.baseURL ?? "http://localhost:4000")}`,
-    `VITE_REALTIME_URL=${realtimeUrl}`,
+    `PULSEOPS_API_BASE_URL=${String(apiClient.defaults.baseURL ?? "http://localhost:4000")}`,
+    `PULSEOPS_REALTIME_URL=${realtimeUrl}`,
     "PULSEOPS_UI_MODE=local",
   ].join("\n");
 
