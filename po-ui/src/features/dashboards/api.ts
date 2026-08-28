@@ -105,7 +105,9 @@ export type DeadLetterMessage = {
   readonly exchange: string;
   readonly redelivered: boolean;
   readonly contentType: string | undefined;
+  readonly retryCount: number;
   readonly deadLetterReason: string | null;
+  readonly failureReason: string | null;
   readonly originalExchange: string | null;
   readonly originalRoutingKey: string | null;
   readonly payload: unknown;

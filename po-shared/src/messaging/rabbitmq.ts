@@ -9,6 +9,11 @@ import {
 } from "amqplib";
 import { DEAD_LETTER_EXCHANGE, DEAD_LETTER_QUEUE } from "../contracts/queues/index.js";
 
+export const RABBIT_RETRY_COUNT_HEADER = "x-pulseops-retry-count";
+export const RABBIT_FAILURE_REASON_HEADER = "x-pulseops-failure-reason";
+export const RABBIT_REPLAYED_AT_HEADER = "x-pulseops-replayed-at";
+export const DEFAULT_RABBIT_MAX_RETRIES = 3;
+
 export type RabbitQueueBinding = {
   readonly exchange: string;
   readonly routingKey: string;
@@ -28,7 +33,9 @@ export type RabbitDeadLetterMessage = {
   readonly exchange: string;
   readonly redelivered: boolean;
   readonly contentType: string | undefined;
+  readonly retryCount: number;
   readonly deadLetterReason: string | null;
+  readonly failureReason: string | null;
   readonly originalExchange: string | null;
   readonly originalRoutingKey: string | null;
   readonly payload: unknown;
@@ -178,10 +185,7 @@ export class RabbitQueueInspector {
           contentType: message.properties.contentType,
           deliveryMode: 2,
           persistent: true,
-          headers: {
-            ...message.properties.headers,
-            "x-pulseops-replayed-at": new Date().toISOString(),
-          },
+          headers: sanitizeDeadLetterReplayHeaders(message),
         });
         channel.ack(message);
         replayed += 1;
@@ -222,6 +226,7 @@ export class RabbitQueueInspector {
 export type RabbitConsumerOptions = RabbitPublisherOptions & {
   readonly queue: string;
   readonly prefetch?: number;
+  readonly maxRetries?: number;
 };
 
 export type JsonMessageHandler = (content: unknown, message: ConsumeMessage) => Promise<void>;
@@ -276,10 +281,99 @@ export class RabbitJsonConsumer {
     try {
       await handler(JSON.parse(message.content.toString("utf8")), message);
       this.channel.ack(message);
-    } catch {
-      this.channel.nack(message, false, false);
+    } catch (error) {
+      await handleRabbitConsumerFailure(
+        this.channel,
+        message,
+        error,
+        this.options.maxRetries ?? DEFAULT_RABBIT_MAX_RETRIES,
+      );
     }
   }
+}
+
+export type RabbitFailureAction =
+  | {
+      readonly kind: "retry";
+      readonly retryCount: number;
+      readonly headers: RabbitHeaders;
+    }
+  | {
+      readonly kind: "dead-letter";
+      readonly retryCount: number;
+      readonly headers: RabbitHeaders;
+    };
+
+type RabbitFailureChannel = Pick<ConfirmChannel, "publish" | "waitForConfirms" | "ack" | "nack">;
+
+export async function handleRabbitConsumerFailure(
+  channel: RabbitFailureChannel,
+  message: ConsumeMessage,
+  error: unknown,
+  maxRetries = DEFAULT_RABBIT_MAX_RETRIES,
+): Promise<RabbitFailureAction> {
+  const action = resolveRabbitFailureAction(message, error, maxRetries);
+
+  if (action.kind === "retry") {
+    channel.publish(message.fields.exchange, message.fields.routingKey, message.content, {
+      ...toRetryPublishOptions(message),
+      headers: action.headers,
+    });
+    await channel.waitForConfirms();
+    channel.ack(message);
+    return action;
+  }
+
+  channel.nack(message, false, false);
+  return action;
+}
+
+export function resolveRabbitFailureAction(
+  message: ConsumeMessage | GetMessage,
+  error: unknown,
+  maxRetries = DEFAULT_RABBIT_MAX_RETRIES,
+): RabbitFailureAction {
+  const currentRetryCount = readRabbitRetryCount(message);
+  const nextRetryCount = currentRetryCount + 1;
+  const headers = {
+    ...readHeaders(message),
+    [RABBIT_FAILURE_REASON_HEADER]: formatFailureReason(error),
+  };
+
+  if (currentRetryCount >= maxRetries) {
+    return {
+      kind: "dead-letter",
+      retryCount: currentRetryCount,
+      headers,
+    };
+  }
+
+  return {
+    kind: "retry",
+    retryCount: nextRetryCount,
+    headers: {
+      ...headers,
+      [RABBIT_RETRY_COUNT_HEADER]: nextRetryCount,
+    },
+  };
+}
+
+export function readRabbitRetryCount(message: ConsumeMessage | GetMessage): number {
+  const value = readHeaders(message)[RABBIT_RETRY_COUNT_HEADER];
+
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return 0;
 }
 
 async function assertDeadLetterTopology(channel: ConfirmChannel): Promise<void> {
@@ -301,17 +395,44 @@ async function closeRabbitResources(
   await connection.close();
 }
 
-function toDeadLetterMessage(message: GetMessage): RabbitDeadLetterMessage {
+export function toDeadLetterMessage(message: GetMessage): RabbitDeadLetterMessage {
   return {
     id: `${message.fields.deliveryTag}`,
     routingKey: message.fields.routingKey,
     exchange: message.fields.exchange,
     redelivered: message.fields.redelivered,
     contentType: message.properties.contentType,
+    retryCount: readRabbitRetryCount(message),
     deadLetterReason: readDeadLetterReason(message),
+    failureReason: readHeaderString(readHeaders(message), RABBIT_FAILURE_REASON_HEADER),
     originalExchange: readOriginalExchange(message),
     originalRoutingKey: readOriginalRoutingKey(message),
     payload: parsePayload(message.content),
+  };
+}
+
+export function sanitizeDeadLetterReplayHeaders(message: GetMessage): RabbitHeaders {
+  const {
+    [RABBIT_RETRY_COUNT_HEADER]: _retryCount,
+    [RABBIT_FAILURE_REASON_HEADER]: _failureReason,
+    "x-death": _death,
+    ...headers
+  } = readHeaders(message);
+
+  return {
+    ...headers,
+    [RABBIT_REPLAYED_AT_HEADER]: new Date().toISOString(),
+  };
+}
+
+function toRetryPublishOptions(message: ConsumeMessage): Options.Publish {
+  return {
+    contentType: message.properties.contentType,
+    deliveryMode: 2,
+    persistent: true,
+    timestamp: Math.floor(Date.now() / 1_000),
+    correlationId: message.properties.correlationId,
+    messageId: message.properties.messageId,
   };
 }
 
@@ -337,10 +458,14 @@ function readOriginalRoutingKey(message: GetMessage): string | null {
 }
 
 function readLatestDeath(message: GetMessage): RabbitHeaders | null {
-  const death = message.properties.headers?.["x-death"];
+  const death = readHeaders(message)["x-death"];
   return Array.isArray(death) && typeof death[0] === "object" && death[0] !== null
     ? (death[0] as unknown as RabbitHeaders)
     : null;
+}
+
+function readHeaders(message: ConsumeMessage | GetMessage): RabbitHeaders {
+  return message.properties.headers ?? {};
 }
 
 function readHeaderString(headers: RabbitHeaders | null, key: string): string | null {
@@ -354,4 +479,9 @@ function parsePayload(payload: Buffer): unknown {
   } catch {
     return payload.toString("utf8");
   }
+}
+
+function formatFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.length <= 500 ? message : message.slice(0, 500);
 }

@@ -3,6 +3,7 @@ import {
   TELEMETRY_EXCHANGE,
   TELEMETRY_QUEUES,
   TELEMETRY_ROUTING_KEYS,
+  readRabbitRetryCount,
   type TelemetryEventType,
 } from "@pulseops/shared";
 import type { EventWorkerService } from "./event-worker.service.js";
@@ -42,7 +43,10 @@ export class WorkerRuntimeService {
     await Promise.all(
       this.consumers.map((consumer) =>
         consumer.start((content, message) =>
-          this.eventWorker.process(content, { redelivered: message.fields.redelivered }),
+          this.eventWorker.process(content, {
+            redelivered: message.fields.redelivered,
+            retryCount: readRabbitRetryCount(message),
+          }),
         ),
       ),
     );

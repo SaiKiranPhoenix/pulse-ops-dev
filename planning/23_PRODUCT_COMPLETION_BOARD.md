@@ -402,13 +402,13 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Incident evaluation publisher/consumer exists.
 - [x] Realtime incident publisher/consumer exists.
 - [x] Audit consumer exists.
-- [ ] Partial Retry/DLQ design exists, but product visibility and verification are incomplete.
-- [ ] Verify manual ack and retry behavior in integration tests.
-- [ ] Verify poison messages land in DLQ.
-- [ ] Todo Add DLQ dashboard.
-- [ ] Todo Add retry count metadata.
-- [ ] Todo Add dead-letter reason display.
-- [ ] Todo Add bounded retry tests.
+- [x] Retry/DLQ design exists with product visibility and verification.
+- [x] Verify manual ack and retry behavior in tests.
+- [x] Verify poison messages land in DLQ.
+- [x] Add DLQ dashboard.
+- [x] Add retry count metadata.
+- [x] Add dead-letter reason display.
+- [x] Add bounded retry tests.
 
 ## Security And Privacy
 

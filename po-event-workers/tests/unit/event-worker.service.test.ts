@@ -119,6 +119,19 @@ describe("EventWorkerService", () => {
       poisonMessages: 1,
     });
   });
+
+  it("records retry metadata from RabbitMQ delivery headers", async () => {
+    const events = new InMemoryEventRepository();
+    const worker = new EventWorkerService(events);
+
+    await expect(worker.process({ type: "log" }, { retryCount: 2 })).rejects.toThrow();
+
+    expect(worker.snapshotStats()).toMatchObject({
+      failed: 1,
+      retries: 2,
+      poisonMessages: 1,
+    });
+  });
 });
 
 function validMessage(): TelemetryEventMessage {
