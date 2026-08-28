@@ -46,8 +46,10 @@ Use placeholder credentials only in `.env.example`; copy them into a local `.env
 | `REDIS_URL` | API, ingestion, workers, vault | local compose URI |
 | `RABBITMQ_URL` | ingestion, workers, audit | local compose URI |
 | `JWT_SECRET` | auth/api | placeholder value only in `.env.example`; real local value belongs in ignored `.env` |
-| `API_PUBLIC_URL` | dashboard | browser-facing API URL |
-| `SOCKET_URL` | dashboard | realtime endpoint |
+| `PULSEOPS_API_BASE_URL` | dashboard container | browser-facing API URL generated into the static UI at container start |
+| `PULSEOPS_REALTIME_URL` | dashboard container | browser-facing realtime endpoint generated into the static UI at container start |
+| `VITE_API_BASE_URL` | dashboard local build | development-build fallback for the API URL |
+| `VITE_REALTIME_URL` | dashboard local build | development-build fallback for the realtime endpoint |
 | `VAULT_KDF` | vault | argon2id preferred |
 | `LOG_REDACTION_ENABLED` | all services | default true |
 | `RATE_LIMIT_PER_MINUTE` | ingestion | default 600 |
@@ -56,10 +58,10 @@ Use placeholder credentials only in `.env.example`; copy them into a local `.env
 
 | Service | Health Check |
 | --- | --- |
-| dashboard | HTTP `GET /` |
+| dashboard | HTTP `GET /health` |
 | api | `GET /api/health` |
 | ingestion | `GET /health` or gateway health |
-| workers | heartbeat key in Redis plus MongoDB `workerHealth` |
+| workers | `GET /health`, heartbeat key in Redis, plus MongoDB `workerHealth` |
 | vault | `GET /health` with crypto readiness |
 | MongoDB | `db.adminCommand('ping')` |
 | Redis | `PING` |

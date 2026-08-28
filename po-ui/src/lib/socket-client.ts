@@ -8,7 +8,11 @@ import type {
 } from "@/features/dashboards/api";
 import type { VaultAuditEvent } from "@/features/vault/api";
 
-export const realtimeUrl = import.meta.env.VITE_REALTIME_URL ?? "http://localhost:4130";
+export const realtimeUrl =
+  window.__PULSEOPS_CONFIG__?.realtimeUrl ??
+  import.meta.env.VITE_REALTIME_URL ??
+  import.meta.env.VITE_SOCKET_URL ??
+  "http://localhost:4130";
 
 type ServerToClientEvents = {
   "event.created": (message: RealtimeEventCreated) => void;
