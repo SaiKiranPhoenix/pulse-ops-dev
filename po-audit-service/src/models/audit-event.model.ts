@@ -45,6 +45,22 @@ auditEventSchema.index(
   { projectId: 1, occurredAt: -1 },
   { name: "idx_audit_events_project_occurred" },
 );
+auditEventSchema.index(
+  { projectId: 1, environment: 1, occurredAt: -1 },
+  { name: "idx_audit_events_project_env_occurred" },
+);
+auditEventSchema.index(
+  { projectId: 1, action: 1, result: 1, occurredAt: -1 },
+  { name: "idx_audit_events_project_action_result_occurred" },
+);
+auditEventSchema.index(
+  { projectId: 1, actorType: 1, actorId: 1, occurredAt: -1 },
+  { name: "idx_audit_events_project_actor_occurred" },
+);
+auditEventSchema.index(
+  { projectId: 1, secretKey: 1, occurredAt: -1 },
+  { name: "idx_audit_events_project_secret_occurred" },
+);
 
 export const AuditEventModel: Model<AuditEventRecord> =
   mongoose.models.AuditEvent ?? model<AuditEventRecord>("AuditEvent", auditEventSchema);

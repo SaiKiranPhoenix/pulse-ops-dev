@@ -49,6 +49,10 @@ ingestionAcceptanceSchema.index(
   { projectId: 1, idempotencyKey: 1 },
   { unique: true, name: "uniq_ingestion_acceptances_project_idempotency" },
 );
+ingestionAcceptanceSchema.index(
+  { projectId: 1, createdAt: -1 },
+  { name: "idx_ingestion_acceptances_project_created" },
+);
 
 export const IngestionAcceptanceModel: Model<IngestionAcceptanceRecord> =
   mongoose.models.IngestionAcceptance ??

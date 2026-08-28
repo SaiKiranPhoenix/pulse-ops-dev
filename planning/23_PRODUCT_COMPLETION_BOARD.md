@@ -370,14 +370,14 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] RabbitMQ compose service exists.
 - [x] Collections exist for users, projects, API keys, events, incidents, vault secrets, vault tokens, audit events.
 - [x] Mongoose models exist for core entities.
-- [ ] Verify all required indexes exist and are correct.
-- [ ] Todo Add retention policy for telemetry events.
-- [ ] Todo Add database seed script.
-- [ ] Todo Add safe local reset script.
-- [ ] Todo Add data migration/versioning strategy if needed.
-- [ ] Todo Add dashboard query pagination indexes.
-- [ ] Todo Add incident/event correlation indexes.
-- [ ] Todo Add audit query indexes.
+- [x] Verify all required indexes exist and are correct.
+- [x] Add retention policy for telemetry events.
+- [x] Add database seed script.
+- [x] Add safe local reset script.
+- [x] Add data migration/versioning strategy if needed.
+- [x] Add dashboard query pagination indexes.
+- [x] Add incident/event correlation indexes.
+- [x] Add audit query indexes.
 
 ## Redis Hot State
 

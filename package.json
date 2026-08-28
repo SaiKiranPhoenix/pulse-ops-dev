@@ -28,6 +28,8 @@
     "infra:up": "docker compose up -d mongodb redis rabbitmq mailhog",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v",
+    "db:seed": "node scripts/db/seed-demo.mjs",
+    "db:reset": "node scripts/db/reset-local.mjs",
     "infra:logs": "docker compose logs -f",
     "apps:build": "docker compose --profile apps build",
     "apps:up": "docker compose --profile apps up -d",

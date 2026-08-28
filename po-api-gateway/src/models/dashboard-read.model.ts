@@ -143,6 +143,66 @@ const dashboardIngestionAcceptanceSchema = new Schema<DashboardIngestionAcceptan
   { collection: "ingestion_acceptances", timestamps: true, versionKey: false },
 );
 
+dashboardEventSchema.index(
+  { projectId: 1, type: 1, receivedAt: -1 },
+  { name: "idx_events_project_type_received" },
+);
+dashboardEventSchema.index(
+  { projectId: 1, receivedAt: -1, _id: -1 },
+  { name: "idx_events_project_received_cursor" },
+);
+dashboardEventSchema.index(
+  { projectId: 1, fingerprint: 1, receivedAt: -1 },
+  { name: "idx_events_project_fingerprint_received" },
+);
+dashboardEventSchema.index(
+  { projectId: 1, "attributes.environment": 1, type: 1, receivedAt: -1 },
+  { name: "idx_events_project_env_type_received" },
+);
+dashboardEventSchema.index(
+  { projectId: 1, "attributes.traceId": 1, "attributes.spanId": 1, observedAt: 1, receivedAt: 1 },
+  { name: "idx_events_project_trace_span_time" },
+);
+dashboardEventSchema.index(
+  { receivedAt: 1 },
+  { expireAfterSeconds: 2_592_000, name: "ttl_events_received_at_30_days" },
+);
+
+dashboardIncidentSchema.index(
+  { projectId: 1, status: 1, lastSeenAt: -1 },
+  { name: "idx_incidents_project_status_last_seen" },
+);
+dashboardIncidentSchema.index(
+  { projectId: 1, lastSeenAt: -1 },
+  { name: "idx_incidents_project_last_seen" },
+);
+dashboardIncidentSchema.index(
+  { projectId: 1, fingerprint: 1, lastSeenAt: -1 },
+  { name: "idx_incidents_project_fingerprint_last_seen" },
+);
+dashboardIncidentSchema.index(
+  { projectId: 1, "samples.eventId": 1 },
+  { name: "idx_incidents_project_sample_event" },
+);
+
+dashboardVaultSecretSchema.index(
+  { projectId: 1, environment: 1, key: 1, status: 1 },
+  { name: "idx_vault_secrets_project_env_key_status" },
+);
+dashboardVaultSecretSchema.index(
+  { projectId: 1, updatedAt: -1 },
+  { name: "idx_vault_secrets_project_updated" },
+);
+
+dashboardIngestionAcceptanceSchema.index(
+  { projectId: 1, idempotencyKey: 1 },
+  { unique: true, name: "uniq_ingestion_acceptances_project_idempotency" },
+);
+dashboardIngestionAcceptanceSchema.index(
+  { projectId: 1, createdAt: -1 },
+  { name: "idx_ingestion_acceptances_project_created" },
+);
+
 export type DashboardEventDocument = HydratedDocument<DashboardEventRecord>;
 export type DashboardIncidentDocument = HydratedDocument<DashboardIncidentRecord>;
 export type DashboardVaultSecretDocument = HydratedDocument<DashboardVaultSecretRecord>;

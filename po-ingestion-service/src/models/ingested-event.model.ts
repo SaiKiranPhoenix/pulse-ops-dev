@@ -53,6 +53,30 @@ ingestedEventSchema.index(
     partialFilterExpression: { idempotencyKey: { $type: "string" } },
   },
 );
+ingestedEventSchema.index(
+  { projectId: 1, type: 1, receivedAt: -1 },
+  { name: "idx_events_project_type_received" },
+);
+ingestedEventSchema.index(
+  { projectId: 1, receivedAt: -1, _id: -1 },
+  { name: "idx_events_project_received_cursor" },
+);
+ingestedEventSchema.index(
+  { projectId: 1, fingerprint: 1, receivedAt: -1 },
+  { name: "idx_events_project_fingerprint_received" },
+);
+ingestedEventSchema.index(
+  { projectId: 1, "attributes.environment": 1, type: 1, receivedAt: -1 },
+  { name: "idx_events_project_env_type_received" },
+);
+ingestedEventSchema.index(
+  { projectId: 1, "attributes.traceId": 1, "attributes.spanId": 1, observedAt: 1, receivedAt: 1 },
+  { name: "idx_events_project_trace_span_time" },
+);
+ingestedEventSchema.index(
+  { receivedAt: 1 },
+  { expireAfterSeconds: 2_592_000, name: "ttl_events_received_at_30_days" },
+);
 
 export const IngestedEventModel: Model<IngestedEventRecord> =
   mongoose.models.IngestedEvent ?? model<IngestedEventRecord>("IngestedEvent", ingestedEventSchema);
