@@ -29,7 +29,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -300,14 +300,6 @@ export function DashboardLayout() {
         </div>
       </DashboardFrame>
     );
-  }
-
-  if (
-    projects.length === 0 &&
-    location.pathname !== "/dashboard/setup" &&
-    location.pathname !== "/dashboard/projects"
-  ) {
-    return <Navigate to="/dashboard/setup" replace />;
   }
 
   return (
