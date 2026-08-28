@@ -85,7 +85,7 @@ export function RegisterPage() {
             autoComplete="new-password"
             className="mt-2"
             maxLength={128}
-            minLength={12}
+            minLength={8}
             onChange={(event) => {
               setPassword(event.target.value);
             }}
