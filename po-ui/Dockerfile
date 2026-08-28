@@ -18,7 +18,10 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 ENV PULSEOPS_API_BASE_URL=http://localhost:4000
 ENV PULSEOPS_REALTIME_URL=http://localhost:4130
 COPY po-ui/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --chmod=755 po-ui/docker-entrypoint.d/40-pulseops-runtime-config.sh /docker-entrypoint.d/40-pulseops-runtime-config.sh
+COPY --chown=nginx:nginx --chmod=755 po-ui/docker-entrypoint.d/40-pulseops-runtime-config.sh /docker-entrypoint.d/40-pulseops-runtime-config.sh
+RUN sed 's/\r$//' /docker-entrypoint.d/40-pulseops-runtime-config.sh > /tmp/40-pulseops-runtime-config.sh \
+  && cat /tmp/40-pulseops-runtime-config.sh > /docker-entrypoint.d/40-pulseops-runtime-config.sh \
+  && rm /tmp/40-pulseops-runtime-config.sh
 COPY --chown=nginx:nginx --from=build /repo/po-ui/dist /usr/share/nginx/html
 USER nginx
 EXPOSE 8080
