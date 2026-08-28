@@ -41,6 +41,20 @@ describe("POST /auth/register", () => {
     ]);
   });
 
+  it("accepts strong passwords with eight characters", async () => {
+    const harness = createTestDependencies();
+    const app = createApp({ dependencies: harness.dependencies });
+
+    await request(app)
+      .post("/auth/register")
+      .set("x-request-id", "req_min_password")
+      .send({
+        email: "eight@example.com",
+        password: "Aa1!aaaa",
+      })
+      .expect(201);
+  });
+
   it("returns validation errors for weak passwords", async () => {
     const harness = createTestDependencies();
     const app = createApp({ dependencies: harness.dependencies });

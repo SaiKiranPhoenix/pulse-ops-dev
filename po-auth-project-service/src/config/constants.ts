@@ -19,7 +19,7 @@ export const PASSWORD_HASHING = {
 
 export const USER_LIMITS = {
   nameMaxLength: 80,
-  passwordMinLength: 12,
+  passwordMinLength: 8,
   passwordMaxLength: 128,
 } as const;
 
