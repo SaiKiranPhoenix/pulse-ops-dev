@@ -461,6 +461,9 @@ export function SetupPage() {
               label="Rate limit"
               value={`${ingestionStats?.rateLimit.limitPerMinute ?? 600}/min`}
             />
+            <HealthRow label="Bucket used" value={formatRateLimitUsage(ingestionStats)} />
+            <HealthRow label="Bucket remaining" value={formatRateLimitRemaining(ingestionStats)} />
+            <HealthRow label="Bucket resets" value={formatRateLimitReset(ingestionStats)} />
           </div>
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
             Sensitive attribute keys such as password, token, authorization, secret, apiKey, and
@@ -488,6 +491,38 @@ function HealthRow({ label, value }: { readonly label: string; readonly value: n
       <span className="font-mono text-sm font-semibold text-slate-950">{value}</span>
     </div>
   );
+}
+
+function formatRateLimitUsage(stats: IngestionStats | null): string {
+  if (stats === null || stats.rateLimit.status === "unavailable") {
+    return "Unavailable";
+  }
+
+  return String(stats.rateLimit.currentUsage);
+}
+
+function formatRateLimitRemaining(stats: IngestionStats | null): string {
+  if (stats === null || stats.rateLimit.status === "unavailable") {
+    return "Unavailable";
+  }
+
+  return String(stats.rateLimit.remaining);
+}
+
+function formatRateLimitReset(stats: IngestionStats | null): string {
+  if (
+    stats === null ||
+    stats.rateLimit.status === "unavailable" ||
+    stats.rateLimit.resetsAt === null
+  ) {
+    return "Unavailable";
+  }
+
+  return new Date(stats.rateLimit.resetsAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function Snippet({

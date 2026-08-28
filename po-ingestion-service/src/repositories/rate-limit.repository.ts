@@ -1,4 +1,8 @@
-import { connectRedisClient, type PulseRedisClient } from "@pulseops/shared";
+import {
+  connectRedisClient,
+  toIngestionRateLimitKey,
+  type PulseRedisClient,
+} from "@pulseops/shared";
 
 export type RateLimitDecision = {
   readonly allowed: boolean;
@@ -22,7 +26,7 @@ export class RedisIngestionRateLimiter implements IngestionRateLimiter {
   async consume(projectId: string): Promise<RateLimitDecision> {
     const now = this.now();
     const epochMinute = Math.floor(now.getTime() / 60_000);
-    const key = `rate:${projectId}:${epochMinute}`;
+    const key = toIngestionRateLimitKey(projectId, epochMinute);
     const client = await connectRedisClient(this.redis);
     const count = await client.incr(key);
 

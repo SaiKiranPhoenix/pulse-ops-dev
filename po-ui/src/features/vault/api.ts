@@ -32,6 +32,15 @@ export type VaultToken = {
   readonly updatedAt: string;
 };
 
+export type VaultTokenCacheDiagnostics = {
+  readonly projectId: string;
+  readonly status: "disabled";
+  readonly validationMode: "database";
+  readonly cachedTokens: 0;
+  readonly cacheKeyPrefix: null;
+  readonly inspectedAt: string;
+};
+
 export type CreatedVaultToken = {
   readonly token: VaultToken;
   readonly rawToken: string;
@@ -188,6 +197,15 @@ export async function listVaultTokens(projectId: string): Promise<VaultToken[]> 
     { params: { projectId } },
   );
   return response.data.data.tokens;
+}
+
+export async function getVaultTokenCacheDiagnostics(
+  projectId: string,
+): Promise<VaultTokenCacheDiagnostics> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly diagnostics: VaultTokenCacheDiagnostics }>
+  >("/vault/token-cache/diagnostics", { params: { projectId } });
+  return response.data.data.diagnostics;
 }
 
 export async function revokeVaultToken(projectId: string, tokenId: string): Promise<VaultToken> {

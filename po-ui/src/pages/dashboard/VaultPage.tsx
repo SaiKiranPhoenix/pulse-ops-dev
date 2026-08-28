@@ -19,6 +19,7 @@ import {
   createVaultToken,
   deleteSecret,
   fetchSecretWithIntegrationToken,
+  getVaultTokenCacheDiagnostics,
   listSecrets,
   listSecretVersions,
   listVaultAuditEvents,
@@ -31,6 +32,7 @@ import {
   type VaultSecretMetadata,
   type VaultSecretVersion,
   type VaultToken,
+  type VaultTokenCacheDiagnostics,
 } from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import {
@@ -59,6 +61,8 @@ export function VaultPage() {
   const { selectedEnvironment, selectedProject, setSelectedEnvironment } = useDashboardContext();
   const [secrets, setSecrets] = useState<VaultSecretMetadata[]>([]);
   const [tokens, setTokens] = useState<VaultToken[]>([]);
+  const [tokenCacheDiagnostics, setTokenCacheDiagnostics] =
+    useState<VaultTokenCacheDiagnostics | null>(null);
   const [auditEvents, setAuditEvents] = useState<VaultAuditEvent[]>([]);
   const [activeSecret, setActiveSecret] = useState<VaultSecretMetadata | null>(null);
   const [activeSecretVersions, setActiveSecretVersions] = useState<VaultSecretVersion[]>([]);
@@ -93,6 +97,7 @@ export function VaultPage() {
     if (selectedProject === null) {
       setSecrets([]);
       setTokens([]);
+      setTokenCacheDiagnostics(null);
       setAuditEvents([]);
       return;
     }
@@ -101,13 +106,15 @@ export function VaultPage() {
     setErrorMessage(null);
 
     try {
-      const [secretList, tokenList, events] = await Promise.all([
+      const [secretList, tokenList, tokenCache, events] = await Promise.all([
         listSecrets(selectedProject.id, selectedEnvironment),
         listVaultTokens(selectedProject.id),
+        getVaultTokenCacheDiagnostics(selectedProject.id),
         listVaultAuditEvents(selectedProject.id),
       ]);
       setSecrets(secretList);
       setTokens(tokenList);
+      setTokenCacheDiagnostics(tokenCache);
       setAuditEvents(events);
     } catch (requestError) {
       setErrorMessage(getApiErrorMessage(requestError));
@@ -179,10 +186,11 @@ export function VaultPage() {
     () => ({
       secrets: secrets.length,
       tokens: tokens.filter((token) => token.status === "active").length,
+      tokenCache: tokenCacheDiagnostics?.status ?? "unknown",
       reveals: auditEvents.filter((event) => event.action === "vault.secret.reveal").length,
       failures: auditEvents.filter((event) => event.result === "failure").length,
     }),
-    [auditEvents, secrets.length, tokens],
+    [auditEvents, secrets.length, tokenCacheDiagnostics?.status, tokens],
   );
 
   async function submitSecret(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -400,9 +408,10 @@ export function VaultPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-5">
         <Summary label="Secrets" value={vaultSummary.secrets} />
         <Summary label="Active tokens" value={vaultSummary.tokens} />
+        <Summary label="Token cache" value={vaultSummary.tokenCache} />
         <Summary label="Reveal audits" value={vaultSummary.reveals} />
         <Summary label="Audit failures" value={vaultSummary.failures} />
       </section>
@@ -1015,7 +1024,7 @@ function Snippet({
   );
 }
 
-function Summary({ label, value }: { readonly label: string; readonly value: number }) {
+function Summary({ label, value }: { readonly label: string; readonly value: number | string }) {
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4">
       <p className="text-sm font-medium text-slate-500">{label}</p>

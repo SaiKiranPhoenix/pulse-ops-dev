@@ -387,11 +387,11 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Ingestion idempotency exists.
 - [x] Incident counters exist.
 - [x] Worker heartbeat uses Redis.
-- [ ] Verify TTL behavior with tests for all hot-state keys.
-- [ ] Todo Add dashboard-visible rate-limit counters.
-- [ ] Todo Add cache invalidation documentation.
-- [ ] Todo Add Redis unavailable behavior tests.
-- [ ] Todo Add vault token cache visibility or diagnostics.
+- [x] Verify TTL behavior with tests for all hot-state keys.
+- [x] Add dashboard-visible rate-limit counters.
+- [x] Add cache invalidation documentation.
+- [x] Add Redis unavailable behavior tests.
+- [x] Add vault token cache visibility or diagnostics.
 
 ## RabbitMQ Messaging
 

@@ -100,6 +100,13 @@ export class VaultController {
     response.status(200).json(successResponse({ tokens }, String(response.locals.requestId)));
   };
 
+  tokenCacheDiagnostics = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const diagnostics = this.vault.tokenCacheDiagnostics(query.projectId);
+
+    response.status(200).json(successResponse({ diagnostics }, String(response.locals.requestId)));
+  };
+
   revokeToken = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as SecretQuery;
     const params = response.locals.validatedParams as VaultTokenParams;

@@ -1,8 +1,10 @@
+import { createRedisClient } from "@pulseops/shared";
 import { DashboardController } from "../controllers/dashboard.controller.js";
 import { GatewayController } from "../controllers/gateway.controller.js";
 import { ProxyController, type ProxyTargets } from "../controllers/proxy.controller.js";
 import { loadEnv } from "../config/env.js";
 import { MongoDashboardRepository } from "../repositories/dashboard.repository.js";
+import { RedisDashboardRateLimitRepository } from "../repositories/ingestion-rate-limit.repository.js";
 import { DashboardService } from "./dashboard.service.js";
 import { GatewayService } from "./gateway.service.js";
 import { ProxyService } from "./proxy.service.js";
@@ -20,7 +22,18 @@ export type ApiGatewayDependencies = {
 
 export function createApiGatewayDependencies(): ApiGatewayDependencies {
   const env = loadEnv();
-  const dashboardService = new DashboardService(new MongoDashboardRepository());
+  const dashboardService = new DashboardService(
+    new MongoDashboardRepository(),
+    new RedisDashboardRateLimitRepository(
+      createRedisClient(env.REDIS_URL),
+      env.RATE_LIMIT_PER_MINUTE,
+      60,
+    ),
+    {
+      limitPerMinute: env.RATE_LIMIT_PER_MINUTE,
+      windowSeconds: 60,
+    },
+  );
   const proxyService = new ProxyService();
   const proxyTargets: ProxyTargets = {
     authProject: {

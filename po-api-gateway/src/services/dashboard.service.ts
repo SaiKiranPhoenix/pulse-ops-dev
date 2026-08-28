@@ -9,6 +9,10 @@ import type {
   DashboardTraceSummary,
   DashboardVaultActivity,
 } from "../repositories/dashboard.repository.js";
+import type {
+  DashboardRateLimitRepository,
+  DashboardRateLimitUsage,
+} from "../repositories/ingestion-rate-limit.repository.js";
 
 export type DashboardSummaryDto = {
   readonly projectId: string;
@@ -59,6 +63,11 @@ export type DashboardAnalyticsOptionsDto = {
   readonly timeRange?: string;
 };
 
+export type DashboardRateLimitFallback = {
+  readonly limitPerMinute: number;
+  readonly windowSeconds: number;
+};
+
 export type DashboardIngestionStatsDto = Omit<
   DashboardIngestionStats,
   "latestAcceptedAt" | "latestProcessedAt"
@@ -67,8 +76,13 @@ export type DashboardIngestionStatsDto = Omit<
   readonly environment: string | null;
   readonly timeRange: string;
   readonly rateLimit: {
+    readonly status: "available" | "unavailable";
     readonly limitPerMinute: number;
     readonly windowSeconds: number;
+    readonly currentUsage: number | null;
+    readonly remaining: number | null;
+    readonly retryAfterSeconds: number | null;
+    readonly resetsAt: string | null;
   };
   readonly latestAcceptedAt: string | null;
   readonly latestProcessedAt: string | null;
@@ -126,7 +140,14 @@ export type DashboardTraceSummaryDto = Omit<
 };
 
 export class DashboardService {
-  constructor(private readonly dashboard: DashboardRepository) {}
+  constructor(
+    private readonly dashboard: DashboardRepository,
+    private readonly rateLimits?: DashboardRateLimitRepository,
+    private readonly rateLimitFallback: DashboardRateLimitFallback = {
+      limitPerMinute: 600,
+      windowSeconds: 60,
+    },
+  ) {}
 
   async summary(projectId: string): Promise<DashboardSummaryDto> {
     const [totalEvents, openIncidents] = await Promise.all([
@@ -171,16 +192,14 @@ export class DashboardService {
   ): Promise<DashboardIngestionStatsDto> {
     const normalizedOptions = toAnalyticsOptions(options);
     const stats = await this.dashboard.ingestionStats(projectId, normalizedOptions);
+    const rateLimit = await this.rateLimitSnapshot(projectId);
 
     return {
       ...stats,
       projectId,
       environment: options.environment ?? null,
       timeRange: options.timeRange ?? "1h",
-      rateLimit: {
-        limitPerMinute: 600,
-        windowSeconds: 60,
-      },
+      rateLimit,
       latestAcceptedAt: stats.latestAcceptedAt?.toISOString() ?? null,
       latestProcessedAt: stats.latestProcessedAt?.toISOString() ?? null,
     };
@@ -244,6 +263,45 @@ export class DashboardService {
       })),
     };
   }
+
+  private async rateLimitSnapshot(
+    projectId: string,
+  ): Promise<DashboardIngestionStatsDto["rateLimit"]> {
+    try {
+      const snapshot = await this.rateLimits?.snapshot(projectId);
+
+      if (snapshot !== undefined) {
+        return toRateLimitDto(snapshot);
+      }
+    } catch {
+      return unavailableRateLimit(this.rateLimitFallback);
+    }
+
+    return unavailableRateLimit(this.rateLimitFallback);
+  }
+}
+
+function toRateLimitDto(
+  snapshot: DashboardRateLimitUsage,
+): DashboardIngestionStatsDto["rateLimit"] {
+  return {
+    ...snapshot,
+    resetsAt: snapshot.resetsAt.toISOString(),
+  };
+}
+
+function unavailableRateLimit(
+  fallback: DashboardRateLimitFallback,
+): DashboardIngestionStatsDto["rateLimit"] {
+  return {
+    status: "unavailable",
+    limitPerMinute: fallback.limitPerMinute,
+    windowSeconds: fallback.windowSeconds,
+    currentUsage: null,
+    remaining: null,
+    retryAfterSeconds: null,
+    resetsAt: null,
+  };
 }
 
 function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
