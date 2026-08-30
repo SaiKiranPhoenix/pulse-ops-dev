@@ -1,8 +1,8 @@
-import { Slot, Slottable } from "@radix-ui/react-slot";
+﻿import { Slot, Slottable } from "@radix-ui/react-slot";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   readonly asChild?: boolean;
@@ -11,10 +11,13 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-  outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-  ghost: "hover:bg-accent hover:text-accent-foreground",
+  primary:
+    "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]",
+  secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/70 active:scale-[0.98]",
+  outline:
+    "border border-input bg-background text-foreground hover:bg-accent hover:border-border/80 active:scale-[0.98]",
+  ghost: "text-foreground/80 hover:bg-accent hover:text-foreground active:scale-[0.98]",
+  danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]",
 };
 
 export function Button({
@@ -31,7 +34,10 @@ export function Button({
   return (
     <Component
       className={cn(
-        "inline-flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3.5 text-sm font-medium",
+        "transition-all duration-150 ease-spring",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        "disabled:pointer-events-none disabled:opacity-40",
         variantClasses[variant],
         className,
       )}

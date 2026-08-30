@@ -16,8 +16,6 @@ import {
   Settings,
   ShieldCheck,
   UserRound,
-  Wifi,
-  WifiOff,
   X,
 } from "lucide-react";
 import {
@@ -378,13 +376,14 @@ function DashboardFrame({
   readonly setIsUserMenuOpen: (isOpen: boolean) => void;
   readonly setSelectedProjectId: (projectId: string) => void;
 }) {
-  const RealtimeIcon = realtimeState === "connected" ? Wifi : WifiOff;
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 lg:grid lg:grid-cols-[16rem_1fr]">
+    <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[15.5rem_1fr]">
+      {/* ── Dark glass sidebar ── */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 -translate-x-full border-r border-slate-200 bg-white px-4 py-4 transition-transform lg:static lg:min-h-screen lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-[15.5rem] -translate-x-full bg-navy flex flex-col",
+          "border-r border-navy-border transition-transform duration-300 ease-spring",
+          "lg:static lg:min-h-screen lg:translate-x-0",
           isMobileNavOpen && "translate-x-0",
         )}
       >
@@ -398,7 +397,7 @@ function DashboardFrame({
       {isMobileNavOpen ? (
         <button
           aria-label="Close navigation overlay"
-          className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-sm lg:hidden"
           onClick={() => {
             setIsMobileNavOpen(false);
           }}
@@ -406,34 +405,37 @@ function DashboardFrame({
         />
       ) : null}
 
-      <div className="min-w-0">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
+      <div className="min-w-0 flex flex-col">
+        {/* ── Frosted glass topbar ── */}
+        <header className="sticky top-0 z-20 topbar-glass px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               <Button
                 aria-label="Open navigation"
-                className="h-10 w-10 shrink-0 p-0 lg:hidden"
+                className="h-8 w-8 shrink-0 p-0 lg:hidden"
                 onClick={() => {
                   setIsMobileNavOpen(true);
                 }}
                 type="button"
-                variant="outline"
+                variant="ghost"
               >
                 <Menu className="h-4 w-4" />
               </Button>
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-normal text-slate-500">
-                  Dashboard / {pageTitle}
-                </p>
-                <h1 className="truncate text-lg font-semibold">{pageTitle}</h1>
+                <p className="section-label leading-none">{pageTitle}</p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              {/* Project selector */}
               <label className="relative block">
                 <span className="sr-only">Project</span>
                 <select
-                  className="h-10 min-w-48 appearance-none rounded-md border border-slate-200 bg-white px-3 pr-9 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+                  className={cn(
+                    "h-8 min-w-40 appearance-none rounded-full border border-border bg-background",
+                    "pl-3 pr-8 text-xs font-medium shadow-sm outline-none",
+                    "focus:ring-2 focus:ring-ring transition-colors",
+                  )}
                   disabled={projects.length === 0}
                   onChange={(event) => {
                     setSelectedProjectId(event.target.value);
@@ -447,13 +449,18 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-500" />
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
               </label>
 
+              {/* Environment selector */}
               <label className="relative block">
                 <span className="sr-only">Environment</span>
                 <select
-                  className="h-10 min-w-40 appearance-none rounded-md border border-slate-200 bg-white px-3 pr-9 text-sm capitalize shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+                  className={cn(
+                    "h-8 min-w-32 appearance-none rounded-full border border-border bg-background",
+                    "pl-3 pr-8 text-xs font-medium capitalize shadow-sm outline-none",
+                    "focus:ring-2 focus:ring-ring transition-colors",
+                  )}
                   onChange={(event) => {
                     if (isDashboardEnvironment(event.target.value)) {
                       setSelectedEnvironment(event.target.value);
@@ -467,13 +474,18 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-500" />
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
               </label>
 
+              {/* Time range selector */}
               <label className="relative block">
                 <span className="sr-only">Time range</span>
                 <select
-                  className="h-10 min-w-28 appearance-none rounded-md border border-slate-200 bg-white px-3 pr-9 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
+                  className={cn(
+                    "h-8 min-w-20 appearance-none rounded-full border border-border bg-background",
+                    "pl-3 pr-8 text-xs font-medium shadow-sm outline-none",
+                    "focus:ring-2 focus:ring-ring transition-colors",
+                  )}
                   onChange={(event) => {
                     if (isDashboardTimeRange(event.target.value)) {
                       setSelectedTimeRange(event.target.value);
@@ -487,68 +499,88 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <Clock className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-500" />
+                <Clock className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
               </label>
 
-              <Button asChild className="w-auto" variant="outline">
-                <Link to="/dashboard/projects">
-                  <Settings className="h-4 w-4" />
-                  Projects
-                </Link>
-              </Button>
-
+              {/* Realtime status pill */}
               <span
                 className={cn(
-                  "inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm",
+                  "realtime-pill",
                   realtimeState === "connected" &&
-                    "border-emerald-200 bg-emerald-50 text-emerald-800",
-                  realtimeState === "connecting" && "border-amber-200 bg-amber-50 text-amber-800",
-                  realtimeState === "stale" && "border-amber-200 bg-amber-50 text-amber-800",
-                  realtimeState === "disconnected" && "border-slate-200 bg-slate-50 text-slate-600",
+                    "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  (realtimeState === "connecting" || realtimeState === "stale") &&
+                    "border-amber-200 bg-amber-50 text-amber-700",
+                  realtimeState === "disconnected" &&
+                    "border-border bg-muted text-muted-foreground",
                 )}
                 title={realtimeUrl}
               >
-                <RealtimeIcon className="h-4 w-4" />
+                <span
+                  className={cn(
+                    "realtime-dot",
+                    realtimeState === "connected" && "bg-emerald-500 animate-pulse-dot",
+                    (realtimeState === "connecting" || realtimeState === "stale") &&
+                      "bg-amber-500 animate-pulse-dot",
+                    realtimeState === "disconnected" && "bg-slate-400",
+                  )}
+                />
                 {realtimeState}
               </span>
 
+              {/* User menu */}
               <div className="relative">
                 <Button
-                  className="w-full justify-between sm:w-52"
-                  icon={<UserRound className="h-4 w-4" />}
+                  className="w-auto gap-1.5 px-2.5"
+                  icon={<UserRound className="h-3.5 w-3.5" />}
                   onClick={() => {
                     setIsUserMenuOpen(!isUserMenuOpen);
                   }}
                   type="button"
                   variant="ghost"
                 >
-                  <span className="truncate">
+                  <span className="max-w-28 truncate text-xs">
                     {currentUser?.name ?? currentUser?.email ?? "Account"}
                   </span>
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
 
                 {isUserMenuOpen ? (
-                  <div className="absolute right-0 z-30 mt-2 w-56 rounded-md border border-slate-200 bg-white p-2 text-sm shadow-lg">
+                  <div
+                    className={cn(
+                      "absolute right-0 z-30 mt-2 w-52 rounded-xl border border-border bg-card p-1.5 text-sm",
+                      "shadow-float animate-fade-in",
+                    )}
+                  >
                     <Link
-                      className="flex items-center gap-2 rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
                       onClick={() => {
                         setIsUserMenuOpen(false);
                       }}
                       to="/dashboard/account"
                     >
-                      <UserRound className="h-4 w-4" />
+                      <UserRound className="h-3.5 w-3.5" />
                       Account settings
                     </Link>
+                    <Link
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                      }}
+                      to="/dashboard/projects"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      Projects
+                    </Link>
+                    <div className="my-1 h-px bg-border" />
                     <button
-                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-red-700 hover:bg-red-50"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-destructive transition-colors hover:bg-destructive/10"
                       onClick={() => {
                         setIsUserMenuOpen(false);
                         setIsLogoutConfirmOpen(true);
                       }}
                       type="button"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-3.5 w-3.5" />
                       Sign out
                     </button>
                   </div>
@@ -558,7 +590,9 @@ function DashboardFrame({
           </div>
         </header>
 
-        <div className="px-4 py-5 sm:px-6 lg:px-8">{children}</div>
+        <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="page-enter">{children}</div>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -580,93 +614,108 @@ function DashboardFrame({
 
 function SidebarContent({ onNavigate }: { readonly onNavigate: () => void }) {
   return (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <Link className="flex items-center gap-3" onClick={onNavigate} to="/dashboard">
-          <span className="grid h-10 w-10 place-items-center rounded-md bg-slate-950 text-sm font-black text-white">
+    <div className="flex flex-col h-full">
+      {/* Wordmark */}
+      <div className="flex items-center justify-between gap-3 px-4 py-4 border-b border-navy-border">
+        <Link className="flex items-center gap-2.5" onClick={onNavigate} to="/dashboard">
+          <span
+            className={cn(
+              "grid h-8 w-8 place-items-center rounded-lg text-xs font-black text-white",
+              "bg-gradient-to-br from-indigo-500 to-violet-600 shadow-glow-sm",
+            )}
+          >
             PO
           </span>
           <div>
-            <p className="text-sm font-semibold">PulseOps</p>
-            <p className="text-xs text-slate-500">Control plane</p>
+            <p className="text-sm font-semibold text-white tracking-tight">PulseOps</p>
+            <p className="text-[11px] text-navy-muted">Control plane</p>
           </div>
         </Link>
         <Button
           aria-label="Close navigation"
-          className="h-9 w-9 p-0 lg:hidden"
+          className="h-7 w-7 p-0 lg:hidden text-navy-muted hover:text-white hover:bg-navy-subtle"
           onClick={onNavigate}
           type="button"
           variant="ghost"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      <nav className="mt-5 grid gap-1">
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto sidebar-scroll px-3 py-4 grid gap-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950",
-                  isActive && "bg-slate-950 text-white hover:bg-slate-950 hover:text-white",
-                )
-              }
+              className={({ isActive }) => cn("nav-item", isActive && "active")}
               end={"end" in item ? item.end : undefined}
               key={item.to}
               onClick={onNavigate}
               to={item.to}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-3.5 w-3.5 shrink-0" />
               {item.label}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-        <div className="flex items-center gap-2 font-medium text-slate-900">
-          <RadioTower className="h-4 w-4 text-cyan-700" />
-          Local stack
+      {/* Footer stack status */}
+      <div className="px-3 pb-4">
+        <div className="rounded-lg border border-navy-border bg-navy-subtle/50 p-3">
+          <div className="flex items-center gap-2">
+            <RadioTower className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="text-xs font-semibold text-white/80">Local stack</span>
+          </div>
+          <p className="mt-2 text-[11px] text-navy-muted">API · localhost:4000</p>
+          <p className="text-[11px] text-navy-muted">Realtime · localhost:4130</p>
         </div>
-        <p className="mt-2">API gateway on localhost:4000</p>
-        <p>Realtime on localhost:4130</p>
       </div>
-    </>
+    </div>
   );
 }
 
 function DashboardLoadingShell() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-600 lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="hidden border-r border-slate-200 bg-white p-4 lg:block">
-        <div className="h-10 w-32 animate-pulse rounded-md bg-slate-200" />
-        <div className="mt-6 grid gap-2">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div className="h-9 animate-pulse rounded-md bg-slate-100" key={index} />
+    <main className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[15.5rem_1fr]">
+      {/* Sidebar shimmer */}
+      <aside className="hidden border-r border-navy-border bg-navy p-4 lg:block">
+        <div className="flex items-center gap-2.5 border-b border-navy-border pb-4">
+          <div className="skeleton-dark h-8 w-8 rounded-lg" />
+          <div className="space-y-1.5">
+            <div className="skeleton-dark h-3 w-20" />
+            <div className="skeleton-dark h-2.5 w-14" />
+          </div>
+        </div>
+        <div className="mt-4 grid gap-1">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div className="skeleton-dark h-8" key={index} style={{ opacity: 1 - index * 0.06 }} />
           ))}
         </div>
       </aside>
+      {/* Content shimmer */}
       <div>
-        <header className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
-              <div className="mt-2 h-6 w-52 animate-pulse rounded bg-slate-200" />
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <header className="topbar-glass px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between">
+            <div className="skeleton h-4 w-24" />
+            <div className="flex gap-2">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div className="h-10 w-32 animate-pulse rounded-md bg-slate-200" key={index} />
+                <div className="skeleton h-8 w-28 rounded-full" key={index} />
               ))}
             </div>
           </div>
         </header>
-        <div className="grid gap-4 p-4 sm:p-6 lg:p-8">
-          <div className="h-40 animate-pulse rounded-md bg-slate-200" />
-          <div className="grid gap-4 xl:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div className="h-36 animate-pulse rounded-md bg-slate-200" key={index} />
+        <div className="grid gap-4 p-4 sm:p-6">
+          <div className="grid grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div className="skeleton h-24 rounded-xl" key={index} />
+            ))}
+          </div>
+          <div className="skeleton h-48 rounded-xl" />
+          <div className="grid gap-4 xl:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div className="skeleton h-36 rounded-xl" key={index} />
             ))}
           </div>
         </div>
