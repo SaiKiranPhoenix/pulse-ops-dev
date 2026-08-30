@@ -114,7 +114,7 @@ const dashboardIncidentSchema = new Schema<DashboardIncidentRecord>(
     lastSeenAt: Date,
     resolvedAt: Date,
   },
-  { collection: "incidents", versionKey: false },
+  { collection: "incidents", timestamps: true, versionKey: false },
 );
 
 const dashboardVaultSecretSchema = new Schema<DashboardVaultSecretRecord>(

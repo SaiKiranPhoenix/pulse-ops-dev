@@ -64,6 +64,58 @@ describe("DashboardService", () => {
 
     await expect(service.summary("user_1", "project_2")).rejects.toThrow("Project access denied");
   });
+
+  it("serializes incident timestamps in error groups even when read-model timestamps are absent", async () => {
+    const observedAt = new Date("2026-08-18T00:00:00.000Z");
+    const service = new DashboardService(
+      {
+        ...createDashboardRepository(),
+        async errorGroups() {
+          return [
+            {
+              fingerprint: "payment-provider-timeout",
+              source: "checkout-api",
+              message: "Payment provider timeout",
+              count: 3,
+              firstSeenAt: observedAt,
+              lastSeenAt: observedAt,
+              samples: [],
+              stack: null,
+              incident: {
+                id: "incident_1",
+                projectId: "project_1",
+                fingerprint: "payment-provider-timeout",
+                title: "Payment provider timeout",
+                summary: null,
+                severity: "high",
+                status: "open",
+                eventCount: 3,
+                creationReason: "Repeated error telemetry matched by fingerprint",
+                acknowledgedAt: null,
+                resolutionNote: null,
+                samples: [],
+                firstSeenAt: observedAt,
+                lastSeenAt: observedAt,
+                resolvedAt: null,
+                createdAt: undefined as unknown as Date,
+                updatedAt: undefined as unknown as Date,
+              },
+            },
+          ];
+        },
+      } as DashboardRepository,
+      allowProjectAccess(),
+    );
+
+    await expect(service.errorGroups("user_1", "project_1", {})).resolves.toMatchObject([
+      {
+        incident: {
+          createdAt: "2026-08-18T00:00:00.000Z",
+          updatedAt: "2026-08-18T00:00:00.000Z",
+        },
+      },
+    ]);
+  });
 });
 
 function allowProjectAccess(): ProjectAuthorizationRepository {

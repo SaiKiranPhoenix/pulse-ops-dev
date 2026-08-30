@@ -37,6 +37,7 @@ export class GatewayService {
         version: "0.1.0",
       },
       paths: {
+        "/openapi.json": { get: { summary: "OpenAPI document" } },
         "/health": { get: { summary: "Gateway health" } },
         "/health/services": { get: { summary: "Gateway and upstream health" } },
         "/auth/{path}": { post: { summary: "Authentication proxy" } },

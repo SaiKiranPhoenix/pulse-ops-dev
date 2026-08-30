@@ -82,6 +82,17 @@ $env:PULSEOPS_DEMO_TIMEOUT_MS="120000"
 pnpm.cmd demo:smoke
 ```
 
+## Browser E2E Tests
+
+After `pnpm.cmd stack:up`, run the real dashboard journey with Playwright:
+
+```powershell
+pnpm.cmd test:e2e:health
+pnpm.cmd test:e2e
+```
+
+The suite registers a user, creates a project and API key, sends log/error/metric telemetry, checks dashboard updates, exercises incident resolve/reopen, and verifies vault create/reveal/token/audit flows. Set `PULSEOPS_SKIP_STACK_HEALTH=1` only when pointing the suite at a separately managed stack.
+
 ## Recruiter Demo Path
 
 1. Start the stack with `pnpm.cmd stack:up`.

@@ -335,20 +335,28 @@ function toDashboardEventDto(event: DashboardEvent): DashboardEventDto {
 }
 
 function toDashboardIncidentDto(incident: DashboardIncident): DashboardIncidentDto {
+  const firstSeenAt = requiredDateIso(incident.firstSeenAt, incident.lastSeenAt);
+  const lastSeenAt = requiredDateIso(incident.lastSeenAt, incident.firstSeenAt);
+
   return {
     ...incident,
     acknowledgedAt: incident.acknowledgedAt?.toISOString() ?? null,
-    firstSeenAt: incident.firstSeenAt.toISOString(),
-    lastSeenAt: incident.lastSeenAt.toISOString(),
+    firstSeenAt,
+    lastSeenAt,
     resolvedAt: incident.resolvedAt?.toISOString() ?? null,
     samples: incident.samples.map((sample) => ({
       ...sample,
       observedAt: sample.observedAt.toISOString(),
       receivedAt: sample.receivedAt.toISOString(),
     })),
-    createdAt: incident.createdAt.toISOString(),
-    updatedAt: incident.updatedAt.toISOString(),
+    createdAt: requiredDateIso(incident.createdAt, incident.firstSeenAt, incident.lastSeenAt),
+    updatedAt: requiredDateIso(incident.updatedAt, incident.lastSeenAt, incident.firstSeenAt),
   };
+}
+
+function requiredDateIso(...values: Array<Date | null | undefined>): string {
+  const date = values.find((value) => value instanceof Date && !Number.isNaN(value.getTime()));
+  return (date ?? new Date(0)).toISOString();
 }
 
 function toAnalyticsOptions(options: DashboardAnalyticsOptionsDto) {
