@@ -1,25 +1,14 @@
 import {
-  Activity,
-  AlertOctagon,
   AlertTriangle,
   Bell,
-  Check,
   CheckCircle2,
-  ChevronRight,
   Clock,
-  Copy,
   Download,
   Flame,
   Globe,
-  HardDrive,
-  HelpCircle,
-  KeyRound,
-  Layers,
-  ListFilter,
   Loader2,
   Mail,
   MessageSquare,
-  Moon,
   Play,
   Plus,
   RadioTower,
@@ -28,21 +17,12 @@ import {
   Search,
   Send,
   Server,
-  Settings2,
   ShieldAlert,
-  ShieldCheck,
-  Sliders,
-  Sparkles,
-  Sun,
-  Terminal,
   Trash2,
   Upload,
   UserCheck,
-  Users,
-  Volume2,
   VolumeX,
   X,
-  Zap,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -50,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import {
   acknowledgeIncident,
-  getIncident,
   listIncidents,
   reopenIncident,
   resolveIncident,
@@ -61,12 +40,10 @@ import {
   createMaintenanceWindow,
   createMonitor,
   createNotificationChannel,
-  createNotificationRoutingRule,
   createSilenceWindow,
   deleteMaintenanceWindow,
   deleteMonitor,
   deleteNotificationChannel,
-  deleteNotificationRoutingRule,
   deleteSilenceWindow,
   evaluateMonitor,
   exportMonitors,
@@ -80,19 +57,16 @@ import {
   updateMonitor,
   type MaintenanceWindow,
   type MonitorComparator,
-  type MonitorCondition,
   type MonitorRule,
   type MonitorRuleType,
   type MonitorSeverity,
-  type MonitorState,
   type NotificationChannel,
   type NotificationChannelType,
-  type NotificationRoutingRule,
   type SilenceWindow,
 } from "@/features/monitors/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
-import { formatRelativeTime, severityClass } from "./dashboard-utils";
+import { formatRelativeTime } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
 type TabMode = "incidents" | "monitors" | "silence" | "channels";
@@ -115,7 +89,6 @@ export function AlertsPage() {
 
   // --- MONITORS STATE ---
   const [monitors, setMonitors] = useState<MonitorRule[]>([]);
-  const [isLoadingMonitors, setIsLoadingMonitors] = useState(false);
   const [monitorRuleTypeFilter, setMonitorRuleTypeFilter] = useState<string>("all");
   const [monitorStateFilter, setMonitorStateFilter] = useState<string>("all");
   const [isCreatingMonitor, setIsCreatingMonitor] = useState(false);
@@ -129,9 +102,9 @@ export function AlertsPage() {
   const [formMonitorComparator, setFormMonitorComparator] = useState<MonitorComparator>(">");
   const [formMonitorThreshold, setFormMonitorThreshold] = useState(5.0);
   const [formMonitorWindowMin, setFormMonitorWindowMin] = useState(5);
-  const [formMonitorMetricName, setFormMonitorMetricName] = useState("");
-  const [formMonitorLogPattern, setFormMonitorLogPattern] = useState("");
-  const [formMonitorService, setFormMonitorService] = useState("");
+  const [formMonitorMetricName] = useState("");
+  const [formMonitorLogPattern] = useState("");
+  const [formMonitorService] = useState("");
   const [isSubmittingMonitor, setIsSubmittingMonitor] = useState(false);
 
   // --- SILENCE & MAINTENANCE STATE ---
@@ -146,7 +119,6 @@ export function AlertsPage() {
 
   // --- NOTIFICATION CHANNELS STATE ---
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
-  const [routingRules, setRoutingRules] = useState<NotificationRoutingRule[]>([]);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [testingChannelId, setTestingChannelId] = useState<string | null>(null);
   const [channelName, setChannelName] = useState("Core Team Webhook");

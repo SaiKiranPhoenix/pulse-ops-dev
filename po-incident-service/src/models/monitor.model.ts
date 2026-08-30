@@ -1,6 +1,5 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 import type {
-  MonitorComparator,
   MonitorCondition,
   MonitorRuleType,
   MonitorSeverity,

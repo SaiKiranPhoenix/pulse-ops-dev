@@ -1,9 +1,5 @@
 import { createHmac } from "node:crypto";
-import type {
-  AlertNotificationPayload,
-  NotificationChannel,
-  NotificationRoutingRule,
-} from "@pulseops/shared";
+import type { AlertNotificationPayload, NotificationChannel } from "@pulseops/shared";
 import type { NotificationChannelRepository } from "../repositories/notification-channel.repository.js";
 import type { SilenceWindowRepository } from "../repositories/silence-window.repository.js";
 
@@ -239,7 +235,7 @@ export class NotificationDispatcherService {
 
   private async sendEmail(
     channel: NotificationChannel,
-    payload: AlertNotificationPayload,
+    _payload: AlertNotificationPayload,
   ): Promise<void> {
     const recipients = channel.config.emailRecipients;
     if (!recipients?.length) {
