@@ -138,7 +138,12 @@ export function WorkersPage() {
             Inspect event workers, queue depth, and consumer availability across the local stack.
           </p>
         </div>
-        <Button className="w-auto" onClick={() => void loadOps()} type="button" variant="outline">
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => void loadOps()}
+          type="button"
+          variant="outline"
+        >
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
@@ -236,7 +241,7 @@ export function WorkersPage() {
         </aside>
       </section>
 
-      <section className="rounded-md border border-slate-200 bg-white">
+      <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
           <Boxes className="h-4 w-4 text-cyan-700" />
           <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
@@ -248,7 +253,7 @@ export function WorkersPage() {
             {isLoading ? "Loading queues" : "No queues observed"}
           </p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="min-w-[34rem] divide-y divide-slate-100">
             {queues.map((queue) => (
               <article
                 className="grid grid-cols-[1fr_6rem_6rem_7rem] items-center gap-3 px-4 py-3"
@@ -275,7 +280,7 @@ export function WorkersPage() {
         )}
       </section>
 
-      <section className="rounded-md border border-slate-200 bg-white">
+      <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Boxes className="h-4 w-4 text-cyan-700" />
@@ -284,7 +289,7 @@ export function WorkersPage() {
             </h2>
           </div>
           <Button
-            className="w-auto"
+            className="w-full sm:w-auto"
             disabled={deadLetters.length === 0 || isReplaying}
             onClick={() => void replayDlq()}
             type="button"
@@ -298,7 +303,7 @@ export function WorkersPage() {
             {isLoading ? "Loading dead letters" : "No dead-letter messages observed"}
           </p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="min-w-[34rem] divide-y divide-slate-100">
             {deadLetters.map((deadLetter) => (
               <article className="grid gap-3 px-4 py-3" key={deadLetter.id}>
                 <div className="grid gap-3 md:grid-cols-[1fr_7rem_10rem_10rem]">

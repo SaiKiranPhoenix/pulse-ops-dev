@@ -328,7 +328,7 @@ export function PlatformPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           disabled={isLoading}
           onClick={() => void loadPlatform()}
           type="button"
@@ -428,7 +428,7 @@ export function PlatformPage() {
                 <p className="mt-3 text-xs leading-5 text-slate-500">{scenario.expected}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button
-                    className="w-auto"
+                    className="w-full sm:w-auto"
                     disabled={activeDemoScenario !== null}
                     onClick={() => void sendDemoTraffic(scenario.id)}
                     type="button"

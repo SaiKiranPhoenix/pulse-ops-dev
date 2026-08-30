@@ -435,7 +435,7 @@ export function SetupPage() {
                   </p>
                 </div>
                 <Button
-                  className="w-auto"
+                  className="w-full sm:w-auto"
                   onClick={() => void copy(createdKey.rawKey)}
                   type="button"
                   variant="outline"

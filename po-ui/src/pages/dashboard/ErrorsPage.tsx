@@ -162,7 +162,7 @@ export function ErrorsPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void loadErrors()}
           type="button"
           variant="outline"
@@ -227,22 +227,22 @@ export function ErrorsPage() {
           ))}
         </select>
 
-        <form className="flex gap-2" onSubmit={sendRepeatedErrors}>
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={sendRepeatedErrors}>
           <Input
             onChange={(event) => setTestApiKey(event.target.value)}
             placeholder="API key for test"
             type="password"
             value={testApiKey}
           />
-          <Button className="w-auto" disabled={isSendingTest} type="submit">
+          <Button className="w-full sm:w-auto" disabled={isSendingTest} type="submit">
             <Send className="h-4 w-4" />
           </Button>
         </form>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_28rem]">
-        <div className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_8rem_8rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <div className="grid min-w-[46rem] grid-cols-[1fr_8rem_8rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
             <span>Error group</span>
             <span>Service</span>
             <span>Incident</span>
@@ -254,7 +254,7 @@ export function ErrorsPage() {
               {isLoading ? "Loading error groups" : "No error groups match the current filters"}
             </p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="min-w-[46rem] divide-y divide-slate-100">
               {filteredGroups.map((group) => (
                 <button
                   className="grid w-full grid-cols-[1fr_8rem_8rem_8rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
@@ -313,7 +313,12 @@ function ErrorGroupDetail({
           </p>
           <h2 className="mt-2 text-lg font-semibold leading-6 text-slate-950">{group.message}</h2>
         </div>
-        <Button className="h-9 w-9 px-0" onClick={onCopy} type="button" variant="outline">
+        <Button
+          className="h-11 w-11 px-0 sm:h-9 sm:w-9"
+          onClick={onCopy}
+          type="button"
+          variant="outline"
+        >
           <Clipboard className="h-4 w-4" />
         </Button>
       </div>

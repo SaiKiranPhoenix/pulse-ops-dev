@@ -174,7 +174,7 @@ export function ProjectSettingsPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           disabled={selectedProject === null}
           onClick={() =>
             selectedProjectConfig.length > 0
@@ -335,7 +335,7 @@ export function ProjectSettingsPage() {
                   </p>
                 </div>
                 <Button
-                  className="w-auto"
+                  className="w-full sm:w-auto"
                   onClick={() =>
                     setPendingLifecycleAction(
                       selectedProject.status === "active" ? "archive" : "restore",

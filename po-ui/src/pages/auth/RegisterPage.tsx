@@ -112,7 +112,10 @@ export function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already registered?{" "}
-        <Link className="font-medium text-primary hover:underline" to="/login">
+        <Link
+          className="inline-flex min-h-11 min-w-12 items-center justify-center font-medium text-primary hover:underline"
+          to="/login"
+        >
           Sign in
         </Link>
       </p>

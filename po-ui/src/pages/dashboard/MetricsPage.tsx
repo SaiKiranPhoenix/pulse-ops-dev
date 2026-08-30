@@ -144,7 +144,7 @@ export function MetricsPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void loadMetrics()}
           type="button"
           variant="outline"
@@ -268,7 +268,7 @@ export function MetricsPage() {
               value={testApiKey}
             />
             <Button
-              className="w-auto"
+              className="w-full sm:w-auto"
               disabled={isSendingTest}
               onClick={() => void sendHighLatencyTest()}
               type="button"
@@ -285,8 +285,8 @@ export function MetricsPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
-        <div className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_5rem_5rem_5rem_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <div className="grid min-w-[42rem] grid-cols-[1fr_5rem_5rem_5rem_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
             <span>Service</span>
             <span>Events</span>
             <span>Logs</span>
@@ -299,7 +299,7 @@ export function MetricsPage() {
               {isLoading ? "Loading services" : "No service metrics yet"}
             </p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="min-w-[42rem] divide-y divide-slate-100">
               {metrics?.services.map((service) => (
                 <article
                   className="grid grid-cols-[1fr_5rem_5rem_5rem_6rem_7rem] items-center gap-3 px-4 py-3 text-sm"

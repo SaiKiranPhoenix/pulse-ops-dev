@@ -57,6 +57,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
   }
 
   body {
@@ -68,9 +69,41 @@
       -apple-system,
       BlinkMacSystemFont,
       sans-serif;
-    font-size: 14px;
+    font-size: 1rem;
     line-height: 1.5;
     text-rendering: geometricPrecision;
+    overflow-x: hidden;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    height: auto;
+  }
+
+  pre,
+  code {
+    overflow-wrap: anywhere;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  [role="button"] {
+    min-height: 2.75rem;
+  }
+
+  select {
+    max-width: 100%;
+    font-size: 1rem;
   }
 
   h1,
@@ -81,7 +114,7 @@
   h6 {
     font-family: "Geist", "Inter", system-ui, sans-serif;
     font-feature-settings: "cv02", "cv03";
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   code,
@@ -262,6 +295,16 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: hsl(var(--muted-foreground));
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 0.875rem;
+    }
+
+    select {
+      font-size: 0.875rem;
+    }
   }
 
   .landing-surface {

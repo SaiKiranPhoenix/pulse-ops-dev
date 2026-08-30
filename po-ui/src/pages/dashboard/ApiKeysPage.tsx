@@ -214,7 +214,7 @@ export function ApiKeysPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void loadApiKeys()}
           type="button"
           variant="outline"
@@ -244,7 +244,7 @@ export function ApiKeysPage() {
           <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <p className="break-all font-mono text-sm text-amber-950">{rawKey}</p>
             <Button
-              className="w-auto"
+              className="w-full sm:w-auto"
               onClick={() => void copy(rawKey)}
               type="button"
               variant="outline"
@@ -420,7 +420,7 @@ export function ApiKeysPage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
-                className="w-auto"
+                className="w-full sm:w-auto"
                 onClick={() => setPendingDisable(null)}
                 type="button"
                 variant="outline"
@@ -428,7 +428,7 @@ export function ApiKeysPage() {
                 Cancel
               </Button>
               <Button
-                className="w-auto bg-red-700 text-white hover:bg-red-800"
+                className="w-full bg-red-700 text-white hover:bg-red-800 sm:w-auto"
                 disabled={isMutatingKeyId === pendingDisable.id}
                 onClick={() => void confirmDisable()}
                 type="button"

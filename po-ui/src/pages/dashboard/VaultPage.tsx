@@ -390,7 +390,12 @@ export function VaultPage() {
             integration tokens, and verify external secret fetches.
           </p>
         </div>
-        <Button className="w-auto" onClick={() => void loadVault()} type="button" variant="outline">
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => void loadVault()}
+          type="button"
+          variant="outline"
+        >
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
@@ -436,13 +441,13 @@ export function VaultPage() {
           type="password"
           value={unlockForm.confirmPassword}
         />
-        <div className="flex gap-2">
-          <Button className="w-auto" type="submit">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button className="w-full sm:w-auto" type="submit">
             <LockKeyhole className="h-4 w-4" />
             {vaultPasswordSession === null ? "Unlock" : "Update unlock"}
           </Button>
           <Button
-            className="w-auto"
+            className="w-full sm:w-auto"
             disabled={vaultPasswordSession === null}
             onClick={() => {
               setVaultPasswordSession(null);
@@ -460,7 +465,7 @@ export function VaultPage() {
       <section className="flex flex-wrap gap-2">
         {dashboardEnvironments.map((environment) => (
           <Button
-            className="w-auto capitalize"
+            className="w-full sm:w-auto capitalize"
             key={environment}
             onClick={() => setSelectedEnvironment(environment)}
             type="button"
@@ -531,8 +536,8 @@ export function VaultPage() {
           </div>
         </form>
 
-        <section className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_7rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <div className="grid min-w-[42rem] grid-cols-[1fr_7rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
             <span>Secret</span>
             <span>Version</span>
             <span>Updated</span>
@@ -543,7 +548,7 @@ export function VaultPage() {
               {isLoading ? "Loading secrets" : "No active secrets for this environment"}
             </p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="min-w-[42rem] divide-y divide-slate-100">
               {secrets.map((secret) => (
                 <article
                   className="grid grid-cols-[1fr_7rem_8rem_7rem] items-center gap-3 px-4 py-3"
@@ -678,8 +683,8 @@ export function VaultPage() {
           </div>
         </form>
 
-        <section className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_8rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <div className="grid min-w-[42rem] grid-cols-[1fr_8rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
             <span>Token</span>
             <span>Status</span>
             <span>Last used</span>
@@ -688,7 +693,7 @@ export function VaultPage() {
           {tokens.length === 0 ? (
             <p className="px-4 py-6 text-sm text-slate-500">No integration tokens</p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="min-w-[42rem] divide-y divide-slate-100">
               {tokens.map((token) => (
                 <article
                   className="grid grid-cols-[1fr_8rem_8rem_7rem] items-center gap-3 px-4 py-3"
@@ -733,7 +738,7 @@ export function VaultPage() {
           <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <p className="break-all font-mono text-sm text-amber-950">{rawToken}</p>
             <Button
-              className="w-auto"
+              className="w-full sm:w-auto"
               onClick={() => void copy(rawToken)}
               type="button"
               variant="outline"
@@ -903,7 +908,7 @@ function RevealPanel({
   readonly vaultPassword: string;
 }) {
   return (
-    <section className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-2xl rounded-md border border-slate-200 bg-white p-4 shadow-xl">
+    <section className="fixed inset-x-3 bottom-3 z-40 mx-auto max-h-[calc(100vh-1.5rem)] max-w-2xl overflow-y-auto rounded-md border border-slate-200 bg-white p-4 shadow-xl sm:inset-x-4 sm:bottom-4 sm:max-h-[calc(100vh-2rem)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">
@@ -915,7 +920,7 @@ function RevealPanel({
         </div>
         <Button
           aria-label="Close reveal panel"
-          className="h-9 w-9 px-0"
+          className="h-11 w-11 px-0 md:h-9 md:w-9"
           onClick={onClose}
           type="button"
           variant="outline"
@@ -948,7 +953,7 @@ function RevealPanel({
           <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <p className="break-all font-mono text-sm text-amber-950">{revealedSecret.value}</p>
             <Button
-              className="w-auto"
+              className="w-full sm:w-auto"
               onClick={() => void onCopy(revealedSecret.value)}
               type="button"
               variant="outline"
@@ -967,13 +972,13 @@ function RevealPanel({
         <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">
           Version history
         </p>
-        <div className="mt-2 grid gap-2">
+        <div className="mt-2 grid gap-2 overflow-x-auto">
           {versions.length === 0 ? (
             <p className="text-sm text-slate-500">No version history recorded yet.</p>
           ) : (
             versions.map((version) => (
               <div
-                className="grid grid-cols-[4rem_1fr_8rem] items-center gap-2 text-xs"
+                className="grid min-w-[24rem] grid-cols-[4rem_1fr_8rem] items-center gap-2 text-xs"
                 key={`${version.version}:${version.occurredAt}`}
               >
                 <span className="font-mono text-slate-900">v{version.version}</span>
@@ -1015,7 +1020,7 @@ function Snippet({
       <div className="mb-2 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-normal text-slate-300">{title}</p>
         <Button
-          className="h-8 w-8 px-0 text-slate-950"
+          className="h-11 w-11 px-0 text-slate-950 md:h-8 md:w-8"
           onClick={() => void onCopy(value)}
           type="button"
           variant="secondary"

@@ -405,14 +405,14 @@ function DashboardFrame({
         />
       ) : null}
 
-      <div className="min-w-0 flex flex-col">
+      <div className="flex min-w-0 flex-col">
         {/* ── Frosted glass topbar ── */}
-        <header className="sticky top-0 z-20 topbar-glass px-4 py-2.5 sm:px-6">
-          <div className="flex items-center justify-between gap-3">
+        <header className="sticky top-0 z-20 topbar-glass px-3 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-2.5">
               <Button
                 aria-label="Open navigation"
-                className="h-8 w-8 shrink-0 p-0 lg:hidden"
+                className="h-11 w-11 shrink-0 p-0 lg:hidden"
                 onClick={() => {
                   setIsMobileNavOpen(true);
                 }}
@@ -426,14 +426,14 @@ function DashboardFrame({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:grid-cols-none md:flex md:flex-wrap md:items-center md:justify-end">
               {/* Project selector */}
-              <label className="relative block">
+              <label className="relative block min-w-0">
                 <span className="sr-only">Project</span>
                 <select
                   className={cn(
-                    "h-8 min-w-40 appearance-none rounded-full border border-border bg-background",
-                    "pl-3 pr-8 text-xs font-medium shadow-sm outline-none",
+                    "h-11 w-full appearance-none rounded-full border border-border bg-background md:h-8 md:min-w-40",
+                    "pl-3 pr-8 text-base font-medium shadow-sm outline-none md:text-xs",
                     "focus:ring-2 focus:ring-ring transition-colors",
                   )}
                   disabled={projects.length === 0}
@@ -449,16 +449,16 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-3.5 h-3.5 w-3.5 text-muted-foreground md:top-2" />
               </label>
 
               {/* Environment selector */}
-              <label className="relative block">
+              <label className="relative block min-w-0">
                 <span className="sr-only">Environment</span>
                 <select
                   className={cn(
-                    "h-8 min-w-32 appearance-none rounded-full border border-border bg-background",
-                    "pl-3 pr-8 text-xs font-medium capitalize shadow-sm outline-none",
+                    "h-11 w-full appearance-none rounded-full border border-border bg-background md:h-8 md:min-w-32",
+                    "pl-3 pr-8 text-base font-medium capitalize shadow-sm outline-none md:text-xs",
                     "focus:ring-2 focus:ring-ring transition-colors",
                   )}
                   onChange={(event) => {
@@ -474,16 +474,16 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-3.5 h-3.5 w-3.5 text-muted-foreground md:top-2" />
               </label>
 
               {/* Time range selector */}
-              <label className="relative block">
+              <label className="relative block min-w-0">
                 <span className="sr-only">Time range</span>
                 <select
                   className={cn(
-                    "h-8 min-w-20 appearance-none rounded-full border border-border bg-background",
-                    "pl-3 pr-8 text-xs font-medium shadow-sm outline-none",
+                    "h-11 w-full appearance-none rounded-full border border-border bg-background md:h-8 md:min-w-20",
+                    "pl-3 pr-8 text-base font-medium shadow-sm outline-none md:text-xs",
                     "focus:ring-2 focus:ring-ring transition-colors",
                   )}
                   onChange={(event) => {
@@ -499,13 +499,13 @@ function DashboardFrame({
                     </option>
                   ))}
                 </select>
-                <Clock className="pointer-events-none absolute right-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Clock className="pointer-events-none absolute right-2.5 top-3.5 h-3.5 w-3.5 text-muted-foreground md:top-2" />
               </label>
 
               {/* Realtime status pill */}
               <span
                 className={cn(
-                  "realtime-pill",
+                  "realtime-pill h-11 justify-center md:h-8",
                   realtimeState === "connected" &&
                     "border-emerald-200 bg-emerald-50 text-emerald-700",
                   (realtimeState === "connecting" || realtimeState === "stale") &&
@@ -530,7 +530,7 @@ function DashboardFrame({
               {/* User menu */}
               <div className="relative">
                 <Button
-                  className="w-auto gap-1.5 px-2.5"
+                  className="w-full gap-1.5 px-2.5 md:w-auto"
                   icon={<UserRound className="h-3.5 w-3.5" />}
                   onClick={() => {
                     setIsUserMenuOpen(!isUserMenuOpen);
@@ -538,7 +538,7 @@ function DashboardFrame({
                   type="button"
                   variant="ghost"
                 >
-                  <span className="max-w-28 truncate text-xs">
+                  <span className="max-w-full truncate text-sm md:max-w-28 md:text-xs">
                     {currentUser?.name ?? currentUser?.email ?? "Account"}
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -547,7 +547,7 @@ function DashboardFrame({
                 {isUserMenuOpen ? (
                   <div
                     className={cn(
-                      "absolute right-0 z-30 mt-2 w-52 rounded-xl border border-border bg-card p-1.5 text-sm",
+                      "absolute right-0 z-30 mt-2 w-[min(13rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-card p-1.5 text-sm",
                       "shadow-float animate-fade-in",
                     )}
                   >
@@ -590,7 +590,7 @@ function DashboardFrame({
           </div>
         </header>
 
-        <div className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
+        <div className="flex-1 px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
           <div className="page-enter">{children}</div>
         </div>
       </div>
@@ -707,7 +707,7 @@ function DashboardLoadingShell() {
           </div>
         </header>
         <div className="grid gap-4 p-4 sm:p-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <div className="skeleton h-24 rounded-xl" key={index} />
             ))}

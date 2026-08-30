@@ -243,7 +243,7 @@ export function LogsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
-            className="w-auto"
+            className="w-full sm:w-auto"
             onClick={() => setIsLive((current) => !current)}
             type="button"
             variant={isLive ? "primary" : "outline"}
@@ -252,7 +252,7 @@ export function LogsPage() {
             {isLive ? "Pause live" : "Resume live"}
           </Button>
           <Button
-            className="w-auto"
+            className="w-full sm:w-auto"
             onClick={() => void loadEvents()}
             type="button"
             variant="outline"
@@ -326,12 +326,17 @@ export function LogsPage() {
             value={timeRange}
           />
 
-          <Button className="w-auto" onClick={resetFilters} type="button" variant="outline">
+          <Button
+            className="w-full sm:w-auto"
+            onClick={resetFilters}
+            type="button"
+            variant="outline"
+          >
             <X className="h-4 w-4" />
             Reset
           </Button>
 
-          <Button asChild className="w-auto" variant="outline">
+          <Button asChild className="w-full sm:w-auto" variant="outline">
             <Link to="/dashboard/setup">
               <Send className="h-4 w-4" />
               Send test

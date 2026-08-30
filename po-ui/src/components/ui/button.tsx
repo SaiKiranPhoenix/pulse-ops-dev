@@ -34,7 +34,7 @@ export function Button({
   return (
     <Component
       className={cn(
-        "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md px-3.5 text-sm font-medium",
+        "inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-3.5 text-base font-medium sm:h-9 sm:text-sm",
         "transition-all duration-150 ease-spring",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         "disabled:pointer-events-none disabled:opacity-40",
