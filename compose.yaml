@@ -258,7 +258,7 @@ services:
     container_name: pulseops-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - pulseops_mongodb_data:/data/db
     healthcheck:

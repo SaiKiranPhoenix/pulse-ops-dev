@@ -1,2 +1,4 @@
 packages:
   - "po-*"
+allowBuilds:
+  esbuild: true

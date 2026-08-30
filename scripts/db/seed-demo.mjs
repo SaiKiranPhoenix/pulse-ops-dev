@@ -28,6 +28,13 @@ const secretKey = `DEMO_SERVICE_TOKEN_${runId.toUpperCase()}`;
 const secretValue = `seed-${randomUUID()}`;
 const errorFingerprint = "demo-checkout-payment-provider-timeout";
 
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
 try {
   await main();
 } catch (error) {
@@ -404,11 +411,4 @@ async function step(label, action) {
   const result = await action();
   console.log("ok");
   return result;
-}
-
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
 }
