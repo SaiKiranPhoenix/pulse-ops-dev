@@ -913,7 +913,13 @@ function RevealPanel({
             {secret.environment}/{secret.key}
           </h2>
         </div>
-        <Button className="h-9 w-9 px-0" onClick={onClose} type="button" variant="outline">
+        <Button
+          aria-label="Close reveal panel"
+          className="h-9 w-9 px-0"
+          onClick={onClose}
+          type="button"
+          variant="outline"
+        >
           <EyeOff className="h-4 w-4" />
         </Button>
       </div>

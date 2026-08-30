@@ -442,17 +442,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Ops unit tests exist.
 - [x] Event worker unit tests exist.
 - [x] Demo smoke script exists.
-- [ ] Partial No browser E2E test suite for the real user journey.
-- [ ] Todo Add Playwright E2E tests: register, create project, create API key, send test event, see dashboard update.
-- [ ] Todo Add Vault E2E: create secret, reveal, create token, fetch secret, see audit.
-- [ ] Todo Add Incidents E2E: send repeated errors, incident appears, resolve/reopen.
-- [ ] Todo Add Logs E2E: send log, live row appears.
-- [ ] Todo Add Metrics E2E: send latency metric, chart updates.
-- [ ] Todo Add Docker health E2E before demo smoke.
-- [ ] Todo Add queue retry/DLQ tests.
-- [ ] Todo Add Redis TTL tests.
-- [ ] Todo Add project isolation tests.
-- [ ] Todo Add API contract tests.
+- [x] Browser E2E test suite exists for the real user journey.
+- [x] Add Playwright E2E tests: register, create project, create API key, send test event, see dashboard update.
+- [x] Add Vault E2E: create secret, reveal, create token, fetch secret, see audit.
+- [x] Add Incidents E2E: send repeated errors, incident appears, resolve/reopen.
+- [x] Add Logs E2E: send log, live row appears.
+- [x] Add Metrics E2E: send latency metric, chart updates.
+- [x] Add Docker health E2E before demo smoke.
+- [x] Add queue retry/DLQ tests.
+- [x] Add Redis TTL tests.
+- [x] Add project isolation tests.
+- [x] Add API contract tests.
 
 ## Load And Demo Scripts
 
