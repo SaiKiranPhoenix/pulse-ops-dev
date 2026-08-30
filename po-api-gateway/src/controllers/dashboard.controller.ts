@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
+import { getAuthContext } from "../middlewares/auth.middleware.js";
 import type { DashboardService } from "../services/dashboard.service.js";
 import type {
   DashboardAnalyticsQuery,
@@ -12,14 +13,16 @@ export class DashboardController {
 
   summary = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as ProjectQuery;
-    const summary = await this.dashboard.summary(query.projectId);
+    const auth = getAuthContext(response);
+    const summary = await this.dashboard.summary(auth.userId, query.projectId);
 
     response.status(200).json(successResponse({ summary }, String(response.locals.requestId)));
   };
 
   events = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as DashboardEventsQuery;
-    const events = await this.dashboard.events(query.projectId, {
+    const auth = getAuthContext(response);
+    const events = await this.dashboard.events(auth.userId, query.projectId, {
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
       limit: query.limit,
     });
@@ -29,14 +32,16 @@ export class DashboardController {
 
   incidents = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as ProjectQuery;
-    const incidents = await this.dashboard.incidents(query.projectId);
+    const auth = getAuthContext(response);
+    const incidents = await this.dashboard.incidents(auth.userId, query.projectId);
 
     response.status(200).json(successResponse({ incidents }, String(response.locals.requestId)));
   };
 
   vaultActivity = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as ProjectQuery;
-    const vaultActivity = await this.dashboard.vaultActivity(query.projectId);
+    const auth = getAuthContext(response);
+    const vaultActivity = await this.dashboard.vaultActivity(auth.userId, query.projectId);
 
     response
       .status(200)
@@ -45,7 +50,9 @@ export class DashboardController {
 
   ingestionStats = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const auth = getAuthContext(response);
     const ingestion = await this.dashboard.ingestionStats(
+      auth.userId,
       query.projectId,
       toAnalyticsOptions(query),
     );
@@ -55,7 +62,9 @@ export class DashboardController {
 
   errorGroups = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
+    const auth = getAuthContext(response);
     const errorGroups = await this.dashboard.errorGroups(
+      auth.userId,
       query.projectId,
       toAnalyticsOptions(query),
     );
@@ -65,14 +74,24 @@ export class DashboardController {
 
   metricSummary = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
-    const metrics = await this.dashboard.metricSummary(query.projectId, toAnalyticsOptions(query));
+    const auth = getAuthContext(response);
+    const metrics = await this.dashboard.metricSummary(
+      auth.userId,
+      query.projectId,
+      toAnalyticsOptions(query),
+    );
 
     response.status(200).json(successResponse({ metrics }, String(response.locals.requestId)));
   };
 
   traceSummary = async (_request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as DashboardAnalyticsQuery;
-    const traces = await this.dashboard.traceSummary(query.projectId, toAnalyticsOptions(query));
+    const auth = getAuthContext(response);
+    const traces = await this.dashboard.traceSummary(
+      auth.userId,
+      query.projectId,
+      toAnalyticsOptions(query),
+    );
 
     response.status(200).json(successResponse({ traces }, String(response.locals.requestId)));
   };

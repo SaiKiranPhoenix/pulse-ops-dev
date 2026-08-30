@@ -11,6 +11,10 @@ type AccessTokenClaims = {
   readonly aud: string;
 };
 
+export type AuthenticatedRequestContext = {
+  readonly userId: string;
+};
+
 export function createAuthMiddleware(jwtSecret: string): RequestHandler {
   return (request, response, next) => {
     const claims = verifyAccessToken(
@@ -22,6 +26,26 @@ export function createAuthMiddleware(jwtSecret: string): RequestHandler {
     };
     next();
   };
+}
+
+export function getAuthContext(response: { readonly locals: Record<string, unknown> }) {
+  const authContext = response.locals.auth;
+
+  if (!isAuthContext(authContext)) {
+    throw unauthorized("Authentication required");
+  }
+
+  return authContext;
+}
+
+function isAuthContext(value: unknown): value is AuthenticatedRequestContext {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "userId" in value &&
+    typeof value.userId === "string" &&
+    value.userId.length > 0
+  );
 }
 
 function verifyAccessToken(token: string, jwtSecret: string): AccessTokenClaims {

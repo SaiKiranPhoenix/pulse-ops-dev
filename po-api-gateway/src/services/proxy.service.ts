@@ -20,7 +20,6 @@ const forwardedRequestHeaders = new Set([
   "idempotency-key",
   "x-api-key",
   "x-request-id",
-  "x-user-id",
   "x-vault-token",
 ]);
 
@@ -32,7 +31,7 @@ export type ProxyTarget = {
 export class ProxyService {
   async forward(request: Request, response: Response, target: ProxyTarget): Promise<void> {
     const upstreamUrl = createUpstreamUrl(target.baseUrl, target.pathPrefix, request);
-    const upstreamResponse = await fetchUpstream(request, upstreamUrl);
+    const upstreamResponse = await fetchUpstream(request, response, upstreamUrl);
     const responseBody = await readUpstreamBody(upstreamResponse);
 
     response.status(upstreamResponse.status);
@@ -47,11 +46,15 @@ export class ProxyService {
   }
 }
 
-async function fetchUpstream(request: Request, upstreamUrl: URL): Promise<globalThis.Response> {
+async function fetchUpstream(
+  request: Request,
+  response: Response,
+  upstreamUrl: URL,
+): Promise<globalThis.Response> {
   try {
     const requestInit: RequestInit = {
       method: request.method,
-      headers: buildForwardHeaders(request),
+      headers: buildForwardHeaders(request, response),
       redirect: "manual",
       ...(hasBody(request.method) ? { body: JSON.stringify(request.body ?? {}) } : {}),
     };
@@ -76,7 +79,7 @@ function hasBody(method: string): boolean {
   return !["GET", "HEAD"].includes(method.toUpperCase());
 }
 
-function buildForwardHeaders(request: Request): Headers {
+function buildForwardHeaders(request: Request, response: Response | undefined): Headers {
   const headers = new Headers();
 
   for (const [headerName, headerValue] of Object.entries(request.headers)) {
@@ -98,7 +101,7 @@ function buildForwardHeaders(request: Request): Headers {
     headers.set("content-type", "application/json");
   }
 
-  const userId = responseUserId(request);
+  const userId = responseUserId(response);
 
   if (userId !== null) {
     headers.set("x-user-id", userId);
@@ -107,8 +110,8 @@ function buildForwardHeaders(request: Request): Headers {
   return headers;
 }
 
-function responseUserId(request: Request): string | null {
-  const auth = request.res?.locals.auth as { readonly userId?: unknown } | undefined;
+function responseUserId(response: Response | undefined): string | null {
+  const auth = response?.locals.auth as { readonly userId?: unknown } | undefined;
   return typeof auth?.userId === "string" && auth.userId.length > 0 ? auth.userId : null;
 }
 

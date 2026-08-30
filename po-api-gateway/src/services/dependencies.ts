@@ -5,6 +5,7 @@ import { ProxyController, type ProxyTargets } from "../controllers/proxy.control
 import { loadEnv } from "../config/env.js";
 import { MongoDashboardRepository } from "../repositories/dashboard.repository.js";
 import { RedisDashboardRateLimitRepository } from "../repositories/ingestion-rate-limit.repository.js";
+import { MongoProjectAuthorizationRepository } from "../repositories/project-authorization.repository.js";
 import { DashboardService } from "./dashboard.service.js";
 import { GatewayService } from "./gateway.service.js";
 import { ProxyService } from "./proxy.service.js";
@@ -16,14 +17,17 @@ export type ApiGatewayDependencies = {
   readonly gatewayService: GatewayService;
   readonly proxyController: ProxyController;
   readonly proxyService: ProxyService;
+  readonly projectAuthorization: MongoProjectAuthorizationRepository;
   readonly jwtSecret: string;
   readonly corsAllowedOrigins: string;
 };
 
 export function createApiGatewayDependencies(): ApiGatewayDependencies {
   const env = loadEnv();
+  const projectAuthorization = new MongoProjectAuthorizationRepository();
   const dashboardService = new DashboardService(
     new MongoDashboardRepository(),
+    projectAuthorization,
     new RedisDashboardRateLimitRepository(
       createRedisClient(env.REDIS_URL),
       env.RATE_LIMIT_PER_MINUTE,
@@ -70,6 +74,7 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
     gatewayService,
     proxyController: new ProxyController(proxyService, proxyTargets),
     proxyService,
+    projectAuthorization,
     jwtSecret: env.JWT_SECRET,
     corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   };

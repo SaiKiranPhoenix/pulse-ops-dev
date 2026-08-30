@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { successResponse } from "@pulseops/shared";
+import { getAuthContext } from "../middlewares/auth.middleware.js";
 import type { VaultService } from "../services/vault.service.js";
 import type {
   CreateSecretBody,
@@ -142,8 +143,10 @@ function auditContext(
   request: Request,
   response: Response,
 ): { readonly actorId: string; readonly correlationId: string } {
+  const auth = getAuthContext(response);
+
   return {
-    actorId: String(request.header("x-user-id") ?? "unknown"),
+    actorId: auth.userId,
     correlationId: String(response.locals.requestId ?? "unknown"),
   };
 }

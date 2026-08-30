@@ -34,6 +34,7 @@ describe("ProxyService", () => {
     expect(init?.body).toBe(JSON.stringify({ message: "checkout failed" }));
     expect((init?.headers as Headers).get("x-api-key")).toBe("po_live_test");
     expect((init?.headers as Headers).get("x-request-id")).toBe("req_proxy");
+    expect((init?.headers as Headers).get("x-user-id")).toBeNull();
     expect((init?.headers as Headers).get("cookie")).toBeNull();
     expect(response.statusCode).toBe(202);
     expect(response.headers.get("content-type")).toContain("application/json");
@@ -63,14 +64,37 @@ describe("ProxyService", () => {
     );
     expect(response.body).toBe("");
   });
+
+  it("forwards the verified gateway user id and ignores spoofed user headers", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const response = createMockResponse({ userId: "verified_user" });
+
+    await new ProxyService().forward(
+      createMockRequest({ headers: { "x-user-id": "spoofed_user" } }),
+      response,
+      {
+        baseUrl: "http://po-vault-service:4070",
+        pathPrefix: "",
+      },
+    );
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect((init?.headers as Headers).get("x-user-id")).toBe("verified_user");
+  });
 });
 
-function createMockRequest(): Request {
+function createMockRequest(options: { readonly headers?: Record<string, string> } = {}): Request {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     cookie: "session=ignored",
     "x-api-key": "po_live_test",
     "x-request-id": "req_proxy",
+    ...options.headers,
   };
 
   return {
@@ -82,7 +106,7 @@ function createMockRequest(): Request {
   } as unknown as Request;
 }
 
-function createMockResponse(): Response & {
+function createMockResponse(auth?: { readonly userId: string }): Response & {
   readonly headers: Headers;
   body: string;
   statusCode: number;
@@ -92,6 +116,7 @@ function createMockResponse(): Response & {
     headers,
     body: "",
     statusCode: 200,
+    locals: auth === undefined ? {} : { auth },
     status(statusCode: number) {
       this.statusCode = statusCode;
       return this;

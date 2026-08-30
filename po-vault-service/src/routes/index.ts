@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { VaultController } from "../controllers/vault.controller.js";
+import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
@@ -23,6 +24,14 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
   });
+  router.get(
+    "/integrations/vault/secrets/:environment/:key",
+    validateParams(tokenFetchParamsSchema),
+    asyncHandler(dependencies.vaultController.fetchWithToken),
+  );
+
+  router.use(createAuthMiddleware());
+
   router.post(
     "/vault/secrets",
     validateBody(createSecretBodySchema),
@@ -77,11 +86,6 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateParams(vaultTokenParamsSchema),
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.revokeToken),
-  );
-  router.get(
-    "/integrations/vault/secrets/:environment/:key",
-    validateParams(tokenFetchParamsSchema),
-    asyncHandler(dependencies.vaultController.fetchWithToken),
   );
 
   return router;

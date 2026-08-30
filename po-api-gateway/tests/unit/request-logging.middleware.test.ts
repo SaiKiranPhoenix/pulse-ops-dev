@@ -32,7 +32,8 @@ describe("createRequestLoggingMiddleware", () => {
     response.locals = { requestId: "req_1" };
     const request = {
       method: "POST",
-      originalUrl: "/vault/secrets",
+      originalUrl:
+        "/vault/secrets?projectId=project_1&vaultPassword=raw-password&povt=povt_rawtokenvalue123",
       headers: {
         authorization: "Bearer raw-token",
         "x-vault-token": "raw-vault-token",
@@ -47,9 +48,11 @@ describe("createRequestLoggingMiddleware", () => {
 
     expect(JSON.stringify(logger.entries)).not.toContain("raw-token");
     expect(JSON.stringify(logger.entries)).not.toContain("raw-vault-token");
+    expect(JSON.stringify(logger.entries)).not.toContain("raw-password");
+    expect(JSON.stringify(logger.entries)).not.toContain("povt_rawtokenvalue123");
     expect(logger.entries[0]?.metadata).toMatchObject({
       method: "POST",
-      path: "/vault/secrets",
+      path: expect.stringContaining("/vault/secrets?"),
       statusCode: 200,
       requestHeaders: {
         "content-type": "application/json",

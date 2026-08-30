@@ -43,6 +43,7 @@ function toRouteDependencies(dependencies: ApiGatewayDependencies): RouteDepende
     dashboardController: dependencies.dashboardController,
     gatewayController: dependencies.gatewayController,
     proxyController: dependencies.proxyController,
+    projectAuthorization: dependencies.projectAuthorization,
     jwtSecret: dependencies.jwtSecret,
   };
 }

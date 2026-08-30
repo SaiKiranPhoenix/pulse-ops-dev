@@ -192,6 +192,52 @@ describe("ingestion routes", () => {
     });
   });
 
+  it("redacts sensitive telemetry metadata before publishing", async () => {
+    const dependencies = createTestDependencies();
+    const app = createApp({ dependencies });
+    const credential = ["demo", "password"].join("-");
+    const databaseUrl = ["postgres://demo-user:", credential, "@localhost:5432/pulseops"].join("");
+    const rawPassword = ["raw", "password"].join("-");
+    const rawVaultToken = ["povt", "rawtokenvalue123"].join("_");
+
+    await request(app)
+      .post("/ingest/errors")
+      .set("x-api-key", validApiKey())
+      .send({
+        source: "checkout-api",
+        name: "DatabaseError",
+        message: `failed to connect to ${databaseUrl}`,
+        stack: `DatabaseError: failed at ${databaseUrl}`,
+        attributes: {
+          safeTag: "checkout",
+          password: rawPassword,
+          token: rawVaultToken,
+          nested: {
+            databaseUrl,
+          },
+        },
+      })
+      .expect(202);
+
+    expect(dependencies.publisher.published).toHaveLength(1);
+    const published = dependencies.publisher.published[0]?.message;
+    const publishedJson = JSON.stringify(published);
+
+    expect(published?.message).toContain("[REDACTED]");
+    expect(published?.attributes).toMatchObject({
+      safeTag: "checkout",
+      password: "[REDACTED]",
+      token: "[REDACTED]",
+      nested: {
+        databaseUrl: "[REDACTED]",
+      },
+      hasStack: true,
+    });
+    expect(publishedJson).not.toContain("demo-password");
+    expect(publishedJson).not.toContain(rawPassword);
+    expect(publishedJson).not.toContain(rawVaultToken);
+  });
+
   it("accepts valid ingestion when the API key cache is unavailable", async () => {
     const dependencies = createTestDependencies({ cache: new FailingApiKeyCache() });
     const app = createApp({ dependencies });

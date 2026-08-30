@@ -419,16 +419,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Vault token hashing exists.
 - [x] Secret encryption exists.
 - [x] JWT auth exists.
-- [ ] Partial Some auth middleware files in service folders are placeholders.
-- [ ] Verify no raw secrets/tokens/passwords appear in logs.
-- [ ] Verify project isolation across all APIs.
-- [ ] Verify realtime room authorization.
-- [ ] Verify no sensitive values are returned from list APIs.
-- [ ] Todo Add brute-force protections for vault reveal.
-- [ ] Todo Add metadata redaction/rejection tests for telemetry payloads.
-- [ ] Todo Add security-focused integration test suite.
-- [ ] Todo Add local security checklist in README.
-- [ ] Todo Add explicit MVP limitations compared with HashiCorp Vault.
+- [x] Auth middleware files in service folders enforce gateway identity or API-key presence.
+- [x] Verify no raw secrets/tokens/passwords appear in logs.
+- [x] Verify project isolation across all APIs.
+- [x] Verify realtime room authorization.
+- [x] Verify no sensitive values are returned from list APIs.
+- [x] Add brute-force protections for vault reveal.
+- [x] Add metadata redaction/rejection tests for telemetry payloads.
+- [x] Add security-focused integration test suite.
+- [x] Add local security checklist in README.
+- [x] Add explicit MVP limitations compared with HashiCorp Vault.
 
 ## Testing
 

@@ -13,6 +13,8 @@ import type {
   DashboardRateLimitRepository,
   DashboardRateLimitUsage,
 } from "../repositories/ingestion-rate-limit.repository.js";
+import { forbidden } from "@pulseops/shared";
+import type { ProjectAuthorizationRepository } from "../repositories/project-authorization.repository.js";
 
 export type DashboardSummaryDto = {
   readonly projectId: string;
@@ -142,6 +144,7 @@ export type DashboardTraceSummaryDto = Omit<
 export class DashboardService {
   constructor(
     private readonly dashboard: DashboardRepository,
+    private readonly projects: ProjectAuthorizationRepository,
     private readonly rateLimits?: DashboardRateLimitRepository,
     private readonly rateLimitFallback: DashboardRateLimitFallback = {
       limitPerMinute: 600,
@@ -149,7 +152,8 @@ export class DashboardService {
     },
   ) {}
 
-  async summary(projectId: string): Promise<DashboardSummaryDto> {
+  async summary(userId: string, projectId: string): Promise<DashboardSummaryDto> {
+    await this.ensureProjectAccess(projectId, userId);
     const [totalEvents, openIncidents] = await Promise.all([
       this.dashboard.countEvents(projectId),
       this.dashboard.countOpenIncidents(projectId),
@@ -163,9 +167,11 @@ export class DashboardService {
   }
 
   async events(
+    userId: string,
     projectId: string,
     options: DashboardEventPageOptions,
   ): Promise<DashboardEventPageDto> {
+    await this.ensureProjectAccess(projectId, userId);
     const page = await this.dashboard.pagedEvents(projectId, options);
     return {
       events: page.events.map(toDashboardEventDto),
@@ -173,12 +179,14 @@ export class DashboardService {
     };
   }
 
-  async incidents(projectId: string): Promise<DashboardIncidentDto[]> {
+  async incidents(userId: string, projectId: string): Promise<DashboardIncidentDto[]> {
+    await this.ensureProjectAccess(projectId, userId);
     const incidents = await this.dashboard.latestIncidents(projectId);
     return incidents.map(toDashboardIncidentDto);
   }
 
-  async vaultActivity(projectId: string): Promise<DashboardVaultActivityDto[]> {
+  async vaultActivity(userId: string, projectId: string): Promise<DashboardVaultActivityDto[]> {
+    await this.ensureProjectAccess(projectId, userId);
     const activities = await this.dashboard.latestVaultActivity(projectId);
     return activities.map((activity) => ({
       ...activity,
@@ -187,9 +195,11 @@ export class DashboardService {
   }
 
   async ingestionStats(
+    userId: string,
     projectId: string,
     options: DashboardAnalyticsOptionsDto,
   ): Promise<DashboardIngestionStatsDto> {
+    await this.ensureProjectAccess(projectId, userId);
     const normalizedOptions = toAnalyticsOptions(options);
     const stats = await this.dashboard.ingestionStats(projectId, normalizedOptions);
     const rateLimit = await this.rateLimitSnapshot(projectId);
@@ -206,9 +216,11 @@ export class DashboardService {
   }
 
   async errorGroups(
+    userId: string,
     projectId: string,
     options: DashboardAnalyticsOptionsDto,
   ): Promise<DashboardErrorGroupDto[]> {
+    await this.ensureProjectAccess(projectId, userId);
     const groups = await this.dashboard.errorGroups(projectId, toAnalyticsOptions(options));
     return groups.map((group) => ({
       ...group,
@@ -220,9 +232,11 @@ export class DashboardService {
   }
 
   async metricSummary(
+    userId: string,
     projectId: string,
     options: DashboardAnalyticsOptionsDto,
   ): Promise<DashboardMetricSummaryDto> {
+    await this.ensureProjectAccess(projectId, userId);
     const summary = await this.dashboard.metricSummary(projectId, toAnalyticsOptions(options));
 
     return {
@@ -242,9 +256,11 @@ export class DashboardService {
   }
 
   async traceSummary(
+    userId: string,
     projectId: string,
     options: DashboardAnalyticsOptionsDto,
   ): Promise<DashboardTraceSummaryDto> {
+    await this.ensureProjectAccess(projectId, userId);
     const summary = await this.dashboard.traceSummary(projectId, toAnalyticsOptions(options));
 
     return {
@@ -278,6 +294,12 @@ export class DashboardService {
     }
 
     return unavailableRateLimit(this.rateLimitFallback);
+  }
+
+  private async ensureProjectAccess(projectId: string, userId: string): Promise<void> {
+    if (!(await this.projects.canAccessProject(projectId, userId))) {
+      throw forbidden("Project access denied");
+    }
   }
 }
 

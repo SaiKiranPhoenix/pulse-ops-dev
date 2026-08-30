@@ -40,6 +40,18 @@ describe("redaction", () => {
     expect(result).not.toContain("demo-password");
   });
 
+  it("redacts PulseOps API keys and vault tokens inside text", () => {
+    const result = redactString(
+      ["ingestion key po_live_local_ingestion_test_key", "vault token povt_rawtokenvalue123"].join(
+        " ",
+      ),
+    );
+
+    expect(result).toContain(redactedValue);
+    expect(result).not.toContain("po_live_local_ingestion_test_key");
+    expect(result).not.toContain("povt_rawtokenvalue123");
+  });
+
   it("handles circular references safely", () => {
     const input: Record<string, unknown> = { name: "root" };
     input.self = input;
