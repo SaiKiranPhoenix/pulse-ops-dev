@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { AuditController } from "../controllers/audit.controller.js";
+import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 
 export type RouteDependencies = {
@@ -12,6 +13,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
   });
+  router.use(createAuthMiddleware());
   router.get("/audit/events", asyncHandler(dependencies.auditController.list));
 
   return router;

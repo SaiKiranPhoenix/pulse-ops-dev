@@ -6,6 +6,9 @@ import type {
   RealtimeWorkerHeartbeatMessage,
 } from "@pulseops/shared";
 import { describe, expect, it } from "vitest";
+import type { Socket } from "socket.io";
+import { handleProjectJoin } from "../../src/app.js";
+import type { ProjectAuthorizationRepository } from "../../src/repositories/project-authorization.repository.js";
 import type { SocketRoomEmitter } from "../../src/services/realtime-event.service.js";
 import { RealtimeEventService } from "../../src/services/realtime-event.service.js";
 
@@ -37,6 +40,12 @@ class InMemorySocketRoomEmitter implements SocketRoomEmitter {
         this.emitted.push({ room, event, payload });
       },
     };
+  }
+}
+
+class DenyingProjectAuthorization implements ProjectAuthorizationRepository {
+  async canAccessProject(): Promise<boolean> {
+    return false;
   }
 }
 
@@ -129,6 +138,34 @@ describe("RealtimeEventService", () => {
         payload: expect.objectContaining({ messageId: "queue-status:1" }),
       }),
     ]);
+  });
+
+  it("does not join rooms when project authorization denies access", async () => {
+    const joinedRooms: string[] = [];
+    const emittedEvents: string[] = [];
+    let acknowledgement: { readonly ok: boolean; readonly error?: string } | undefined;
+    const socket = {
+      data: { userId: "user_1" },
+      join: async (room: string) => {
+        joinedRooms.push(room);
+      },
+      emit: (event: string) => {
+        emittedEvents.push(event);
+      },
+    } as unknown as Socket;
+
+    await handleProjectJoin(
+      socket,
+      { projectId: "project_2", environment: "production" },
+      new DenyingProjectAuthorization(),
+      (response) => {
+        acknowledgement = response;
+      },
+    );
+
+    expect(joinedRooms).toEqual([]);
+    expect(emittedEvents).toEqual([]);
+    expect(acknowledgement).toEqual({ ok: false, error: "Project access denied" });
   });
 });
 

@@ -11,6 +11,8 @@ export const VAULT_LIMITS = {
   defaultTokenScopes: ["secrets:read"] as const,
   secretReadLimit: 30,
   secretReadWindowMs: 60_000,
+  failedRevealLimit: 5,
+  failedRevealWindowMs: 5 * 60_000,
 } as const;
 
 export const VAULT_CRYPTO = {

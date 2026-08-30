@@ -112,6 +112,30 @@ Suggested screenshot/GIF proof points:
 - `05-vault`: create/reveal a vault secret and show audit logs without secret values.
 - `06-shell`: project selector, environment selector, time range, realtime badge, mobile navigation, and user menu.
 
+## Local Security Checklist
+
+Before sharing a local demo or pushing a deployment candidate:
+
+- Run `pnpm.cmd ci:local` and confirm formatting, linting, typecheck, build, tests, secret scan, and dependency audit pass.
+- Keep `.env` local only. Do not commit real JWT secrets, API key pepper, vault master password, OAuth client secrets, database URLs, Redis URLs, RabbitMQ URLs, raw API keys, or raw vault tokens.
+- Use generated demo credentials, then rotate or reset them with `pnpm.cmd db:reset` before handing the environment to someone else.
+- Verify project switching in the UI shows only the signed-in user's projects and data.
+- Verify dashboard, incidents, audit, and vault requests go through the API gateway instead of directly exposing service ports.
+- Verify vault secret reveal still requires the vault password and repeated failures are rate limited.
+- Verify list APIs show metadata only: no raw secret values, encrypted payloads, raw tokens, token hashes, or passwords.
+- Check logs for redaction after demo traffic. Request logs should not contain `authorization`, cookies, API keys, vault tokens, passwords, or credential-bearing connection strings.
+
+## Vault MVP Limitations
+
+PulseOps Vault is an educational secure-vault feature inside a broader local-first DevOps platform. It is not a production-grade HashiCorp Vault replacement.
+
+- No HSM/KMS-backed seal, unseal, or root key ceremony.
+- No dynamic database credentials, leases, renewal, or revocation engines.
+- No complex policy language, namespaces, replication, or multi-tenant enterprise controls.
+- No high-availability storage backend or disaster recovery workflow.
+- No pluggable auth methods beyond the app's JWT and generated integration tokens.
+- Audit delivery is best-effort for local MVP availability and is not an immutable enterprise audit backend.
+
 ## Common Commands
 
 ```powershell

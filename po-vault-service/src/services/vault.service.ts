@@ -112,6 +112,7 @@ type RateLimitBucket = {
 
 export class VaultService {
   private readonly accessBuckets = new Map<string, RateLimitBucket>();
+  private readonly failedRevealBuckets = new Map<string, RateLimitBucket>();
 
   constructor(
     private readonly secrets: VaultSecretRepository,
@@ -164,7 +165,11 @@ export class VaultService {
       throw notFound("Secret not found");
     }
 
+    const failedRevealBucketKey = `failed-reveal:${input.actorId ?? "unknown"}:${input.projectId}:${environment}:${key}`;
+    this.assertFailedRevealNotBlocked(failedRevealBucketKey);
+
     if (!this.crypto.verifyVaultPassword(input.vaultPassword)) {
+      this.recordFailedReveal(failedRevealBucketKey);
       await this.publishAudit("vault.secret.reveal", "failure", secret, {
         ...input,
         reason: "invalid vault password",
@@ -172,6 +177,7 @@ export class VaultService {
       throw unauthorized("Invalid vault password");
     }
 
+    this.failedRevealBuckets.delete(failedRevealBucketKey);
     await this.publishAudit("vault.secret.reveal", "success", secret, input);
     return {
       ...toMetadataDto(secret),
@@ -350,20 +356,61 @@ export class VaultService {
   }
 
   private assertSecretAccessAllowed(bucketKey: string): void {
+    this.assertBucketAllowed(
+      this.accessBuckets,
+      bucketKey,
+      VAULT_LIMITS.secretReadLimit,
+      VAULT_LIMITS.secretReadWindowMs,
+      "Vault secret read rate limit exceeded",
+    );
+  }
+
+  private assertFailedRevealNotBlocked(bucketKey: string): void {
+    const bucket = this.failedRevealBuckets.get(bucketKey);
+
+    if (
+      bucket !== undefined &&
+      bucket.resetAt > Date.now() &&
+      bucket.count >= VAULT_LIMITS.failedRevealLimit
+    ) {
+      throw rateLimited("Vault reveal failed-attempt limit exceeded", {
+        limit: VAULT_LIMITS.failedRevealLimit,
+        resetAt: new Date(bucket.resetAt).toISOString(),
+      });
+    }
+  }
+
+  private recordFailedReveal(bucketKey: string): void {
+    this.assertBucketAllowed(
+      this.failedRevealBuckets,
+      bucketKey,
+      VAULT_LIMITS.failedRevealLimit,
+      VAULT_LIMITS.failedRevealWindowMs,
+      "Vault reveal failed-attempt limit exceeded",
+    );
+  }
+
+  private assertBucketAllowed(
+    buckets: Map<string, RateLimitBucket>,
+    bucketKey: string,
+    limit: number,
+    windowMs: number,
+    message: string,
+  ): void {
     const now = Date.now();
-    const existingBucket = this.accessBuckets.get(bucketKey);
-    const resetAt = now + VAULT_LIMITS.secretReadWindowMs;
+    const existingBucket = buckets.get(bucketKey);
+    const resetAt = now + windowMs;
     const bucket =
       existingBucket === undefined || existingBucket.resetAt <= now
         ? { count: 0, resetAt }
         : existingBucket;
 
     bucket.count += 1;
-    this.accessBuckets.set(bucketKey, bucket);
+    buckets.set(bucketKey, bucket);
 
-    if (bucket.count > VAULT_LIMITS.secretReadLimit) {
-      throw rateLimited("Vault secret read rate limit exceeded", {
-        limit: VAULT_LIMITS.secretReadLimit,
+    if (bucket.count > limit) {
+      throw rateLimited(message, {
+        limit,
         resetAt: new Date(bucket.resetAt).toISOString(),
       });
     }

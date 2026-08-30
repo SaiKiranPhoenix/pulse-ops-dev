@@ -3,7 +3,9 @@ import type { DashboardController } from "../controllers/dashboard.controller.js
 import type { GatewayController } from "../controllers/gateway.controller.js";
 import type { ProxyController } from "../controllers/proxy.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
+import { createProjectAccessMiddleware } from "../middlewares/project-access.middleware.js";
 import { validateQuery } from "../middlewares/validate.middleware.js";
+import type { ProjectAuthorizationRepository } from "../repositories/project-authorization.repository.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
   dashboardAnalyticsQuerySchema,
@@ -15,12 +17,14 @@ export type RouteDependencies = {
   readonly dashboardController: DashboardController;
   readonly gatewayController: GatewayController;
   readonly proxyController: ProxyController;
+  readonly projectAuthorization: ProjectAuthorizationRepository;
   readonly jwtSecret: string;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
   const router = Router();
   const requireAuth = createAuthMiddleware(dependencies.jwtSecret);
+  const requireProjectAccess = createProjectAccessMiddleware(dependencies.projectAuthorization);
 
   router.get("/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
@@ -29,13 +33,28 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/openapi.json", asyncHandler(dependencies.gatewayController.openApi));
 
   router.use("/auth", asyncHandler(dependencies.proxyController.authProject));
-  router.use("/audit", requireAuth, asyncHandler(dependencies.proxyController.audit));
+  router.use(
+    "/audit",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.audit),
+  );
   router.use("/integrations/vault", asyncHandler(dependencies.proxyController.vault));
   router.use("/projects", requireAuth, asyncHandler(dependencies.proxyController.authProject));
   router.use("/ingest", asyncHandler(dependencies.proxyController.ingestion));
-  router.use("/incidents", requireAuth, asyncHandler(dependencies.proxyController.incident));
+  router.use(
+    "/incidents",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
   router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
-  router.use("/vault", requireAuth, asyncHandler(dependencies.proxyController.vault));
+  router.use(
+    "/vault",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.vault),
+  );
 
   router.use("/dashboard", requireAuth);
   router.get(

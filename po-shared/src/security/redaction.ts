@@ -20,6 +20,8 @@ const defaultSensitiveValuePatterns = [
   /AKIA[0-9A-Z]{16}/g,
   /gh[pousr]_[A-Za-z0-9_]{36,}/g,
   /sk_live_[A-Za-z0-9]{24,}/g,
+  /po_(?:live|test)_[A-Za-z0-9_=-]{12,}/g,
+  /povt_[A-Za-z0-9_=-]{12,}/g,
   /xox[baprs]-[A-Za-z0-9-]{20,}/g,
   /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
   /\b(?:mongodb|postgres|mysql|redis|amqp):\/\/[^/\s:@]+:[^@\s]+@/gi,

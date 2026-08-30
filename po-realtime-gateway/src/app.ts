@@ -89,7 +89,7 @@ export function createRealtimeGateway(options: CreateRealtimeGatewayOptions): Re
   };
 }
 
-async function handleProjectJoin(
+export async function handleProjectJoin(
   socket: Socket,
   payload: unknown,
   projectAuthorization: ProjectAuthorizationRepository,

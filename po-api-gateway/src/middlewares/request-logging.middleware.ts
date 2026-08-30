@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { Logger } from "@pulseops/shared";
+import { isSensitiveKey, redactString, redactedValue, type Logger } from "@pulseops/shared";
 
 export function createRequestLoggingMiddleware(logger: Logger) {
   return (request: Request, response: Response, next: NextFunction): void => {
@@ -9,7 +9,7 @@ export function createRequestLoggingMiddleware(logger: Logger) {
       const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
       const metadata = {
         method: request.method,
-        path: request.originalUrl,
+        path: sanitizePath(request.originalUrl),
         statusCode: response.statusCode,
         durationMs: Math.round(durationMs),
         requestHeaders: pickLoggableHeaders(request.headers),
@@ -26,6 +26,22 @@ export function createRequestLoggingMiddleware(logger: Logger) {
 
     next();
   };
+}
+
+function sanitizePath(originalUrl: string): string {
+  const [path = "/", queryString] = originalUrl.split("?", 2);
+
+  if (queryString === undefined || queryString.length === 0) {
+    return path;
+  }
+
+  const searchParams = new URLSearchParams(queryString);
+
+  for (const [key, value] of searchParams.entries()) {
+    searchParams.set(key, isSensitiveKey(key) ? redactedValue : redactString(value));
+  }
+
+  return `${path}?${searchParams.toString()}`;
 }
 
 function pickLoggableHeaders(headers: Request["headers"]): Record<string, string> {

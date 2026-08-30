@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { DashboardRepository } from "../../src/repositories/dashboard.repository.js";
 import type { DashboardRateLimitRepository } from "../../src/repositories/ingestion-rate-limit.repository.js";
+import type { ProjectAuthorizationRepository } from "../../src/repositories/project-authorization.repository.js";
 import { DashboardService } from "../../src/services/dashboard.service.js";
 
 describe("DashboardService", () => {
   it("includes live rate-limit counters when Redis is available", async () => {
-    const service = new DashboardService(createDashboardRepository(), {
+    const service = new DashboardService(createDashboardRepository(), allowProjectAccess(), {
       async snapshot() {
         return {
           status: "available",
@@ -20,7 +21,7 @@ describe("DashboardService", () => {
       },
     });
 
-    await expect(service.ingestionStats("project_1", {})).resolves.toMatchObject({
+    await expect(service.ingestionStats("user_1", "project_1", {})).resolves.toMatchObject({
       projectId: "project_1",
       rateLimit: {
         status: "available",
@@ -38,12 +39,17 @@ describe("DashboardService", () => {
         throw new Error("redis unavailable");
       },
     };
-    const service = new DashboardService(createDashboardRepository(), failingRateLimits, {
-      limitPerMinute: 42,
-      windowSeconds: 60,
-    });
+    const service = new DashboardService(
+      createDashboardRepository(),
+      allowProjectAccess(),
+      failingRateLimits,
+      {
+        limitPerMinute: 42,
+        windowSeconds: 60,
+      },
+    );
 
-    await expect(service.ingestionStats("project_1", {})).resolves.toMatchObject({
+    await expect(service.ingestionStats("user_1", "project_1", {})).resolves.toMatchObject({
       rateLimit: {
         status: "unavailable",
         limitPerMinute: 42,
@@ -52,10 +58,40 @@ describe("DashboardService", () => {
       },
     });
   });
+
+  it("blocks dashboard reads for projects the user does not own", async () => {
+    const service = new DashboardService(createDashboardRepository(), denyProjectAccess());
+
+    await expect(service.summary("user_1", "project_2")).rejects.toThrow("Project access denied");
+  });
 });
+
+function allowProjectAccess(): ProjectAuthorizationRepository {
+  return {
+    async canAccessProject(projectId: string, userId: string) {
+      return projectId === "project_1" && userId === "user_1";
+    },
+  };
+}
+
+function denyProjectAccess(): ProjectAuthorizationRepository {
+  return {
+    async canAccessProject() {
+      return false;
+    },
+  };
+}
 
 function createDashboardRepository(): DashboardRepository {
   return {
+    async countEvents() {
+      return 0;
+    },
+
+    async countOpenIncidents() {
+      return 0;
+    },
+
     async ingestionStats() {
       return {
         acceptedEvents: 5,

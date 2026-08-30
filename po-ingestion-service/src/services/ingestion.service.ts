@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import {
   dependencyUnavailable,
+  redact,
+  redactString,
   rateLimited,
   TELEMETRY_ROUTING_KEYS,
   type TelemetryEventType,
@@ -83,7 +85,9 @@ export class IngestionService {
 
     const acceptedAt = new Date();
     const observedAt = input.timestamp ?? acceptedAt;
-    const fingerprint = input.fingerprint ?? createFingerprint(input);
+    const message = input.message === undefined ? undefined : redactString(input.message);
+    const attributes = redact(input.attributes ?? {}) as Record<string, unknown>;
+    const fingerprint = input.fingerprint ?? createFingerprint({ ...input, message });
     const messageId = `ing_${randomUUID()}`;
 
     await this.publisher.publish(TELEMETRY_ROUTING_KEYS[input.type], {
@@ -96,12 +100,12 @@ export class IngestionService {
       idempotencyKey: input.idempotencyKey,
       source: input.source,
       level: input.level ?? null,
-      message: input.message ?? null,
+      message: message ?? null,
       name: input.name ?? null,
       value: input.value ?? null,
       unit: input.unit ?? null,
       fingerprint,
-      attributes: input.attributes ?? {},
+      attributes,
       observedAt: observedAt.toISOString(),
       acceptedAt: acceptedAt.toISOString(),
     });

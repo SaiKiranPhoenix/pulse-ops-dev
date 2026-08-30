@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { VaultAuditEventMessage } from "@pulseops/shared";
 import type { VaultAuditPublisher } from "../../src/events/publishers/vault-audit.publisher.js";
+import { VAULT_LIMITS } from "../../src/config/constants.js";
 import type { EncryptedSecretValue } from "../../src/models/vault-secret.model.js";
 import type {
   CreateVaultSecretInput,
@@ -326,6 +327,72 @@ describe("VaultService", () => {
         key: "API_TOKEN",
       }),
     ).resolves.toMatchObject({ value: "secret-value" });
+  });
+
+  it("keeps secret and token list responses free of sensitive material", async () => {
+    const secrets = new InMemorySecretRepository();
+    const tokens = new InMemoryTokenRepository();
+    const service = createServiceWithRepositories(secrets, tokens);
+    await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "API_TOKEN",
+      value: "secret-value",
+    });
+    const created = await service.createToken({
+      projectId: "project_1",
+      name: "production-reader",
+      environments: ["production"],
+    });
+
+    const listJson = JSON.stringify({
+      secrets: await service.list("project_1"),
+      versions: await service.versions("project_1", "production", "API_TOKEN"),
+      tokens: await service.listTokens("project_1"),
+    });
+    const tokenHash = tokens.tokens[0]?.tokenHash;
+
+    expect(tokenHash).toBeDefined();
+    expect(listJson).not.toContain("secret-value");
+    expect(listJson).not.toContain("encrypted:secret-value");
+    if (tokenHash !== undefined) {
+      expect(listJson).not.toContain(tokenHash);
+    }
+    expect(listJson).not.toContain(created.rawToken);
+    expect(listJson).not.toContain("tokenHash");
+    expect(listJson).not.toContain("rawToken");
+  });
+
+  it("rate limits repeated failed vault reveal attempts", async () => {
+    const service = createService();
+    await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "DATABASE_URL",
+      value: "postgres://safe",
+    });
+
+    for (let attempt = 0; attempt < VAULT_LIMITS.failedRevealLimit; attempt += 1) {
+      await expect(
+        service.reveal({
+          projectId: "project_1",
+          environment: "production",
+          key: "DATABASE_URL",
+          vaultPassword: "wrong-password",
+          actorId: "user_1",
+        }),
+      ).rejects.toThrow("Invalid vault password");
+    }
+
+    await expect(
+      service.reveal({
+        projectId: "project_1",
+        environment: "production",
+        key: "DATABASE_URL",
+        vaultPassword: "correct-password",
+        actorId: "user_1",
+      }),
+    ).rejects.toThrow("Vault reveal failed-attempt limit exceeded");
   });
 
   it("reports vault token cache diagnostics for the current validation mode", () => {

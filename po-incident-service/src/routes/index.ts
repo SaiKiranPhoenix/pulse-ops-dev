@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { IncidentController } from "../controllers/incident.controller.js";
+import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
@@ -18,6 +19,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
   });
+  router.use(createAuthMiddleware());
   router.get(
     "/incidents",
     validateQuery(incidentListQuerySchema),
