@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { IncidentController } from "../controllers/incident.controller.js";
 import type { MonitorController } from "../controllers/monitor.controller.js";
+import type { SloController } from "../controllers/slo.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -13,6 +14,7 @@ import {
 export type RouteDependencies = {
   readonly incidentController: IncidentController;
   readonly monitorController: MonitorController;
+  readonly sloController: SloController;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
@@ -118,6 +120,16 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/notification-routing/:id",
     asyncHandler(dependencies.monitorController.deleteRoutingRule),
   );
+
+  // SLOs & Reliability Reporting
+  router.get("/slos", asyncHandler(dependencies.sloController.list));
+  router.get("/slos/report", asyncHandler(dependencies.sloController.report));
+  router.post("/slos/seed-demo", asyncHandler(dependencies.sloController.seedDemo));
+  router.post("/slos", asyncHandler(dependencies.sloController.create));
+  router.get("/slos/:sloId", asyncHandler(dependencies.sloController.detail));
+  router.patch("/slos/:sloId", asyncHandler(dependencies.sloController.update));
+  router.delete("/slos/:sloId", asyncHandler(dependencies.sloController.remove));
+  router.post("/slos/:sloId/evaluate", asyncHandler(dependencies.sloController.evaluate));
 
   return router;
 }

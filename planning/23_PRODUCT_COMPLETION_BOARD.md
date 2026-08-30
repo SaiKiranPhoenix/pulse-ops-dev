@@ -613,18 +613,18 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## SLOs, SLIs, And Reliability Reporting
 
-- [ ] Todo Add SLO model.
-- [ ] Todo Add SLI query definitions from metrics/logs/incidents.
-- [ ] Todo Add availability SLO.
-- [ ] Todo Add latency SLO.
-- [ ] Todo Add error-rate SLO.
-- [ ] Todo Add burn-rate calculation.
-- [ ] Todo Add error budget display.
-- [ ] Todo Add SLO dashboard page.
-- [ ] Todo Add SLO breach incidents.
-- [ ] Todo Add SLO reporting by project/service/environment.
-- [ ] Todo Add calendar/time-window handling.
-- [ ] Todo Add demo SLO seeded scenario.
+- [x] Done Add SLO model.
+- [x] Done Add SLI query definitions from metrics/logs/incidents.
+- [x] Done Add availability SLO.
+- [x] Done Add latency SLO.
+- [x] Done Add error-rate SLO.
+- [x] Done Add burn-rate calculation.
+- [x] Done Add error budget display.
+- [x] Done Add SLO dashboard page.
+- [x] Done Add SLO breach incidents.
+- [x] Done Add SLO reporting by project/service/environment.
+- [x] Done Add calendar/time-window handling.
+- [x] Done Add demo SLO seeded scenario.
 
 ## Custom Dashboards And Explorers
 

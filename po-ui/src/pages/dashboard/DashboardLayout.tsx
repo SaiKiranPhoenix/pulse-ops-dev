@@ -17,6 +17,7 @@ import {
   ServerCog,
   Settings,
   ShieldCheck,
+  Target,
   UserRound,
   X,
 } from "lucide-react";
@@ -89,6 +90,7 @@ const navItems = [
   { to: "/dashboard/metrics", label: "Metrics", icon: BarChart3 },
   { to: "/dashboard/traces", label: "Traces", icon: Activity },
   { to: "/dashboard/alerts", label: "Incidents", icon: AlertTriangle },
+  { to: "/dashboard/slos", label: "SLOs", icon: Target },
   { to: "/dashboard/workers", label: "Workers", icon: RadioTower },
   { to: "/dashboard/vault", label: "Vault", icon: LockKeyhole },
   { to: "/dashboard/vault-audit", label: "Vault Audit", icon: ShieldCheck },

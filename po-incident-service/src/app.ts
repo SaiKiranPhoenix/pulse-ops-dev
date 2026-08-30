@@ -31,5 +31,6 @@ function toRouteDependencies(dependencies: IncidentServiceDependencies): RouteDe
   return {
     incidentController: dependencies.incidentController,
     monitorController: dependencies.monitorController,
+    sloController: dependencies.sloController,
   };
 }

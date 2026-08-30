@@ -1,5 +1,6 @@
 import { IncidentController } from "../controllers/incident.controller.js";
 import { MonitorController } from "../controllers/monitor.controller.js";
+import { SloController } from "../controllers/slo.controller.js";
 import {
   noopIncidentUpdatePublisher,
   type IncidentUpdatePublisher,
@@ -8,9 +9,11 @@ import { MongoIncidentRepository } from "../repositories/incident.repository.js"
 import { MonitorRepository } from "../repositories/monitor.repository.js";
 import { NotificationChannelRepository } from "../repositories/notification-channel.repository.js";
 import { SilenceWindowRepository } from "../repositories/silence-window.repository.js";
+import { SloRepository } from "../repositories/slo.repository.js";
 import { IncidentService } from "./incident.service.js";
 import { MonitorEvaluatorService } from "./monitor-evaluator.service.js";
 import { NotificationDispatcherService } from "./notification-dispatcher.service.js";
+import { SloEvaluatorService } from "./slo-evaluator.service.js";
 
 export type IncidentServiceDependencies = {
   readonly incidentController: IncidentController;
@@ -21,6 +24,9 @@ export type IncidentServiceDependencies = {
   readonly notificationDispatcher: NotificationDispatcherService;
   readonly silenceRepo: SilenceWindowRepository;
   readonly channelRepo: NotificationChannelRepository;
+  readonly sloController: SloController;
+  readonly sloRepo: SloRepository;
+  readonly sloEvaluator: SloEvaluatorService;
 };
 
 export type CreateIncidentServiceDependenciesOptions = {
@@ -48,6 +54,10 @@ export function createIncidentServiceDependencies(
     notificationDispatcher,
   );
 
+  const sloRepo = new SloRepository();
+  const sloEvaluator = new SloEvaluatorService(sloRepo, incidentService);
+  const sloController = new SloController(sloRepo, sloEvaluator);
+
   return {
     incidentController: new IncidentController(incidentService),
     incidentService,
@@ -57,5 +67,8 @@ export function createIncidentServiceDependencies(
     notificationDispatcher,
     silenceRepo,
     channelRepo,
+    sloController,
+    sloRepo,
+    sloEvaluator,
   };
 }

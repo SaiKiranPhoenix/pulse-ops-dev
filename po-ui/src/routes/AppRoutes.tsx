@@ -16,6 +16,7 @@ import { ProjectSettingsPage } from "@/pages/dashboard/ProjectSettingsPage";
 import { ServiceDetailPage } from "@/pages/dashboard/ServiceDetailPage";
 import { ServicesPage } from "@/pages/dashboard/ServicesPage";
 import { SetupPage } from "@/pages/dashboard/SetupPage";
+import { SloPage } from "@/pages/dashboard/SloPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
 import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
 import { VaultPage } from "@/pages/dashboard/VaultPage";
@@ -42,6 +43,7 @@ export function AppRoutes() {
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="traces" element={<TracesPage />} />
           <Route path="alerts" element={<AlertsPage />} />
+          <Route path="slos" element={<SloPage />} />
           <Route path="workers" element={<WorkersPage />} />
           <Route path="vault" element={<VaultPage />} />
           <Route path="vault-audit" element={<VaultAuditPage />} />

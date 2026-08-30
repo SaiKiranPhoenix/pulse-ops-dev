@@ -17,27 +17,27 @@ export interface MonitorCondition {
   readonly comparator: MonitorComparator;
   readonly threshold: number;
   readonly timeWindowMinutes: number;
-  readonly metricName?: string;
-  readonly logPattern?: string;
-  readonly serviceName?: string;
-  readonly environment?: string;
+  readonly metricName?: string | undefined;
+  readonly logPattern?: string | undefined;
+  readonly serviceName?: string | undefined;
+  readonly environment?: string | undefined;
 }
 
 export interface MonitorRule {
   readonly id: string;
   readonly projectId: string;
   readonly name: string;
-  readonly description?: string;
+  readonly description?: string | undefined;
   readonly ruleType: MonitorRuleType;
   readonly severity: MonitorSeverity;
   readonly state: MonitorState;
   readonly enabled: boolean;
   readonly condition: MonitorCondition;
   readonly evaluationIntervalSeconds: number;
-  readonly lastEvaluatedAt?: string | null;
-  readonly lastStateChangeAt?: string | null;
-  readonly lastEvaluatedValue?: number | null;
-  readonly lastEvaluationMessage?: string | null;
+  readonly lastEvaluatedAt?: string | null | undefined;
+  readonly lastStateChangeAt?: string | null | undefined;
+  readonly lastEvaluatedValue?: number | null | undefined;
+  readonly lastEvaluationMessage?: string | null | undefined;
   readonly tags: string[];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -48,16 +48,16 @@ export interface SilenceWindow {
   readonly projectId: string;
   readonly name: string;
   readonly matchers: {
-    readonly serviceName?: string;
-    readonly environment?: string;
-    readonly ruleType?: MonitorRuleType;
-    readonly monitorId?: string;
-    readonly severity?: MonitorSeverity;
+    readonly serviceName?: string | undefined;
+    readonly environment?: string | undefined;
+    readonly ruleType?: MonitorRuleType | undefined;
+    readonly monitorId?: string | undefined;
+    readonly severity?: MonitorSeverity | undefined;
   };
   readonly startsAt: string;
   readonly endsAt: string;
   readonly reason: string;
-  readonly createdBy?: string;
+  readonly createdBy?: string | undefined;
   readonly enabled: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -81,13 +81,13 @@ export interface MaintenanceWindow {
 export type NotificationChannelType = "email" | "webhook" | "slack";
 
 export interface NotificationChannelConfig {
-  readonly emailRecipients?: string[];
-  readonly smtpHost?: string;
-  readonly smtpPort?: number;
-  readonly webhookUrl?: string;
-  readonly webhookSecret?: string;
-  readonly slackWebhookUrl?: string;
-  readonly channelName?: string;
+  readonly emailRecipients?: string[] | undefined;
+  readonly smtpHost?: string | undefined;
+  readonly smtpPort?: number | undefined;
+  readonly webhookUrl?: string | undefined;
+  readonly webhookSecret?: string | undefined;
+  readonly slackWebhookUrl?: string | undefined;
+  readonly channelName?: string | undefined;
 }
 
 export interface NotificationChannel {
@@ -97,8 +97,8 @@ export interface NotificationChannel {
   readonly type: NotificationChannelType;
   readonly config: NotificationChannelConfig;
   readonly enabled: boolean;
-  readonly lastDispatchedAt?: string | null;
-  readonly lastDispatchStatus?: "success" | "failed" | null;
+  readonly lastDispatchedAt?: string | null | undefined;
+  readonly lastDispatchStatus?: "success" | "failed" | null | undefined;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -109,10 +109,10 @@ export interface NotificationRoutingRule {
   readonly name: string;
   readonly channelIds: string[];
   readonly matchers: {
-    readonly service?: string;
-    readonly environment?: string;
-    readonly severities?: MonitorSeverity[];
-    readonly ruleTypes?: MonitorRuleType[];
+    readonly service?: string | undefined;
+    readonly environment?: string | undefined;
+    readonly severities?: MonitorSeverity[] | undefined;
+    readonly ruleTypes?: MonitorRuleType[] | undefined;
   };
   readonly enabled: boolean;
   readonly createdAt: string;
@@ -126,10 +126,10 @@ export interface AlertNotificationPayload {
   readonly state: MonitorState;
   readonly severity: MonitorSeverity;
   readonly ruleType: MonitorRuleType;
-  readonly value?: number | null;
+  readonly value?: number | null | undefined;
   readonly threshold: number;
   readonly message: string;
   readonly timestamp: string;
-  readonly environment?: string;
-  readonly serviceName?: string;
+  readonly serviceName?: string | undefined;
+  readonly environment?: string | undefined;
 }
