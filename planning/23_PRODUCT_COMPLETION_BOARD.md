@@ -461,13 +461,13 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] High latency load script exists.
 - [x] Rate limit load script exists.
 - [x] Demo smoke script exists.
-- [ ] Todo Replace or supplement k6 requirement if scripts are plain Node scripts.
-- [ ] Todo Add one-command demo data seeding.
-- [ ] Todo Add one-command demo reset.
-- [ ] Todo Add one-command "generate traffic for selected project" command.
-- [ ] Todo Add script output that prints dashboard URLs and expected results.
-- [ ] Todo Add app UI buttons that trigger the same scenarios.
-- [ ] Todo Add documented demo timings.
+- [x] Replace or supplement k6 requirement if scripts are plain Node scripts.
+- [x] Add one-command demo data seeding.
+- [x] Add one-command demo reset.
+- [x] Add one-command "generate traffic for selected project" command.
+- [x] Add script output that prints dashboard URLs and expected results.
+- [x] Add app UI buttons that trigger the same scenarios.
+- [x] Add documented demo timings.
 
 ## Documentation
 

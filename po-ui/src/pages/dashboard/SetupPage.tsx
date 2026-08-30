@@ -8,6 +8,7 @@ import {
   Send,
   ShieldCheck,
   Terminal,
+  Activity,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -198,6 +199,111 @@ export function SetupPage() {
       setMessage(`${kind} event accepted. Open Overview or Logs to watch processing.`);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsSendingTest(false);
+    }
+  }
+
+  async function sendDemoScenario(
+    scenario: "normal" | "errors" | "latency" | "rate-limit",
+  ): Promise<void> {
+    if (createdKey === null) {
+      setError("Generate an ingestion API key before running scenarios.");
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    setIsSendingTest(true);
+    const apiKey = createdKey.rawKey;
+
+    try {
+      if (scenario === "normal") {
+        for (let index = 0; index < 12; index++) {
+          await ingestLog(
+            { apiKey, idempotencyKey: `demo-normal-${crypto.randomUUID()}` },
+            {
+              source: "demo-checkout-api",
+              level: index % 5 === 0 ? "warn" : "info",
+              message:
+                index % 5 === 0 ? "demo checkout inventory was slow" : "demo checkout completed",
+              fingerprint: `demo-normal-run-${index}`,
+              attributes: {
+                environment: selectedEnvironment,
+                route: "POST /checkout",
+                statusCode: index % 5 === 0 ? 202 : 200,
+              },
+            },
+          );
+        }
+        setMessage("Sent 12 normal logs. Open Logs to watch processing.");
+      } else if (scenario === "errors") {
+        for (let index = 0; index < 3; index++) {
+          await ingestError(
+            { apiKey, idempotencyKey: `demo-errors-${crypto.randomUUID()}` },
+            {
+              source: "demo-checkout-api",
+              name: "PaymentProviderTimeout",
+              message: "demo payment provider request timed out",
+              stack:
+                "PaymentProviderTimeout: demo payment provider request timed out\\n    at checkout.js:42:11",
+              fingerprint: `demo-payment-provider-timeout`,
+              attributes: {
+                environment: selectedEnvironment,
+                route: "POST /payments",
+                retryAttempt: index + 1,
+              },
+            },
+          );
+        }
+        setMessage("Sent 3 correlated errors. Open Alerts to watch processing.");
+      } else if (scenario === "latency") {
+        const values = [920, 1140, 1360, 1580, 1820, 2050, 2240, 2520];
+        for (let index = 0; index < 8; index++) {
+          await ingestMetric(
+            { apiKey, idempotencyKey: `demo-latency-${crypto.randomUUID()}` },
+            {
+              source: "demo-checkout-api",
+              name: "checkout.latency",
+              value: values[index % values.length],
+              unit: "ms",
+              fingerprint: `demo-checkout-latency-${index}`,
+              attributes: {
+                environment: selectedEnvironment,
+                route: "POST /checkout",
+                percentile: index % 2 === 0 ? "p95" : "avg",
+              },
+            },
+          );
+        }
+        setMessage("Sent 8 high-latency metrics. Open Metrics to see the charts.");
+      } else if (scenario === "rate-limit") {
+        const promises = Array.from({ length: 80 }, (_, index) =>
+          ingestLog(
+            { apiKey, idempotencyKey: `demo-burst-${crypto.randomUUID()}` },
+            {
+              source: "demo-checkout-api",
+              level: "info",
+              message: "demo burst request accepted for rate-limit visibility",
+              fingerprint: `demo-rate-limit-${index}`,
+              attributes: {
+                environment: selectedEnvironment,
+                route: "POST /bulk-demo",
+                burstIndex: index,
+              },
+            },
+          ),
+        );
+        const results = await Promise.allSettled(promises);
+        const limited = results.filter((r) => r.status === "rejected").length;
+        setMessage(`Sent 80 burst events. ${limited} were rejected (likely rate-limited).`);
+      }
+    } catch (requestError) {
+      if (scenario === "rate-limit" && String(requestError).includes("429")) {
+        setMessage(`Sent 80 burst events. Rate limited as expected.`);
+      } else {
+        setError(getApiErrorMessage(requestError));
+      }
     } finally {
       setIsSendingTest(false);
     }
@@ -398,8 +504,51 @@ export function SetupPage() {
               <p className="mt-1 break-all font-mono">{lastAck.id}</p>
             </div>
           ) : null}
+        </div>
 
-          <Button asChild className="mt-4" variant="primary">
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+              5. Demo Scenarios
+            </h2>
+          </div>
+          <div className="mt-4 grid gap-2">
+            <Button
+              disabled={createdKey === null || isSendingTest}
+              onClick={() => void sendDemoScenario("normal")}
+              type="button"
+              variant="outline"
+            >
+              Run normal traffic
+            </Button>
+            <Button
+              disabled={createdKey === null || isSendingTest}
+              onClick={() => void sendDemoScenario("errors")}
+              type="button"
+              variant="outline"
+            >
+              Run repeated errors
+            </Button>
+            <Button
+              disabled={createdKey === null || isSendingTest}
+              onClick={() => void sendDemoScenario("latency")}
+              type="button"
+              variant="outline"
+            >
+              Run high latency
+            </Button>
+            <Button
+              disabled={createdKey === null || isSendingTest}
+              onClick={() => void sendDemoScenario("rate-limit")}
+              type="button"
+              variant="outline"
+            >
+              Run rate-limit burst
+            </Button>
+          </div>
+
+          <Button asChild className="mt-6 w-full" variant="primary">
             <Link to="/dashboard">Open overview</Link>
           </Button>
         </div>
