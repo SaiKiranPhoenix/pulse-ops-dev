@@ -2,17 +2,22 @@ import { createRedisClient } from "@pulseops/shared";
 import { DashboardController } from "../controllers/dashboard.controller.js";
 import { GatewayController } from "../controllers/gateway.controller.js";
 import { ProxyController, type ProxyTargets } from "../controllers/proxy.controller.js";
+import { ServiceController } from "../controllers/service.controller.js";
 import { loadEnv } from "../config/env.js";
 import { MongoDashboardRepository } from "../repositories/dashboard.repository.js";
 import { RedisDashboardRateLimitRepository } from "../repositories/ingestion-rate-limit.repository.js";
 import { MongoProjectAuthorizationRepository } from "../repositories/project-authorization.repository.js";
+import { MongoServiceRepository } from "../repositories/service.repository.js";
 import { DashboardService } from "./dashboard.service.js";
 import { GatewayService } from "./gateway.service.js";
 import { ProxyService } from "./proxy.service.js";
+import { ServiceCatalogService } from "./service-catalog.service.js";
 
 export type ApiGatewayDependencies = {
   readonly dashboardController: DashboardController;
   readonly dashboardService: DashboardService;
+  readonly serviceController: ServiceController;
+  readonly serviceCatalogService: ServiceCatalogService;
   readonly gatewayController: GatewayController;
   readonly gatewayService: GatewayService;
   readonly proxyController: ProxyController;
@@ -25,8 +30,10 @@ export type ApiGatewayDependencies = {
 export function createApiGatewayDependencies(): ApiGatewayDependencies {
   const env = loadEnv();
   const projectAuthorization = new MongoProjectAuthorizationRepository();
+  const dashboardRepository = new MongoDashboardRepository();
+  const serviceRepository = new MongoServiceRepository();
   const dashboardService = new DashboardService(
-    new MongoDashboardRepository(),
+    dashboardRepository,
     projectAuthorization,
     new RedisDashboardRateLimitRepository(
       createRedisClient(env.REDIS_URL),
@@ -37,6 +44,11 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
       limitPerMinute: env.RATE_LIMIT_PER_MINUTE,
       windowSeconds: 60,
     },
+  );
+  const serviceCatalogService = new ServiceCatalogService(
+    serviceRepository,
+    dashboardRepository,
+    projectAuthorization,
   );
   const proxyService = new ProxyService();
   const proxyTargets: ProxyTargets = {
@@ -70,6 +82,8 @@ export function createApiGatewayDependencies(): ApiGatewayDependencies {
   return {
     dashboardController: new DashboardController(dashboardService),
     dashboardService,
+    serviceController: new ServiceController(serviceCatalogService),
+    serviceCatalogService,
     gatewayController: new GatewayController(gatewayService),
     gatewayService,
     proxyController: new ProxyController(proxyService, proxyTargets),

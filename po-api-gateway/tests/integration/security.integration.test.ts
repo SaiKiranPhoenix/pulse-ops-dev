@@ -7,11 +7,13 @@ import { TOKEN_SETTINGS } from "../../src/config/constants.js";
 import { DashboardController } from "../../src/controllers/dashboard.controller.js";
 import { GatewayController } from "../../src/controllers/gateway.controller.js";
 import { ProxyController, type ProxyTargets } from "../../src/controllers/proxy.controller.js";
+import { ServiceController } from "../../src/controllers/service.controller.js";
 import type { DashboardRepository } from "../../src/repositories/dashboard.repository.js";
 import type { ProjectAuthorizationRepository } from "../../src/repositories/project-authorization.repository.js";
 import { DashboardService } from "../../src/services/dashboard.service.js";
 import { GatewayService } from "../../src/services/gateway.service.js";
 import { ProxyService } from "../../src/services/proxy.service.js";
+import { ServiceCatalogService } from "../../src/services/service-catalog.service.js";
 
 const jwtSecret = ["local", "test", "jwt", "signing", "fixture"].join("-");
 
@@ -94,6 +96,38 @@ describe("gateway security integration", () => {
 function createDependencies(dashboard: DashboardRepository, proxyService = new ProxyService()) {
   const projectAuthorization = new InMemoryProjectAuthorization();
   const dashboardService = new DashboardService(dashboard, projectAuthorization);
+  const serviceCatalogService = new ServiceCatalogService(
+    {
+      findServicesForProject: async () => [],
+      findServiceByName: async () => null,
+      upsertService: async (input) => ({
+        id: "srv_test",
+        projectId: input.projectId,
+        name: input.name,
+        displayName: input.displayName ?? null,
+        description: input.description ?? null,
+        ownerName: input.ownerName ?? null,
+        ownerEmail: input.ownerEmail ?? null,
+        ownerTeam: input.ownerTeam ?? null,
+        language: input.language ?? "other",
+        runtime: input.runtime ?? "docker",
+        tier: input.tier ?? "tier_2",
+        repoUrl: input.repoUrl ?? null,
+        runbookUrl: input.runbookUrl ?? null,
+        deploymentUrl: input.deploymentUrl ?? null,
+        tags: input.tags ?? [],
+        onboardingChecklist: [],
+        isAutoDiscovered: false,
+        status: "active",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      deleteService: async () => true,
+      listDistinctSources: async () => [],
+    },
+    dashboard,
+    projectAuthorization,
+  );
   const proxyTargets: ProxyTargets = {
     authProject: { baseUrl: "http://127.0.0.1:1", pathPrefix: "" },
     audit: { baseUrl: "http://127.0.0.1:1", pathPrefix: "" },
@@ -107,6 +141,8 @@ function createDependencies(dashboard: DashboardRepository, proxyService = new P
   return {
     dashboardController: new DashboardController(dashboardService),
     dashboardService,
+    serviceController: new ServiceController(serviceCatalogService),
+    serviceCatalogService,
     gatewayController: new GatewayController(gatewayService),
     gatewayService,
     proxyController: new ProxyController(proxyService, proxyTargets),

@@ -260,6 +260,133 @@ async function main() {
     assertString(token.rawToken, "Vault token response did not include a one-time raw token.");
   });
 
+  await step("Seed service catalog metadata", async () => {
+    await requestData("POST", `/dashboard/services?projectId=${project.id}`, {
+      headers: authHeaders,
+      expectedStatuses: [200, 201],
+      body: {
+        name: "checkout-api",
+        displayName: "Checkout & Payments API",
+        description: "Primary checkout flow, basket calculation, and Stripe gateway integration.",
+        ownerName: "Alice Chen",
+        ownerEmail: "alice@pulseops.local",
+        ownerTeam: "Payments Core Squad",
+        language: "nodejs",
+        runtime: "docker",
+        tier: "tier_1",
+        repoUrl: "https://github.com/pulseops/checkout-api",
+        runbookUrl: "https://docs.pulseops.local/runbooks/checkout-api",
+        deploymentUrl: "https://checkout.pulseops.local",
+        tags: ["core", "payments", "tier-1", "stripe"],
+        onboardingChecklist: [
+          {
+            id: "telemetry",
+            title: "Instrument Telemetry (Logs, Metrics, Errors, Traces)",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "owner",
+            title: "Assign Service Owner & Contact",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "runbook",
+            title: "Link Incident Runbook Documentation",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "alerts",
+            title: "Configure Alert Rules & Pager Routing",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "tier",
+            title: "Define SLA Tier & Criticality",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    await requestData("POST", `/dashboard/services?projectId=${project.id}`, {
+      headers: authHeaders,
+      expectedStatuses: [200, 201],
+      body: {
+        name: "billing-service",
+        displayName: "Billing & Invoicing Engine",
+        description: "Subscription recurring billing, tax calculation, and PDF invoice generation.",
+        ownerName: "Bob Martinez",
+        ownerEmail: "bob@pulseops.local",
+        ownerTeam: "FinOps Squad",
+        language: "go",
+        runtime: "kubernetes",
+        tier: "tier_2",
+        repoUrl: "https://github.com/pulseops/billing-service",
+        runbookUrl: "https://docs.pulseops.local/runbooks/billing-service",
+        deploymentUrl: "https://billing.pulseops.local",
+        tags: ["billing", "invoicing", "tier-2"],
+        onboardingChecklist: [
+          {
+            id: "telemetry",
+            title: "Instrument Telemetry (Logs, Metrics, Errors, Traces)",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "owner",
+            title: "Assign Service Owner & Contact",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "runbook",
+            title: "Link Incident Runbook Documentation",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+          {
+            id: "alerts",
+            title: "Configure Alert Rules & Pager Routing",
+            completed: false,
+            completedAt: null,
+          },
+          {
+            id: "tier",
+            title: "Define SLA Tier & Criticality",
+            completed: true,
+            completedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    await requestData("POST", `/dashboard/services?projectId=${project.id}`, {
+      headers: authHeaders,
+      expectedStatuses: [200, 201],
+      body: {
+        name: "auth-worker",
+        displayName: "Identity & Token Validator",
+        description:
+          "OIDC JWT token verification, session cache refresh, and PAT token validation.",
+        ownerName: "Security Squad",
+        ownerEmail: "security@pulseops.local",
+        ownerTeam: "SecOps",
+        language: "python",
+        runtime: "lambda",
+        tier: "tier_1",
+        repoUrl: "https://github.com/pulseops/auth-worker",
+        runbookUrl: "https://docs.pulseops.local/runbooks/auth-worker",
+        deploymentUrl: "https://auth.pulseops.local",
+        tags: ["auth", "security", "tier-1"],
+      },
+    });
+  });
+
   await step("Wait for dashboard data", async () => {
     await waitFor("dashboard events", async () => {
       const data = await requestData("GET", `/dashboard/summary?projectId=${project.id}`, {

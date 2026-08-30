@@ -2,9 +2,10 @@ import { Router } from "express";
 import type { DashboardController } from "../controllers/dashboard.controller.js";
 import type { GatewayController } from "../controllers/gateway.controller.js";
 import type { ProxyController } from "../controllers/proxy.controller.js";
+import type { ServiceController } from "../controllers/service.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { createProjectAccessMiddleware } from "../middlewares/project-access.middleware.js";
-import { validateQuery } from "../middlewares/validate.middleware.js";
+import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import type { ProjectAuthorizationRepository } from "../repositories/project-authorization.repository.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
@@ -12,11 +13,17 @@ import {
   dashboardEventsQuerySchema,
   projectQuerySchema,
 } from "../validators/dashboard.validator.js";
+import {
+  serviceParamsSchema,
+  serviceQuerySchema,
+  upsertServiceBodySchema,
+} from "../validators/service.validator.js";
 
 export type RouteDependencies = {
   readonly dashboardController: DashboardController;
   readonly gatewayController: GatewayController;
   readonly proxyController: ProxyController;
+  readonly serviceController: ServiceController;
   readonly projectAuthorization: ProjectAuthorizationRepository;
   readonly jwtSecret: string;
 };
@@ -100,6 +107,31 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/dashboard/vault-activity",
     validateQuery(projectQuerySchema),
     asyncHandler(dependencies.dashboardController.vaultActivity),
+  );
+
+  // Service Catalog Endpoints
+  router.get(
+    "/dashboard/services",
+    validateQuery(serviceQuerySchema),
+    asyncHandler(dependencies.serviceController.list),
+  );
+  router.get(
+    "/dashboard/services/:serviceName",
+    validateQuery(serviceQuerySchema),
+    validateParams(serviceParamsSchema),
+    asyncHandler(dependencies.serviceController.detail),
+  );
+  router.post(
+    "/dashboard/services",
+    validateQuery(serviceQuerySchema),
+    validateBody(upsertServiceBodySchema),
+    asyncHandler(dependencies.serviceController.upsert),
+  );
+  router.delete(
+    "/dashboard/services/:serviceName",
+    validateQuery(serviceQuerySchema),
+    validateParams(serviceParamsSchema),
+    asyncHandler(dependencies.serviceController.delete),
   );
 
   return router;
