@@ -1,19 +1,32 @@
 import {
+  Activity,
+  Boxes,
+  Check,
   CheckCircle2,
-  Clipboard,
-  FileJson,
+  ChevronRight,
+  Clock,
+  Cloud,
+  Code2,
+  Copy,
+  Flame,
   KeyRound,
   Loader2,
+  Plus,
   RadioTower,
+  RefreshCw,
   Send,
+  Server,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Terminal,
-  Activity,
+  Zap,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import { createApiKey, createProject, type CreatedApiKey, type Project } from "@/features/auth/api";
 import { getIngestionStats, type IngestionStats } from "@/features/dashboards/api";
 import {
@@ -25,14 +38,28 @@ import {
 import { apiClient, getApiErrorMessage } from "@/lib/api-client";
 import { useDashboardContext } from "./DashboardLayout";
 
+type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
+type FrameworkTab =
+  | "express"
+  | "fastify"
+  | "jobs"
+  | "docker"
+  | "lambda"
+  | "render"
+  | "railway"
+  | "fly"
+  | "curl";
+
 const defaultScopes = ["logs:write", "errors:write", "metrics:write"] as const;
 
 export function SetupPage() {
   const { projects, refreshProjects, selectedEnvironment, selectedProject, selectedTimeRange } =
     useDashboardContext();
+  const { notify } = useToast();
+
   const [projectName, setProjectName] = useState(projects.length === 0 ? "Production API" : "");
   const [projectSlug, setProjectSlug] = useState(projects.length === 0 ? "production-api" : "");
-  const [keyName, setKeyName] = useState("local-ingestion");
+  const [keyName, setKeyName] = useState("local-sdk-key");
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
   const [lastAck, setLastAck] = useState<IngestedEventAck | null>(null);
@@ -40,726 +67,925 @@ export function SetupPage() {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isCheckingHeartbeat, setIsCheckingHeartbeat] = useState(false);
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
+  // Tabs
+  const [packageManager, setPackageManager] = useState<PackageManager>("pnpm");
+  const [frameworkTab, setFrameworkTab] = useState<FrameworkTab>("express");
+  const [serviceNameInput, setServiceNameInput] = useState("checkout-api");
 
   const targetProject = createdProject ?? selectedProject;
   const apiBaseUrl = String(apiClient.defaults.baseURL ?? "http://localhost:4000");
+  const rawApiKey = createdKey?.rawKey ?? "po_live_xxxxxxxxxxxxxxxxxxxxxxxx";
 
-  const curlSnippet = useMemo(() => {
-    const apiKey = createdKey?.rawKey ?? "<raw-api-key>";
+  const copyToClipboard = (text: string, sectionId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSection(sectionId);
+    notify({
+      variant: "success",
+      title: "Copied to Clipboard",
+      description: "Code snippet copied.",
+    });
+    setTimeout(() => {
+      setCopiedSection((curr) => (curr === sectionId ? null : curr));
+    }, 2000);
+  };
 
-    return [
-      `curl -X POST ${apiBaseUrl}/ingest/logs \\`,
-      `  -H "content-type: application/json" \\`,
-      `  -H "x-api-key: ${apiKey}" \\`,
-      `  -d "{\\"source\\":\\"checkout-api\\",\\"level\\":\\"info\\",\\"message\\":\\"PulseOps connected\\",\\"attributes\\":{\\"environment\\":\\"${selectedEnvironment}\\"}}"`,
-    ].join("\n");
-  }, [apiBaseUrl, createdKey?.rawKey, selectedEnvironment]);
+  const loadIngestionStats = async () => {
+    if (!targetProject) return;
+    try {
+      setIsCheckingHeartbeat(true);
+      const stats = await getIngestionStats(targetProject.id, {
+        environment: selectedEnvironment,
+        timeRange: selectedTimeRange,
+      });
+      setIngestionStats(stats);
+    } catch {
+      // ignore
+    } finally {
+      setIsCheckingHeartbeat(false);
+    }
+  };
 
   useEffect(() => {
     if (targetProject === null) {
       setIngestionStats(null);
       return;
     }
-
-    const projectId = targetProject.id;
-    let isMounted = true;
-
-    async function loadIngestionStats(): Promise<void> {
-      try {
-        const stats = await getIngestionStats(projectId, {
-          environment: selectedEnvironment,
-          timeRange: selectedTimeRange,
-        });
-
-        if (isMounted) {
-          setIngestionStats(stats);
-        }
-      } catch {
-        if (isMounted) {
-          setIngestionStats(null);
-        }
-      }
-    }
-
-    void loadIngestionStats();
-
-    return () => {
-      isMounted = false;
-    };
+    loadIngestionStats();
+    const interval = setInterval(loadIngestionStats, 5000);
+    return () => clearInterval(interval);
   }, [selectedEnvironment, selectedTimeRange, targetProject?.id]);
 
-  const nodeSnippet = useMemo(() => {
-    const apiKey = createdKey?.rawKey ?? "process.env.PULSEOPS_API_KEY";
+  const handleCreateProject = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!projectName.trim() || !projectSlug.trim()) return;
 
-    return [
-      `await fetch("${apiBaseUrl}/ingest/errors", {`,
-      `  method: "POST",`,
-      `  headers: {`,
-      `    "content-type": "application/json",`,
-      `    "x-api-key": "${apiKey}",`,
-      `  },`,
-      `  body: JSON.stringify({`,
-      `    source: "checkout-api",`,
-      `    name: "CheckoutError",`,
-      `    message: "Payment provider timeout",`,
-      `    attributes: { environment: "${selectedEnvironment}" },`,
-      `  }),`,
-      `});`,
-    ].join("\n");
-  }, [apiBaseUrl, createdKey?.rawKey, selectedEnvironment]);
-
-  async function submitProject(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setError(null);
-    setMessage(null);
     setIsCreatingProject(true);
-
     try {
       const project = await createProject({
-        name: projectName,
-        ...(projectSlug.trim().length > 0 ? { slug: projectSlug } : {}),
+        name: projectName.trim(),
+        slug: projectSlug.trim().toLowerCase(),
       });
       setCreatedProject(project);
-      await refreshProjects(project.id);
-      setMessage("Project created. Generate an ingestion key next.");
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      await refreshProjects();
+      notify({
+        variant: "success",
+        title: "Project Initialized",
+        description: `Project "${project.name}" ready for SDK integration.`,
+      });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Failed to Create Project",
+        description: getApiErrorMessage(err),
+      });
     } finally {
       setIsCreatingProject(false);
     }
-  }
+  };
 
-  async function submitApiKey(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  const handleCreateKey = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!targetProject) return;
 
-    if (targetProject === null) {
-      setError("Create or select a project first.");
-      return;
-    }
-
-    setError(null);
-    setMessage(null);
     setIsCreatingKey(true);
-
     try {
-      const apiKey = await createApiKey(targetProject.id, {
-        name: keyName,
+      const key = await createApiKey(targetProject.id, {
+        name: keyName.trim() || "sdk-key",
         scopes: [...defaultScopes],
       });
-      setCreatedKey(apiKey);
-      setMessage("API key created. Copy it now; the raw key is shown only once.");
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      setCreatedKey(key);
+      notify({
+        variant: "success",
+        title: "Ingestion Key Created",
+        description: "Copy and configure your API key in your environment.",
+      });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Failed to Create Key",
+        description: getApiErrorMessage(err),
+      });
     } finally {
       setIsCreatingKey(false);
     }
-  }
+  };
 
-  async function sendTestTraffic(kind: "log" | "error" | "metric"): Promise<void> {
-    if (createdKey === null) {
-      setError("Generate an ingestion API key before sending test telemetry.");
+  const handleSendTestEvent = async (type: "log" | "metric" | "error") => {
+    if (!targetProject) {
+      notify({
+        variant: "error",
+        title: "No Project Selected",
+        description: "Select or initialize a project first.",
+      });
       return;
     }
 
-    setError(null);
-    setMessage(null);
     setIsSendingTest(true);
-
     try {
-      const headers = {
-        apiKey: createdKey.rawKey,
-        idempotencyKey: `setup-${kind}-${crypto.randomUUID()}`,
-      };
-      const ack =
-        kind === "log"
-          ? await ingestLog(headers, {
-              source: "setup-wizard",
-              level: "info",
-              message: "PulseOps setup test log",
-              attributes: { environment: selectedEnvironment },
-            })
-          : kind === "error"
-            ? await ingestError(headers, {
-                source: "setup-wizard",
-                name: "SetupError",
-                message: "PulseOps setup test error",
-                attributes: { environment: selectedEnvironment },
-              })
-            : await ingestMetric(headers, {
-                source: "setup-wizard",
-                name: "setup.latency",
-                value: 245,
-                unit: "ms",
-                attributes: { environment: selectedEnvironment },
-              });
+      const effectiveApiKey = createdKey?.rawKey ?? "demo_ingestion_api_key";
+      const headers = { apiKey: effectiveApiKey };
+      let ack: IngestedEventAck;
+
+      if (type === "log") {
+        ack = await ingestLog(headers, {
+          source: serviceNameInput,
+          level: "info",
+          message: `Pulse check verified for ${serviceNameInput}`,
+          attributes: {
+            environment: selectedEnvironment,
+            initiatedFrom: "setup-wizard",
+            sdkVersion: "0.1.0",
+          },
+        });
+      } else if (type === "metric") {
+        ack = await ingestMetric(headers, {
+          source: serviceNameInput,
+          name: "sdk_heartbeat_latency_ms",
+          value: Math.floor(Math.random() * 45) + 12,
+          unit: "ms",
+          attributes: {
+            environment: selectedEnvironment,
+            nodeVersion: "v22.0.0",
+          },
+        });
+      } else {
+        ack = await ingestError(headers, {
+          source: serviceNameInput,
+          name: "SetupWizardSimulatedError",
+          message: "Simulated test exception from PulseOps Setup Wizard",
+          stack: "Error: Simulated exception\n    at SetupPage.tsx:182:19",
+          attributes: {
+            environment: selectedEnvironment,
+            isSimulated: true,
+          },
+        });
+      }
 
       setLastAck(ack);
-      setMessage(`${kind} event accepted. Open Overview or Logs to watch processing.`);
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      notify({
+        variant: "success",
+        title: `Test ${type.toUpperCase()} Accepted`,
+        description: `Event ID: ${ack.id.slice(0, 12)}...`,
+      });
+      setTimeout(loadIngestionStats, 800);
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Ingestion Test Failed",
+        description: getApiErrorMessage(err),
+      });
     } finally {
       setIsSendingTest(false);
     }
-  }
+  };
 
-  async function sendDemoScenario(
-    scenario: "normal" | "errors" | "latency" | "rate-limit",
-  ): Promise<void> {
-    if (createdKey === null) {
-      setError("Generate an ingestion API key before running scenarios.");
-      return;
+  const installCommand = useMemo(() => {
+    switch (packageManager) {
+      case "pnpm":
+        return "pnpm add @pulseops/node-sdk";
+      case "npm":
+        return "npm install @pulseops/node-sdk";
+      case "yarn":
+        return "yarn add @pulseops/node-sdk";
+      case "bun":
+        return "bun add @pulseops/node-sdk";
     }
+  }, [packageManager]);
 
-    setError(null);
-    setMessage(null);
-    setIsSendingTest(true);
-    const apiKey = createdKey.rawKey;
+  const frameworkSnippets = useMemo<Record<FrameworkTab, { title: string; code: string; lang: string }>>(
+    () => ({
+      express: {
+        title: "Express.js Instrumentation",
+        lang: "typescript",
+        code: `import express from "express";
+import {
+  initPulseOps,
+  createPulseOpsMiddleware,
+  createPulseOpsErrorHandler,
+} from "@pulseops/node-sdk";
 
-    try {
-      if (scenario === "normal") {
-        for (let index = 0; index < 12; index++) {
-          await ingestLog(
-            { apiKey, idempotencyKey: `demo-normal-${crypto.randomUUID()}` },
-            {
-              source: "demo-checkout-api",
-              level: index % 5 === 0 ? "warn" : "info",
-              message:
-                index % 5 === 0 ? "demo checkout inventory was slow" : "demo checkout completed",
-              fingerprint: `demo-normal-run-${index}`,
-              attributes: {
-                environment: selectedEnvironment,
-                route: "POST /checkout",
-                statusCode: index % 5 === 0 ? 202 : 200,
-              },
-            },
-          );
-        }
-        setMessage("Sent 12 normal logs. Open Logs to watch processing.");
-      } else if (scenario === "errors") {
-        for (let index = 0; index < 3; index++) {
-          await ingestError(
-            { apiKey, idempotencyKey: `demo-errors-${crypto.randomUUID()}` },
-            {
-              source: "demo-checkout-api",
-              name: "PaymentProviderTimeout",
-              message: "demo payment provider request timed out",
-              stack:
-                "PaymentProviderTimeout: demo payment provider request timed out\\n    at checkout.js:42:11",
-              fingerprint: `demo-payment-provider-timeout`,
-              attributes: {
-                environment: selectedEnvironment,
-                route: "POST /payments",
-                retryAttempt: index + 1,
-              },
-            },
-          );
-        }
-        setMessage("Sent 3 correlated errors. Open Alerts to watch processing.");
-      } else if (scenario === "latency") {
-        const values = [920, 1140, 1360, 1580, 1820, 2050, 2240, 2520];
-        for (let index = 0; index < 8; index++) {
-          await ingestMetric(
-            { apiKey, idempotencyKey: `demo-latency-${crypto.randomUUID()}` },
-            {
-              source: "demo-checkout-api",
-              name: "checkout.latency",
-              value: values[index % values.length],
-              unit: "ms",
-              fingerprint: `demo-checkout-latency-${index}`,
-              attributes: {
-                environment: selectedEnvironment,
-                route: "POST /checkout",
-                percentile: index % 2 === 0 ? "p95" : "avg",
-              },
-            },
-          );
-        }
-        setMessage("Sent 8 high-latency metrics. Open Metrics to see the charts.");
-      } else if (scenario === "rate-limit") {
-        const promises = Array.from({ length: 80 }, (_, index) =>
-          ingestLog(
-            { apiKey, idempotencyKey: `demo-burst-${crypto.randomUUID()}` },
-            {
-              source: "demo-checkout-api",
-              level: "info",
-              message: "demo burst request accepted for rate-limit visibility",
-              fingerprint: `demo-rate-limit-${index}`,
-              attributes: {
-                environment: selectedEnvironment,
-                route: "POST /bulk-demo",
-                burstIndex: index,
-              },
-            },
-          ),
-        );
-        const results = await Promise.allSettled(promises);
-        const limited = results.filter((r) => r.status === "rejected").length;
-        setMessage(`Sent 80 burst events. ${limited} were rejected (likely rate-limited).`);
-      }
-    } catch (requestError) {
-      if (scenario === "rate-limit" && String(requestError).includes("429")) {
-        setMessage(`Sent 80 burst events. Rate limited as expected.`);
-      } else {
-        setError(getApiErrorMessage(requestError));
-      }
-    } finally {
-      setIsSendingTest(false);
+const app = express();
+
+// 1. Initialize SDK
+const pulseOps = initPulseOps({
+  apiKey: process.env.PULSEOPS_API_KEY || "${rawApiKey}",
+  endpoint: process.env.PULSEOPS_ENDPOINT || "${apiBaseUrl}",
+  serviceName: "${serviceNameInput}",
+  environment: process.env.NODE_ENV || "${selectedEnvironment}",
+});
+
+// 2. Attach request duration & latency metric middleware
+app.use(createPulseOpsMiddleware(pulseOps));
+
+// Your routes
+app.get("/api/checkout", (req, res) => {
+  pulseOps.info("Processing checkout", { customer: "alice" });
+  pulseOps.increment("orders_total", 1);
+  res.json({ success: true });
+});
+
+// 3. Attach error capture handler before server listen
+app.use(createPulseOpsErrorHandler(pulseOps));
+
+app.listen(3000, () => console.log("Server running with PulseOps"));`,
+      },
+      fastify: {
+        title: "Fastify / Standalone Node.js",
+        lang: "typescript",
+        code: `import Fastify from "fastify";
+import { initPulseOps } from "@pulseops/node-sdk";
+
+const pulseOps = initPulseOps({
+  apiKey: process.env.PULSEOPS_API_KEY || "${rawApiKey}",
+  endpoint: "${apiBaseUrl}",
+  serviceName: "${serviceNameInput}",
+  environment: "${selectedEnvironment}",
+});
+
+const fastify = Fastify();
+
+fastify.addHook("onResponse", async (request, reply) => {
+  pulseOps.log(
+    reply.statusCode >= 500 ? "error" : "info",
+    \`HTTP \${request.method} \${request.url} \${reply.statusCode}\`,
+    {
+      method: request.method,
+      url: request.url,
+      statusCode: reply.statusCode,
+      durationMs: reply.elapsedTime,
     }
-  }
+  );
+  pulseOps.timing("http_request_duration_ms", reply.elapsedTime, {
+    method: request.method,
+    route: request.routeOptions.url,
+  });
+});
 
-  async function copy(value: string): Promise<void> {
-    await navigator.clipboard.writeText(value);
-    setMessage("Copied to clipboard.");
+fastify.setErrorHandler((error, request, reply) => {
+  pulseOps.error(error, { url: request.url, method: request.method });
+  reply.send(error);
+});`,
+      },
+      jobs: {
+        title: "Background Worker & Queue Instrumentation",
+        lang: "typescript",
+        code: `import { getPulseOpsClient, instrumentJob } from "@pulseops/node-sdk";
+
+const pulseOps = getPulseOpsClient();
+
+// Wrap background queue consumers (BullMQ, RabbitMQ, Cron)
+export async function processInvoiceJob(jobData: { invoiceId: string }) {
+  return await instrumentJob(
+    pulseOps!,
+    "process_invoice",
+    async () => {
+      // Your job business logic
+      console.log("Generating invoice for:", jobData.invoiceId);
+      await generatePdf(jobData.invoiceId);
+      return { success: true };
+    },
+    {
+      queueName: "billing-invoices",
+      attributes: { invoiceId: jobData.invoiceId },
+    }
+  );
+}`,
+      },
+      docker: {
+        title: "Docker & Docker Compose Configuration",
+        lang: "yaml",
+        code: `# compose.yaml
+services:
+  ${serviceNameInput}:
+    build: .
+    environment:
+      - NODE_ENV=${selectedEnvironment}
+      - SERVICE_NAME=${serviceNameInput}
+      - PULSEOPS_ENDPOINT=${apiBaseUrl}
+      - PULSEOPS_API_KEY=${rawApiKey}
+    ports:
+      - "3000:3000"`,
+      },
+      lambda: {
+        title: "AWS Lambda / Serverless Handler",
+        lang: "typescript",
+        code: `import { initPulseOps } from "@pulseops/node-sdk";
+
+const pulseOps = initPulseOps({
+  apiKey: process.env.PULSEOPS_API_KEY || "${rawApiKey}",
+  endpoint: "${apiBaseUrl}",
+  serviceName: "${serviceNameInput}",
+  environment: "${selectedEnvironment}",
+});
+
+export const handler = async (event: any, context: any) => {
+  const start = Date.now();
+  try {
+    pulseOps.info("Lambda invocation started", { requestId: context.awsRequestId });
+    
+    // Handler execution logic...
+    const result = { statusCode: 200, body: JSON.stringify({ message: "Hello" }) };
+
+    pulseOps.timing("lambda_duration_ms", Date.now() - start, { function: context.functionName });
+    return result;
+  } catch (err) {
+    pulseOps.error(err, { requestId: context.awsRequestId });
+    throw err;
+  } finally {
+    // Explicitly flush event buffer before Lambda freezes execution container
+    await pulseOps.flush();
   }
+};`,
+      },
+      render: {
+        title: "Render.com Environment Setup",
+        lang: "bash",
+        code: `# In Render Dashboard -> Environment -> Environment Variables:
+PULSEOPS_API_KEY=${rawApiKey}
+PULSEOPS_ENDPOINT=${apiBaseUrl}
+SERVICE_NAME=${serviceNameInput}
+NODE_ENV=${selectedEnvironment}`,
+      },
+      railway: {
+        title: "Railway.app Setup",
+        lang: "bash",
+        code: `# In Railway -> Variables:
+PULSEOPS_API_KEY=${rawApiKey}
+PULSEOPS_ENDPOINT=${apiBaseUrl}
+SERVICE_NAME=${serviceNameInput}
+NODE_ENV=${selectedEnvironment}`,
+      },
+      fly: {
+        title: "Fly.io (fly.toml)",
+        lang: "toml",
+        code: `# fly.toml
+[env]
+  SERVICE_NAME = "${serviceNameInput}"
+  PULSEOPS_ENDPOINT = "${apiBaseUrl}"
+  NODE_ENV = "${selectedEnvironment}"
+
+# Set sensitive API key as a secret:
+# flyctl secrets set PULSEOPS_API_KEY="${rawApiKey}"`,
+      },
+      curl: {
+        title: "Direct Ingestion via cURL / Raw HTTP",
+        lang: "bash",
+        code: `# Send Log
+curl -X POST ${apiBaseUrl}/ingest/logs \\
+  -H "content-type: application/json" \\
+  -H "x-api-key: ${rawApiKey}" \\
+  -d '{"source":"${serviceNameInput}","level":"info","message":"Pulse check connected","attributes":{"environment":"${selectedEnvironment}"}}'
+
+# Send Metric
+curl -X POST ${apiBaseUrl}/ingest/metrics \\
+  -H "content-type: application/json" \\
+  -H "x-api-key: ${rawApiKey}" \\
+  -d '{"source":"${serviceNameInput}","name":"request_duration_ms","value":42,"unit":"ms"}'
+
+# Send Error
+curl -X POST ${apiBaseUrl}/ingest/errors \\
+  -H "content-type: application/json" \\
+  -H "x-api-key: ${rawApiKey}" \\
+  -d '{"source":"${serviceNameInput}","level":"error","message":"Database timeout","stack":"Error: Timeout\\n at db.js:10"}'`,
+      },
+    }),
+    [apiBaseUrl, rawApiKey, selectedEnvironment, serviceNameInput],
+  );
+
+  const hasReceivedEvents = (ingestionStats?.acceptedEvents ?? 0) > 0;
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-5">
-      <header className="border-b border-slate-200 pb-4">
-        <p className="text-sm font-medium text-cyan-700">Workspace setup</p>
-        <h1 className="text-2xl font-semibold tracking-normal">Connect your first application</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Create a project, generate an ingestion key, send test telemetry, and then wire the same
-          endpoint into a deployed application.
-        </p>
-      </header>
-
-      {message !== null ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {message}
+    <div className="space-y-8 pb-16">
+      {/* Page Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 text-cyan-400 border border-cyan-500/30">
+              <Code2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Agents, SDKs & Instrumentation
+                </h1>
+                <span className="rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-500/20">
+                  v0.1.0
+                </span>
+              </div>
+              <p className="text-sm text-zinc-400">
+                Connect your backend microservices, background jobs, and containers to PulseOps with
+                high-throughput non-blocking telemetry.
+              </p>
+            </div>
+          </div>
         </div>
-      ) : null}
 
-      {error !== null ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+        {targetProject && (
+          <div className="flex items-center gap-2 rounded-xl bg-zinc-900/80 p-2 border border-zinc-800 backdrop-blur-md">
+            <span className="text-xs text-zinc-400 pl-2">Active Target:</span>
+            <span className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-semibold text-white">
+              {targetProject.name}
+            </span>
+            <span className="rounded-lg bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-400 border border-cyan-500/20">
+              {selectedEnvironment}
+            </span>
+          </div>
+        )}
+      </div>
 
-      <section className="grid gap-4 xl:grid-cols-[26rem_1fr]">
-        <form className="rounded-md border border-slate-200 bg-white p-4" onSubmit={submitProject}>
-          <div className="flex items-center gap-2">
-            <RadioTower className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              1. Project
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <label className="text-sm font-medium">
-              Project name
-              <Input
-                className="mt-2"
-                maxLength={100}
-                onChange={(event) => {
-                  const nextName = event.target.value;
-                  setProjectName(nextName);
-                  setProjectSlug(slugify(nextName));
-                }}
-                required
-                value={projectName}
-              />
-            </label>
-            <label className="text-sm font-medium">
-              Slug
-              <Input
-                className="mt-2"
-                maxLength={80}
-                onChange={(event) => {
-                  setProjectSlug(event.target.value);
-                }}
-                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                value={projectSlug}
-              />
-            </label>
-            <Button disabled={isCreatingProject} type="submit">
-              {isCreatingProject ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              Create project
-            </Button>
-          </div>
-          {targetProject !== null ? (
-            <p className="mt-3 text-xs text-slate-500">
-              Current project:{" "}
-              <span className="font-medium text-slate-900">{targetProject.name}</span>
-            </p>
-          ) : null}
-        </form>
-
-        <form className="rounded-md border border-slate-200 bg-white p-4" onSubmit={submitApiKey}>
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              2. Ingestion API Key
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-            <label className="text-sm font-medium">
-              Key name
-              <Input
-                className="mt-2"
-                maxLength={80}
-                onChange={(event) => {
-                  setKeyName(event.target.value);
-                }}
-                required
-                value={keyName}
-              />
-            </label>
-            <Button
-              className="self-end md:w-auto"
-              disabled={isCreatingKey || targetProject === null}
-              type="submit"
-            >
-              {isCreatingKey ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <KeyRound className="h-4 w-4" />
-              )}
-              Generate key
-            </Button>
-          </div>
-
-          {createdKey !== null ? (
-            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-normal text-amber-700">
-                    Raw key shown once
-                  </p>
-                  <p className="mt-2 break-all font-mono text-sm text-amber-950">
-                    {createdKey.rawKey}
-                  </p>
-                </div>
+      {/* Project & Key Setup Banner (if missing) */}
+      {!targetProject && (
+        <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-b from-indigo-950/20 to-zinc-950/60 p-6 shadow-xl backdrop-blur-md">
+          <div className="flex items-start gap-4">
+            <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-400 border border-indigo-500/20">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <h2 className="text-lg font-bold text-white">Initialize Your First Project</h2>
+              <p className="text-sm text-zinc-300">
+                Create a project to obtain an ingestion API key and start streaming logs, metrics,
+                and exceptions.
+              </p>
+              <form
+                onSubmit={handleCreateProject}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-3 max-w-xl"
+              >
+                <Input
+                  value={projectName}
+                  onChange={(e) => {
+                    setProjectName(e.target.value);
+                    setProjectSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/(^-|-$)/g, ""),
+                    );
+                  }}
+                  placeholder="Project Name"
+                  className="bg-zinc-900/90 border-zinc-800 text-white"
+                  required
+                />
+                <Input
+                  value={projectSlug}
+                  onChange={(e) => setProjectSlug(e.target.value)}
+                  placeholder="project-slug"
+                  className="bg-zinc-900/90 border-zinc-800 text-white font-mono text-xs"
+                  required
+                />
                 <Button
-                  className="w-full sm:w-auto"
-                  onClick={() => void copy(createdKey.rawKey)}
-                  type="button"
-                  variant="outline"
+                  type="submit"
+                  disabled={isCreatingProject}
+                  className="bg-cyan-500 text-black hover:bg-cyan-400 font-semibold"
                 >
-                  <Clipboard className="h-4 w-4" />
-                  Copy
+                  {isCreatingProject ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
+                  Create Project
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Target Configuration & Key Bar */}
+      {targetProject && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Ingestion Endpoint
+              </span>
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-zinc-950/80 px-3.5 py-2.5 border border-zinc-800">
+              <code className="text-xs font-mono text-cyan-300">{apiBaseUrl}</code>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(apiBaseUrl, "endpoint")}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                {copiedSection === "endpoint" ? (
+                  <Check className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Service Identifier
+              </span>
+              <Boxes className="h-4 w-4 text-indigo-400" />
+            </div>
+            <Input
+              value={serviceNameInput}
+              onChange={(e) => setServiceNameInput(e.target.value.toLowerCase().trim())}
+              placeholder="e.g. checkout-api"
+              className="bg-zinc-950/80 border-zinc-800 text-white font-mono text-xs"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Ingestion API Key
+              </span>
+              <KeyRound className="h-4 w-4 text-amber-400" />
+            </div>
+            {createdKey ? (
+              <div className="flex items-center justify-between rounded-xl bg-zinc-950/80 px-3.5 py-2 border border-emerald-500/30">
+                <code className="text-xs font-mono text-emerald-300 truncate mr-2">
+                  {createdKey.rawKey}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(createdKey.rawKey, "apikey")}
+                  className="text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+                >
+                  {copiedSection === "apikey" ? (
+                    <Check className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateKey} className="flex gap-2">
+                <Input
+                  value={keyName}
+                  onChange={(e) => setKeyName(e.target.value)}
+                  placeholder="Key label"
+                  className="bg-zinc-950/80 border-zinc-800 text-white text-xs"
+                />
+                <Button
+                  type="submit"
+                  disabled={isCreatingKey}
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs whitespace-nowrap h-9 px-3"
+                >
+                  {isCreatingKey ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Generate"}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid: Code Snippets (Left 2 cols) & Live Pulse Verifier (Right 1 col) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left 2 Cols: Installation & Code Snippets */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Quick Install Bar */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 shadow-xl backdrop-blur-md space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-cyan-400" />
+                <h2 className="text-base font-bold text-white">1. Install Node.js SDK</h2>
+              </div>
+
+              {/* Package Manager Selector */}
+              <div className="flex rounded-xl bg-zinc-950 p-1 border border-zinc-800">
+                {(["pnpm", "npm", "yarn", "bun"] as PackageManager[]).map((pm) => (
+                  <button
+                    key={pm}
+                    type="button"
+                    onClick={() => setPackageManager(pm)}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold uppercase tracking-wider transition-all ${
+                      packageManager === pm
+                        ? "bg-cyan-500 text-black shadow-md"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {pm}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Install Command Box */}
+            <div className="flex items-center justify-between rounded-xl bg-zinc-950/90 px-4 py-3 border border-zinc-800/80">
+              <div className="flex items-center gap-3">
+                <span className="text-zinc-500 select-none">$</span>
+                <code className="text-sm font-mono text-cyan-300">{installCommand}</code>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(installCommand, "install")}
+                className="flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              >
+                {copiedSection === "install" ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Framework & Runtime Guides */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 shadow-xl backdrop-blur-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-indigo-400" />
+                <h2 className="text-base font-bold text-white">2. Instrument Your Application</h2>
+              </div>
+            </div>
+
+            {/* Framework Tabs Pill List */}
+            <div className="flex flex-wrap gap-1.5 rounded-xl bg-zinc-950/80 p-1.5 border border-zinc-800">
+              {[
+                { id: "express", label: "Express.js", icon: Server },
+                { id: "fastify", label: "Fastify / Node", icon: Zap },
+                { id: "jobs", label: "Queues / Jobs", icon: Clock },
+                { id: "docker", label: "Docker", icon: Boxes },
+                { id: "lambda", label: "AWS Lambda", icon: Flame },
+                { id: "render", label: "Render", icon: Cloud },
+                { id: "railway", label: "Railway", icon: Cloud },
+                { id: "fly", label: "Fly.io", icon: Cloud },
+                { id: "curl", label: "Raw cURL", icon: Terminal },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFrameworkTab(tab.id as FrameworkTab)}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                      frameworkTab === tab.id
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Code Box */}
+            <div className="relative rounded-xl border border-zinc-800 bg-zinc-950/90 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-900/60 px-4 py-2.5">
+                <span className="text-xs font-semibold text-zinc-300">
+                  {frameworkSnippets[frameworkTab].title}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(
+                      frameworkSnippets[frameworkTab].code,
+                      `snippet_${frameworkTab}`,
+                    )
+                  }
+                  className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+                >
+                  {copiedSection === `snippet_${frameworkTab}` ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>Copy Snippet</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className="p-4 text-xs font-mono text-zinc-200 overflow-x-auto leading-relaxed max-h-96">
+                <code>{frameworkSnippets[frameworkTab].code}</code>
+              </pre>
+            </div>
+          </div>
+
+          {/* Key Rotation & Security Guide */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 shadow-xl backdrop-blur-md space-y-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+              <h2 className="text-base font-bold text-white">Zero-Downtime Key Rotation Guide</h2>
+            </div>
+            <p className="text-sm text-zinc-400">
+              Follow these best practices to rotate ingestion credentials safely without dropping telemetry:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-cyan-400 font-semibold text-xs">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs">
+                    1
+                  </span>
+                  Generate New Key
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Create a second ingestion key in Project Settings while keeping the current key active.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-indigo-400 font-semibold text-xs">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs">
+                    2
+                  </span>
+                  Deploy Secret
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Update <code className="text-indigo-300">PULSEOPS_API_KEY</code> across production container environments.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 space-y-1.5">
+                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                    3
+                  </span>
+                  Revoke Old Key
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Once telemetry streams from the new key, revoke the old key to prevent unauthorized access.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right 1 Col: Live "Verify Integration & Heartbeat Listener" */}
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-950/20 via-zinc-900/60 to-zinc-950 p-6 shadow-2xl backdrop-blur-md space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <RadioTower className="h-5 w-5 text-cyan-400 animate-pulse" />
+                <h3 className="text-base font-bold text-white">Live Pulse Verifier</h3>
+              </div>
+              <button
+                type="button"
+                onClick={loadIngestionStats}
+                disabled={isCheckingHeartbeat}
+                className="text-zinc-400 hover:text-white transition-colors"
+                title="Refresh Telemetry Heartbeat"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isCheckingHeartbeat ? "animate-spin text-cyan-400" : ""}`}
+                />
+              </button>
+            </div>
+
+            {/* Radar / Heartbeat Visualizer */}
+            <div className="relative flex flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950/80 p-8 text-center overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                <div className="h-48 w-48 rounded-full border border-cyan-500 animate-ping" />
+                <div className="absolute h-32 w-32 rounded-full border border-cyan-400/50 animate-pulse" />
+              </div>
+
+              <div
+                className={`relative flex h-16 w-16 items-center justify-center rounded-2xl shadow-xl transition-all ${
+                  hasReceivedEvents
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-emerald-500/10"
+                    : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-cyan-500/10"
+                }`}
+              >
+                {hasReceivedEvents ? (
+                  <CheckCircle2 className="h-8 w-8" />
+                ) : (
+                  <Activity className="h-8 w-8 animate-pulse" />
+                )}
+              </div>
+
+              <div className="mt-4 space-y-1 z-10">
+                <h4 className="text-sm font-bold text-white">
+                  {hasReceivedEvents ? "Telemetry Streaming Active" : "Listening for First Pulse..."}
+                </h4>
+                <p className="text-xs text-zinc-400 max-w-xs">
+                  {hasReceivedEvents
+                    ? `Received ${ingestionStats?.acceptedEvents} telemetry events for ${targetProject?.name}.`
+                    : `Send events from service "${serviceNameInput}" to verify connection.`}
+                </p>
+              </div>
+
+              {/* Live Metric Counters */}
+              <div className="mt-6 grid grid-cols-3 gap-2 w-full pt-4 border-t border-zinc-800/80">
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500">Accepted</div>
+                  <div className="text-sm font-bold text-cyan-300">
+                    {ingestionStats?.acceptedEvents ?? 0}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500">Processed</div>
+                  <div className="text-sm font-bold text-indigo-300">
+                    {ingestionStats?.processedEvents ?? 0}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-zinc-500">Rejected</div>
+                  <div className="text-sm font-bold text-rose-300">
+                    {ingestionStats?.rejectedEvents ?? 0}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Test Ingestion Dispatcher */}
+            <div className="space-y-3 pt-2">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
+                Instant Event Dispatcher
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  onClick={() => handleSendTestEvent("log")}
+                  disabled={isSendingTest}
+                  className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs h-8 px-2"
+                >
+                  <Send className="h-3 w-3 mr-1" />
+                  Test Log
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleSendTestEvent("metric")}
+                  disabled={isSendingTest}
+                  className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs h-8 px-2"
+                >
+                  <Activity className="h-3 w-3 mr-1" />
+                  Test Metric
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleSendTestEvent("error")}
+                  disabled={isSendingTest}
+                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs h-8 px-2"
+                >
+                  <ShieldAlert className="h-3 w-3 mr-1" />
+                  Test Error
                 </Button>
               </div>
             </div>
-          ) : null}
-        </form>
-      </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
-        <div className="rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              3. App Connection
-            </h2>
-          </div>
+            {/* Last Acknowledged Receipt */}
+            {lastAck && (
+              <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800 space-y-1">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Last Ingest Ack:</span>
+                  <span className="font-mono text-emerald-400">{lastAck.type.toUpperCase()}</span>
+                </div>
+                <div className="text-[10px] font-mono text-zinc-500 truncate">
+                  Event ID: {lastAck.id}
+                </div>
+              </div>
+            )}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Snippet title="cURL log event" value={curlSnippet} onCopy={copy} />
-            <Snippet title="Node error event" value={nodeSnippet} onCopy={copy} />
-          </div>
-        </div>
-
-        <div className="rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <Send className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              4. Test Telemetry
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-2">
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendTestTraffic("log")}
-              type="button"
-              variant="outline"
-            >
-              Send test log
-            </Button>
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendTestTraffic("error")}
-              type="button"
-              variant="outline"
-            >
-              Send test error
-            </Button>
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendTestTraffic("metric")}
-              type="button"
-              variant="outline"
-            >
-              Send test metric
-            </Button>
-          </div>
-
-          {lastAck !== null ? (
-            <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-              <p className="font-medium text-slate-900">Accepted {lastAck.type}</p>
-              <p className="mt-1 break-all font-mono">{lastAck.id}</p>
+            {/* Deep Links to Dashboards */}
+            <div className="pt-2 space-y-2 border-t border-zinc-800">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
+                Explore Dashboards
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/dashboard/services"
+                  className="flex items-center justify-between rounded-xl bg-zinc-900/60 p-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                >
+                  <span>Service Catalog</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                </Link>
+                <Link
+                  to="/dashboard/logs"
+                  className="flex items-center justify-between rounded-xl bg-zinc-900/60 p-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                >
+                  <span>Live Logs</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                </Link>
+                <Link
+                  to="/dashboard/metrics"
+                  className="flex items-center justify-between rounded-xl bg-zinc-900/60 p-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                >
+                  <span>Metrics</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                </Link>
+                <Link
+                  to="/dashboard/errors"
+                  className="flex items-center justify-between rounded-xl bg-zinc-900/60 p-2.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                >
+                  <span>Error Groups</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                </Link>
+              </div>
             </div>
-          ) : null}
-        </div>
-
-        <div className="rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              5. Demo Scenarios
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-2">
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendDemoScenario("normal")}
-              type="button"
-              variant="outline"
-            >
-              Run normal traffic
-            </Button>
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendDemoScenario("errors")}
-              type="button"
-              variant="outline"
-            >
-              Run repeated errors
-            </Button>
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendDemoScenario("latency")}
-              type="button"
-              variant="outline"
-            >
-              Run high latency
-            </Button>
-            <Button
-              disabled={createdKey === null || isSendingTest}
-              onClick={() => void sendDemoScenario("rate-limit")}
-              type="button"
-              variant="outline"
-            >
-              Run rate-limit burst
-            </Button>
-          </div>
-
-          <Button asChild className="mt-6 w-full" variant="primary">
-            <Link to="/dashboard">Open overview</Link>
-          </Button>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
-        <div className="rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <FileJson className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              Payload contracts
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <Snippet
-              title="Log JSON"
-              value={logPayloadExample(selectedEnvironment)}
-              onCopy={copy}
-            />
-            <Snippet
-              title="Error JSON"
-              value={errorPayloadExample(selectedEnvironment)}
-              onCopy={copy}
-            />
-            <Snippet
-              title="Metric JSON"
-              value={metricPayloadExample(selectedEnvironment)}
-              onCopy={copy}
-            />
-          </div>
-          <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-            <Guidance
-              title="Validation"
-              value="source and message/name are required. metric value must be finite. payloads over 512kb are rejected before queue publish."
-            />
-            <Guidance
-              title="Service names"
-              value="Use stable service names such as checkout-api or worker-billing. Put deployment version, host, and request IDs in attributes."
-            />
-            <Guidance
-              title="Troubleshooting"
-              value="401 means missing/disabled key or scope mismatch. 429 means project rate limit. 202 means RabbitMQ confirm publish accepted the event."
-            />
           </div>
         </div>
-
-        <div className="rounded-md border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-cyan-700" />
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              Ingestion health
-            </h2>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <HealthRow label="Accepted" value={ingestionStats?.acceptedEvents ?? 0} />
-            <HealthRow label="Processed" value={ingestionStats?.processedEvents ?? 0} />
-            <HealthRow label="Backlog" value={ingestionStats?.processingBacklog ?? 0} />
-            <HealthRow
-              label="Rate limit"
-              value={`${ingestionStats?.rateLimit.limitPerMinute ?? 600}/min`}
-            />
-            <HealthRow label="Bucket used" value={formatRateLimitUsage(ingestionStats)} />
-            <HealthRow label="Bucket remaining" value={formatRateLimitRemaining(ingestionStats)} />
-            <HealthRow label="Bucket resets" value={formatRateLimitReset(ingestionStats)} />
-          </div>
-          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600">
-            Sensitive attribute keys such as password, token, authorization, secret, apiKey, and
-            privateKey are redacted in viewers. Keep raw secrets in Vault, not telemetry metadata.
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function Guidance({ title, value }: { readonly title: string; readonly value: string }) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-      <p className="font-semibold text-slate-900">{title}</p>
-      <p className="mt-1 leading-5">{value}</p>
-    </div>
-  );
-}
-
-function HealthRow({ label, value }: { readonly label: string; readonly value: number | string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="font-mono text-sm font-semibold text-slate-950">{value}</span>
-    </div>
-  );
-}
-
-function formatRateLimitUsage(stats: IngestionStats | null): string {
-  if (stats === null || stats.rateLimit.status === "unavailable") {
-    return "Unavailable";
-  }
-
-  return String(stats.rateLimit.currentUsage);
-}
-
-function formatRateLimitRemaining(stats: IngestionStats | null): string {
-  if (stats === null || stats.rateLimit.status === "unavailable") {
-    return "Unavailable";
-  }
-
-  return String(stats.rateLimit.remaining);
-}
-
-function formatRateLimitReset(stats: IngestionStats | null): string {
-  if (
-    stats === null ||
-    stats.rateLimit.status === "unavailable" ||
-    stats.rateLimit.resetsAt === null
-  ) {
-    return "Unavailable";
-  }
-
-  return new Date(stats.rateLimit.resetsAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-function Snippet({
-  onCopy,
-  title,
-  value,
-}: {
-  readonly onCopy: (value: string) => Promise<void>;
-  readonly title: string;
-  readonly value: string;
-}) {
-  return (
-    <div className="min-w-0 rounded-md border border-slate-200 bg-slate-950 p-3 text-white">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-normal text-slate-300">{title}</p>
-        <Button
-          className="h-8 w-8 px-0 text-slate-950"
-          onClick={() => void onCopy(value)}
-          type="button"
-          variant="secondary"
-        >
-          <Clipboard className="h-4 w-4" />
-        </Button>
       </div>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-5 text-slate-100">
-        {value}
-      </pre>
     </div>
   );
 }
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
-function logPayloadExample(environment: string): string {
-  return JSON.stringify(
-    {
-      source: "checkout-api",
-      level: "info",
-      message: "Cart converted",
-      attributes: {
-        environment,
-        requestId: "req_123",
-        version: "2026.08.25",
-      },
-    },
-    null,
-    2,
-  );
-}
-
-function errorPayloadExample(environment: string): string {
-  return JSON.stringify(
-    {
-      source: "checkout-api",
-      name: "CheckoutTimeout",
-      message: "Payment provider timeout",
-      stack: "CheckoutTimeout: Payment provider timeout\\n    at charge (checkout.ts:42:11)",
-      attributes: {
-        environment,
-        requestId: "req_123",
-        redactionPreview: "sensitive values are hidden in viewers",
-      },
-    },
-    null,
-    2,
-  );
-}
-
-function metricPayloadExample(environment: string): string {
-  return JSON.stringify(
-    {
-      source: "checkout-api",
-      name: "checkout.latency",
-      value: 245,
-      unit: "ms",
-      attributes: {
-        environment,
-        route: "POST /checkout",
-      },
-    },
-    null,
-    2,
-  );
-}
+export default SetupPage;

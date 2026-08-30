@@ -76,6 +76,7 @@ export function ServicesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTier, setSelectedTier] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 

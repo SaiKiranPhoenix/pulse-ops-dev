@@ -295,9 +295,9 @@ export function ServiceDetailPage() {
                 {service.runtime}
               </span>
               {service.isAutoDiscovered && (
-                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                  Auto-Discovered
-                </span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
               )}
             </div>
 
@@ -734,7 +734,7 @@ export function ServiceDetailPage() {
           {/* Grouped Errors */}
           <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
               Recent Error Signatures ({service.recentErrors.length})
             </h3>
 

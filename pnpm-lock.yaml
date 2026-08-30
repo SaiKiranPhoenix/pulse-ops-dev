@@ -155,6 +155,19 @@ importers:
         specifier: ^7.2.2
         version: 7.2.2(supports-color@7.2.0)
 
+  po-node-sdk:
+    dependencies:
+      '@pulseops/shared':
+        specifier: workspace:*
+        version: link:../po-shared
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      express:
+        specifier: ^5.0.1
+        version: 5.2.1(supports-color@7.2.0)
+
   po-ops-service:
     dependencies:
       '@pulseops/shared':

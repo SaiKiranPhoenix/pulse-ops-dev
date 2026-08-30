@@ -571,21 +571,21 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Agents, SDKs, And Instrumentation
 
-- [ ] Todo Decide ingestion strategy: raw HTTP only, lightweight SDK, or local agent.
-- [ ] Todo Build Node.js SDK package for logs/errors/metrics.
-- [ ] Todo Add browser-safe client only if RUM enters scope.
-- [ ] Todo Add Express middleware for request logging and latency metrics.
-- [ ] Todo Add error handler middleware that reports exceptions.
-- [ ] Todo Add queue/job instrumentation helpers.
-- [ ] Todo Add Docker/container environment setup examples.
-- [ ] Todo Add deployed app setup examples for Render, Railway, Fly.io, Vercel, and generic VPS.
-- [ ] Todo Add SDK key rotation guidance.
-- [ ] Todo Add SDK retry/backoff behavior.
-- [ ] Todo Add SDK local redaction helpers.
-- [ ] Todo Add SDK tests and example app.
-- [ ] Todo Add sample instrumented application in the repo.
-- [ ] Todo Add "copy install command" UI.
-- [ ] Todo Add "verify integration" flow that waits for first event from a service.
+- [x] Done Decide ingestion strategy: raw HTTP only, lightweight SDK, or local agent.
+- [x] Done Build Node.js SDK package for logs/errors/metrics (`@pulseops/node-sdk`).
+- [x] Done Add browser-safe client only if RUM enters scope.
+- [x] Done Add Express middleware for request logging and latency metrics.
+- [x] Done Add error handler middleware that reports exceptions.
+- [x] Done Add queue/job instrumentation helpers (`instrumentJob`).
+- [x] Done Add Docker/container environment setup examples.
+- [x] Done Add deployed app setup examples for Render, Railway, Fly.io, Vercel, and generic VPS.
+- [x] Done Add SDK key rotation guidance.
+- [x] Done Add SDK retry/backoff behavior.
+- [x] Done Add SDK local redaction helpers.
+- [x] Done Add SDK tests and example app.
+- [x] Done Add sample instrumented application in the repo (`examples/sample-express-app`).
+- [x] Done Add "copy install command" UI (pnpm, npm, yarn, bun).
+- [x] Done Add "verify integration" flow that waits for first event from a service (Live Pulse Verifier).
 
 ## Monitors, Alerts, And Notification Routing
 
