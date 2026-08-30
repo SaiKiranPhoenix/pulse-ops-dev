@@ -556,18 +556,18 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Service Catalog And Ownership
 
-- [ ] Todo Add service catalog model: service name, owner, language, repo URL, runtime, tags.
-- [ ] Todo Auto-discover services from telemetry source names.
-- [ ] Todo Let users assign service owners.
-- [ ] Todo Add service detail page.
-- [ ] Todo Show logs, errors, metrics, incidents, secrets, and deployments by service.
-- [ ] Todo Add service health score.
-- [ ] Todo Add dependency/service map from telemetry metadata or traces.
-- [ ] Todo Add service tags and filtering.
-- [ ] Todo Add ownership display on incidents.
-- [ ] Todo Add runbook links per service.
-- [ ] Todo Add repository/deployment links per service.
-- [ ] Todo Add service-level onboarding checklist.
+- [x] Add service catalog model: service name, owner, language, repo URL, runtime, tags.
+- [x] Auto-discover services from telemetry source names.
+- [x] Let users assign service owners.
+- [x] Add service detail page.
+- [x] Show logs, errors, metrics, incidents, secrets, and deployments by service.
+- [x] Add service health score.
+- [x] Add dependency/service map from telemetry metadata or traces.
+- [x] Add service tags and filtering.
+- [x] Add ownership display on incidents.
+- [x] Add runbook links per service.
+- [x] Add repository/deployment links per service.
+- [x] Add service-level onboarding checklist.
 
 ## Agents, SDKs, And Instrumentation
 

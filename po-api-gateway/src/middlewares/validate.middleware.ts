@@ -8,3 +8,17 @@ export function validateQuery<TQuery>(schema: ZodType<TQuery>) {
     next();
   };
 }
+
+export function validateParams<TParams>(schema: ZodType<TParams>) {
+  return (request: Request, response: Response, next: NextFunction) => {
+    response.locals.validatedParams = parseWithSchema(schema, request.params);
+    next();
+  };
+}
+
+export function validateBody<TBody>(schema: ZodType<TBody>) {
+  return (request: Request, response: Response, next: NextFunction) => {
+    response.locals.validatedBody = parseWithSchema(schema, request.body);
+    next();
+  };
+}

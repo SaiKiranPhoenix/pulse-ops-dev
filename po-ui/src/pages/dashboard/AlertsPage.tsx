@@ -440,6 +440,20 @@ function IncidentDetail({
       <dl className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
         <Detail label="Status" value={incident.status} />
         <Detail label="Events" value={String(incident.eventCount)} />
+        {incident.samples[0]?.source && (
+          <div className="flex items-center justify-between text-xs">
+            <dt className="text-slate-500">Service</dt>
+            <dd>
+              <a
+                href={`/dashboard/services/${encodeURIComponent(incident.samples[0].source)}`}
+                className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+              >
+                <span>{incident.samples[0].source}</span>
+                <span className="text-[10px] text-slate-400">↗</span>
+              </a>
+            </dd>
+          </div>
+        )}
         <Detail label="Fingerprint" value={incident.fingerprint} mono />
         <Detail label="Rule" value={incident.creationReason} />
         <Detail label="First seen" value={new Date(incident.firstSeenAt).toLocaleString()} />

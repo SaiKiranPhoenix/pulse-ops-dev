@@ -41,6 +41,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 function toRouteDependencies(dependencies: ApiGatewayDependencies): RouteDependencies {
   return {
     dashboardController: dependencies.dashboardController,
+    serviceController: dependencies.serviceController,
     gatewayController: dependencies.gatewayController,
     proxyController: dependencies.proxyController,
     projectAuthorization: dependencies.projectAuthorization,

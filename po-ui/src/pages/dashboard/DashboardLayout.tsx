@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Boxes,
   Building2,
   ChevronDown,
   Clock,
@@ -81,6 +82,7 @@ const DashboardContext = createContext<DashboardContextValue | null>(null);
 
 const navItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/dashboard/services", label: "Services", icon: Boxes },
   { to: "/dashboard/setup", label: "Setup", icon: ListPlus },
   { to: "/dashboard/logs", label: "Logs", icon: SearchCode },
   { to: "/dashboard/errors", label: "Errors", icon: AlertTriangle },

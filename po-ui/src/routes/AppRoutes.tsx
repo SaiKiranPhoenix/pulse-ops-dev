@@ -13,6 +13,8 @@ import { OrganizationPage } from "@/pages/dashboard/OrganizationPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
 import { PlatformPage } from "@/pages/dashboard/PlatformPage";
 import { ProjectSettingsPage } from "@/pages/dashboard/ProjectSettingsPage";
+import { ServiceDetailPage } from "@/pages/dashboard/ServiceDetailPage";
+import { ServicesPage } from "@/pages/dashboard/ServicesPage";
 import { SetupPage } from "@/pages/dashboard/SetupPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
 import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
@@ -32,6 +34,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
+          <Route path="services" element={<ServicesPage />} />
+          <Route path="services/:serviceName" element={<ServiceDetailPage />} />
           <Route path="setup" element={<SetupPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="errors" element={<ErrorsPage />} />
