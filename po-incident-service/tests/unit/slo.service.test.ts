@@ -20,7 +20,10 @@ describe("SLO Evaluator & Error Budget Engine", () => {
     };
 
     mockIncidentService = {
-      recordTelemetryEvent: vi.fn().mockResolvedValue({ incident: {} as any, created: true }),
+      recordTelemetryEvent: vi.fn().mockResolvedValue({
+        incident: { id: "inc_1", title: "Test Incident" } as unknown as Parameters<IncidentService["recordTelemetryEvent"]>[0],
+        created: true,
+      }),
     };
 
     mockMetricsProvider = {

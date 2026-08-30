@@ -3,3 +3,4 @@ export { environments } from "./environment.js";
 export type { PulseOpsEnvironment } from "./environment.js";
 export * from "./monitor.js";
 export * from "./slo.js";
+export * from "./custom-dashboard.js";

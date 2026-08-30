@@ -8,11 +8,13 @@ import {
   Clock,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   ListPlus,
   LockKeyhole,
   LogOut,
   Menu,
   RadioTower,
+  Search,
   SearchCode,
   ServerCog,
   Settings,
@@ -83,6 +85,8 @@ const DashboardContext = createContext<DashboardContextValue | null>(null);
 
 const navItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/dashboard/custom", label: "Dashboards", icon: LayoutGrid },
+  { to: "/dashboard/explorer", label: "Explorer", icon: Search },
   { to: "/dashboard/services", label: "Services", icon: Boxes },
   { to: "/dashboard/setup", label: "Setup", icon: ListPlus },
   { to: "/dashboard/logs", label: "Logs", icon: SearchCode },

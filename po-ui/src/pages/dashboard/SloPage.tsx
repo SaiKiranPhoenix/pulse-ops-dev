@@ -1,24 +1,18 @@
 import {
-  AlertTriangle,
   CheckCircle2,
-  Clock,
   Flame,
   Gauge,
-  Layers,
   Loader2,
   Play,
   Plus,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Target,
   Trash2,
-  TrendingDown,
   TrendingUp,
   X,
-  Zap,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +29,6 @@ import {
   type ReliabilityReport,
   type SliType,
   type SloDocumentData,
-  type SloStatus,
 } from "@/features/slos/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { useDashboardContext } from "./DashboardLayout";
@@ -398,14 +391,6 @@ export function SloPage() {
             const remainingBudget = calc?.errorBudgetRemainingPercent ?? 100;
             const currentSli = calc?.currentSliPercent ?? 100;
             const status = calc?.status ?? "compliant";
-
-            // Status Styling
-            const statusColor =
-              status === "compliant"
-                ? "emerald"
-                : status === "at_risk"
-                  ? "amber"
-                  : "rose";
 
             return (
               <div

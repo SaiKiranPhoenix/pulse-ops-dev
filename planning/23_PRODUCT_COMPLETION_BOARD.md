@@ -628,20 +628,20 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Custom Dashboards And Explorers
 
-- [ ] Todo Add saved dashboard model.
-- [ ] Todo Add dashboard builder page.
-- [ ] Todo Add widgets: timeseries, toplist, table, query value, incident list, log stream, markdown note.
-- [ ] Todo Add drag/drop or grid layout.
-- [ ] Todo Add chart query builder.
-- [ ] Todo Add project/environment/time-range variables.
-- [ ] Todo Add saved views.
-- [ ] Todo Add dashboard clone/delete.
-- [ ] Todo Add shareable local links.
-- [ ] Todo Add dashboard templates: API health, worker health, vault activity, incident response.
-- [ ] Todo Add query explorer for logs.
-- [ ] Todo Add query explorer for metrics.
-- [ ] Todo Add query syntax or structured filter builder.
-- [ ] Todo Add CSV/JSON export for table widgets.
+- [x] Done Add saved dashboard model.
+- [x] Done Add dashboard builder page.
+- [x] Done Add widgets: timeseries, toplist, table, query value, incident list, log stream, markdown note.
+- [x] Done Add drag/drop or grid layout.
+- [x] Done Add chart query builder.
+- [x] Done Add project/environment/time-range variables.
+- [x] Done Add saved views.
+- [x] Done Add dashboard clone/delete.
+- [x] Done Add shareable local links.
+- [x] Done Add dashboard templates: API health, worker health, vault activity, incident response.
+- [x] Done Add query explorer for logs.
+- [x] Done Add query explorer for metrics.
+- [x] Done Add query syntax or structured filter builder.
+- [x] Done Add CSV/JSON export for table widgets.
 
 ## Log Management Pipeline
 

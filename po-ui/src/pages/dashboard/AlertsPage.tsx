@@ -160,14 +160,11 @@ export function AlertsPage() {
 
   const loadMonitors = async () => {
     if (!selectedProject) return;
-    setIsLoadingMonitors(true);
     try {
       const data = await listMonitors(selectedProject.id);
       setMonitors(data);
     } catch {
       // ignore
-    } finally {
-      setIsLoadingMonitors(false);
     }
   };
 
@@ -188,12 +185,8 @@ export function AlertsPage() {
   const loadChannels = async () => {
     if (!selectedProject) return;
     try {
-      const [chList, rules] = await Promise.all([
-        listNotificationChannels(selectedProject.id),
-        listNotificationRoutingRules(selectedProject.id),
-      ]);
+      const chList = await listNotificationChannels(selectedProject.id);
       setChannels(chList);
-      setRoutingRules(rules);
     } catch {
       // ignore
     }

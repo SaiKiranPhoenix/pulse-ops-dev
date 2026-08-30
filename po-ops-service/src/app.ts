@@ -27,5 +27,6 @@ export function createApp(options: CreateAppOptions): Express {
 function toRouteDependencies(dependencies: OpsServiceDependencies): RouteDependencies {
   return {
     opsController: dependencies.opsController,
+    customDashboardController: dependencies.customDashboardController,
   };
 }

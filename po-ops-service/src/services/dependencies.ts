@@ -4,11 +4,13 @@ import {
   createRedisClient,
   type PulseRedisClient,
 } from "@pulseops/shared";
+import { CustomDashboardController } from "../controllers/custom-dashboard.controller.js";
 import { OpsController } from "../controllers/ops.controller.js";
 import {
   createRealtimeQueueStatusPublisher,
   type RealtimeQueueStatusPublisher,
 } from "../events/publishers/realtime-queue-status.publisher.js";
+import { CustomDashboardRepository } from "../repositories/custom-dashboard.repository.js";
 import {
   RabbitQueueStatusRepository,
   type QueueStatusRepository,
@@ -18,10 +20,14 @@ import {
   type WorkerHealthRepository,
 } from "../repositories/worker-health.repository.js";
 import { OpsService } from "./ops.service.js";
+import { QueryExplorerService } from "./query-explorer.service.js";
 
 export type OpsServiceDependencies = {
   readonly opsController: OpsController;
   readonly opsService: OpsService;
+  readonly customDashboardController: CustomDashboardController;
+  readonly customDashboardRepo: CustomDashboardRepository;
+  readonly queryExplorerService: QueryExplorerService;
   close(): Promise<void>;
 };
 
@@ -60,9 +66,19 @@ export function createOpsServiceDependenciesFromRepositories(options: {
     options.realtimeQueueStatusPublisher,
   );
 
+  const customDashboardRepo = new CustomDashboardRepository();
+  const queryExplorerService = new QueryExplorerService();
+  const customDashboardController = new CustomDashboardController(
+    customDashboardRepo,
+    queryExplorerService,
+  );
+
   return {
     opsController: new OpsController(opsService),
     opsService,
+    customDashboardController,
+    customDashboardRepo,
+    queryExplorerService,
     async close(): Promise<void> {
       await options.close?.();
       if (options.redis !== undefined) {
