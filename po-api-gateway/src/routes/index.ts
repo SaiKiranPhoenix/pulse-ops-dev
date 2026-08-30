@@ -41,6 +41,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   );
   router.use("/integrations/vault", asyncHandler(dependencies.proxyController.vault));
   router.use("/projects", requireAuth, asyncHandler(dependencies.proxyController.authProject));
+  router.use("/organizations", requireAuth, asyncHandler(dependencies.proxyController.authProject));
   router.use("/ingest", asyncHandler(dependencies.proxyController.ingestion));
   router.use(
     "/incidents",

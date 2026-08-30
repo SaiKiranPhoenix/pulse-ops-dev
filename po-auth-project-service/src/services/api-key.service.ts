@@ -1,9 +1,10 @@
-import { notFound } from "@pulseops/shared";
+import { forbidden, notFound } from "@pulseops/shared";
 import { API_KEY_LIMITS } from "../config/constants.js";
 import type { ApiKeyCacheInvalidationRepository } from "../repositories/api-key-cache-invalidation.repository.js";
 import type { ApiKeyRepository, SafeApiKeyRecord } from "../repositories/api-key.repository.js";
 import type { IngestionApiKeyReadModelRepository } from "../repositories/ingestion-api-key-read-model.repository.js";
 import type { ProjectRepository } from "../repositories/project.repository.js";
+import type { OrganizationMemberRepository } from "../repositories/organization-member.repository.js";
 import type { ApiKeyHasher } from "./api-key-hasher.service.js";
 
 export type CreateApiKeyInput = {
@@ -39,10 +40,11 @@ export class ApiKeyService {
     private readonly apiKeyHasher: ApiKeyHasher,
     private readonly ingestionApiKeys?: IngestionApiKeyReadModelRepository,
     private readonly cacheInvalidator?: ApiKeyCacheInvalidationRepository,
+    private readonly organizationMembers?: OrganizationMemberRepository,
   ) {}
 
   async create(input: CreateApiKeyInput): Promise<CreatedApiKeyDto> {
-    await this.ensureProjectAccess(input.projectId, input.ownerId);
+    await this.ensureProjectAccess(input.projectId, input.ownerId, "admin");
 
     const generatedKey = this.apiKeyHasher.generate();
     const apiKey = await this.apiKeys.create({
@@ -63,7 +65,7 @@ export class ApiKeyService {
   }
 
   async list(projectId: string, ownerId: string): Promise<ApiKeyDto[]> {
-    await this.ensureProjectAccess(projectId, ownerId);
+    await this.ensureProjectAccess(projectId, ownerId, "read");
     const apiKeys = await this.apiKeys.findByProject(projectId);
     return apiKeys.map(toApiKeyDto);
   }
@@ -113,7 +115,7 @@ export class ApiKeyService {
     projectId: string,
     ownerId: string,
   ): Promise<SafeApiKeyRecord> {
-    await this.ensureProjectAccess(projectId, ownerId);
+    await this.ensureProjectAccess(projectId, ownerId, "admin");
     const apiKey = await this.apiKeys.findByIdForProject(apiKeyId, projectId);
 
     if (apiKey === null) {
@@ -123,11 +125,36 @@ export class ApiKeyService {
     return apiKey;
   }
 
-  private async ensureProjectAccess(projectId: string, ownerId: string): Promise<void> {
-    const project = await this.projects.findByIdForOwner(projectId, ownerId);
+  private async ensureProjectAccess(
+    projectId: string,
+    ownerId: string,
+    requiredAccess: "admin" | "read",
+  ): Promise<void> {
+    const project = await this.projects.findById(projectId);
 
     if (project === null) {
       throw notFound("Project not found");
+    }
+
+    if (project.ownerId === ownerId) {
+      return;
+    }
+
+    if (this.organizationMembers === undefined || project.organizationId === null) {
+      throw notFound("Project not found");
+    }
+
+    const membership = await this.organizationMembers.findActiveMembership(
+      project.organizationId,
+      ownerId,
+    );
+
+    if (membership === null) {
+      throw notFound("Project not found");
+    }
+
+    if (requiredAccess === "admin" && membership.role !== "owner" && membership.role !== "admin") {
+      throw forbidden("Project admin access required");
     }
   }
 }

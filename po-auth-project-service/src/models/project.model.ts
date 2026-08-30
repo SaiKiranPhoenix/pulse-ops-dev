@@ -4,6 +4,7 @@ export type ProjectStatus = "active" | "archived";
 
 export type ProjectRecord = {
   ownerId: string;
+  organizationId: string | null;
   name: string;
   slug: string;
   description: string | null;
@@ -19,6 +20,11 @@ const projectSchema = new Schema<ProjectRecord>(
     ownerId: {
       type: String,
       required: true,
+      index: true,
+    },
+    organizationId: {
+      type: String,
+      default: null,
       index: true,
     },
     name: {
@@ -58,6 +64,14 @@ const projectSchema = new Schema<ProjectRecord>(
 projectSchema.index(
   { ownerId: 1, slug: 1 },
   { unique: true, name: "uniq_auth_projects_owner_slug" },
+);
+projectSchema.index(
+  { organizationId: 1, slug: 1 },
+  {
+    unique: true,
+    sparse: true,
+    name: "uniq_auth_projects_org_slug",
+  },
 );
 
 export const ProjectModel: Model<ProjectRecord> =

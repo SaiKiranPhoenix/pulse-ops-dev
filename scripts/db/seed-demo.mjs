@@ -82,6 +82,90 @@ async function main() {
     return findOrCreateProject(authHeaders);
   });
 
+  await step("Seed organization and team members", async () => {
+    const orgsData = await requestData("GET", "/organizations", { headers: authHeaders });
+    const organizations = Array.isArray(orgsData.organizations) ? orgsData.organizations : [];
+    let org = organizations[0] ?? null;
+
+    if (org === null) {
+      const created = await requestData("POST", "/organizations", {
+        headers: authHeaders,
+        body: { name: "PulseOps Demo Org", slug: "pulseops-demo-org" },
+      });
+      org = created.organization;
+    }
+
+    if (org?.id) {
+      // Invite Alice (Admin)
+      await requestData("POST", `/organizations/${org.id}/invitations`, {
+        headers: authHeaders,
+        expectedStatuses: [201, 200, 409],
+        body: {
+          email: "alice@pulseops.local",
+          displayName: "Alice Henderson",
+          role: "admin",
+        },
+      });
+
+      // Invite Bob (Developer)
+      const bobRes = await requestData("POST", `/organizations/${org.id}/invitations`, {
+        headers: authHeaders,
+        expectedStatuses: [201, 200, 409],
+        body: {
+          email: "bob@pulseops.local",
+          displayName: "Bob Martinez",
+          role: "developer",
+        },
+      });
+
+      // Invite Charlie (Viewer)
+      await requestData("POST", `/organizations/${org.id}/invitations`, {
+        headers: authHeaders,
+        expectedStatuses: [201, 200, 409],
+        body: {
+          email: "charlie@pulseops.local",
+          displayName: "Charlie Chen",
+          role: "viewer",
+        },
+      });
+
+      // Project role override for Bob on demo project
+      const bobMemberId = bobRes?.member?.id;
+      if (bobMemberId) {
+        await requestData(
+          "PUT",
+          `/organizations/${org.id}/members/${bobMemberId}/project-roles/${project.id}`,
+          {
+            headers: authHeaders,
+            expectedStatuses: [200, 201],
+            body: { permission: "write" },
+          },
+        );
+
+        // Environment permissions for Bob: full dev/staging, read-only production
+        await requestData(
+          "PUT",
+          `/organizations/${org.id}/members/${bobMemberId}/environment-permissions/production`,
+          {
+            headers: authHeaders,
+            expectedStatuses: [200, 201],
+            body: { canRead: true, canWrite: false, canRevealSecrets: false },
+          },
+        );
+      }
+
+      // Seed a Personal Access Token
+      await requestData("POST", `/organizations/${org.id}/personal-access-tokens`, {
+        headers: authHeaders,
+        expectedStatuses: [201, 200],
+        body: {
+          name: `CI Automation Token (${runId})`,
+          scopes: ["api:read", "api:write"],
+        },
+      });
+    }
+  });
+
   const apiKeyResult = await step("Create seed ingestion API key", async () => {
     const data = await requestData("POST", `/projects/${project.id}/api-keys`, {
       headers: authHeaders,

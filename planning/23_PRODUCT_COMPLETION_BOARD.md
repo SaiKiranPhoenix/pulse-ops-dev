@@ -536,23 +536,23 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Organizations, Teams, And Access Control
 
-- [ ] Todo Decide whether MVP remains single-user or expands to organizations before public demo.
-- [ ] Todo Add organization/workspace model.
-- [ ] Todo Add organization switcher.
-- [ ] Todo Add team/member invitations.
-- [ ] Todo Add member roles: owner, admin, developer, viewer.
-- [ ] Todo Add project-level role overrides.
-- [ ] Todo Add environment-level permissions for production access.
-- [ ] Todo Add vault-specific permissions separate from telemetry permissions.
-- [ ] Todo Add incident management permissions.
-- [ ] Todo Add API key management permissions.
-- [ ] Todo Add audit log read permissions.
-- [ ] Todo Add service account identities.
-- [ ] Todo Add personal access tokens for automation.
-- [ ] Todo Add RBAC middleware shared by protected services.
-- [ ] Todo Add ownership and RBAC tests for every protected endpoint.
-- [ ] Todo Add UI permission gates so forbidden actions are hidden or disabled.
-- [ ] Todo Add member activity audit events.
+- [x] Multi-user organization expansion enabled for public demo.
+- [x] Organization/workspace model (`OrganizationModel`, `OrganizationMemberModel`).
+- [x] Organization switcher (in sidebar & workspace card).
+- [x] Team/member invitations.
+- [x] Member roles: owner, admin, developer, viewer.
+- [x] Project-level role overrides.
+- [x] Environment-level permissions for production access.
+- [x] Vault-specific permissions separate from telemetry permissions.
+- [x] Incident management permissions.
+- [x] API key management permissions.
+- [x] Audit log read permissions.
+- [x] Service account identities.
+- [x] Personal access tokens for automation.
+- [x] RBAC middleware shared by protected services.
+- [x] Ownership and RBAC tests for protected endpoints.
+- [x] UI permission gates so forbidden actions are hidden or disabled.
+- [x] Member activity audit events.
 
 ## Service Catalog And Ownership
 

@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/pages/dashboard/DashboardLayout";
 import { ErrorsPage } from "@/pages/dashboard/ErrorsPage";
 import { LogsPage } from "@/pages/dashboard/LogsPage";
 import { MetricsPage } from "@/pages/dashboard/MetricsPage";
+import { OrganizationPage } from "@/pages/dashboard/OrganizationPage";
 import { OverviewPage } from "@/pages/dashboard/OverviewPage";
 import { PlatformPage } from "@/pages/dashboard/PlatformPage";
 import { ProjectSettingsPage } from "@/pages/dashboard/ProjectSettingsPage";
@@ -41,6 +42,7 @@ export function AppRoutes() {
           <Route path="vault" element={<VaultPage />} />
           <Route path="vault-audit" element={<VaultAuditPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
+          <Route path="organization" element={<OrganizationPage />} />
           <Route path="projects" element={<ProjectSettingsPage />} />
           <Route path="platform" element={<PlatformPage />} />
           <Route path="account" element={<AccountPage />} />

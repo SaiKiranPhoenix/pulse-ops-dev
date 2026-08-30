@@ -148,6 +148,7 @@ export class InMemoryProjectRepository implements ProjectRepository {
     const project: SafeProjectRecord = {
       id: createObjectId(this.projects.size + 20),
       ownerId: input.ownerId,
+      organizationId: input.organizationId ?? null,
       name: input.name,
       slug: input.slug,
       description: input.description ?? null,
@@ -160,13 +161,45 @@ export class InMemoryProjectRepository implements ProjectRepository {
     return project;
   }
 
+  async findById(projectId: string): Promise<SafeProjectRecord | null> {
+    return this.projects.get(projectId) ?? null;
+  }
+
   async findByIdForOwner(projectId: string, ownerId: string): Promise<SafeProjectRecord | null> {
     const project = this.projects.get(projectId);
     return project?.ownerId === ownerId ? project : null;
   }
 
+  async findByIdForUser(projectId: string, userId: string): Promise<SafeProjectRecord | null> {
+    const project = this.projects.get(projectId);
+    if (!project) return null;
+    return project.ownerId === userId || project.organizationId !== null ? project : null;
+  }
+
+  async findByOrganizationIds(
+    organizationIds: string[],
+    ownerId: string,
+  ): Promise<SafeProjectRecord[]> {
+    return [...this.projects.values()].filter(
+      (project) =>
+        project.ownerId === ownerId ||
+        (project.organizationId !== null && organizationIds.includes(project.organizationId)),
+    );
+  }
+
   async findByOwner(ownerId: string): Promise<SafeProjectRecord[]> {
     return [...this.projects.values()].filter((project) => project.ownerId === ownerId);
+  }
+
+  async findBySlugForOrganization(
+    slug: string,
+    organizationId: string,
+  ): Promise<SafeProjectRecord | null> {
+    return (
+      [...this.projects.values()].find(
+        (project) => project.slug === slug && project.organizationId === organizationId,
+      ) ?? null
+    );
   }
 
   async findBySlugForOwner(slug: string, ownerId: string): Promise<SafeProjectRecord | null> {

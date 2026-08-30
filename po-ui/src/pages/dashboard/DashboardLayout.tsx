@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Building2,
   ChevronDown,
   Clock,
   KeyRound,
@@ -31,7 +32,14 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import { getCurrentUser, listProjects, type CurrentUser, type Project } from "@/features/auth/api";
+import {
+  getCurrentUser,
+  listOrganizations,
+  listProjects,
+  type CurrentUser,
+  type Organization,
+  type Project,
+} from "@/features/auth/api";
 import { clearAccessToken } from "@/lib/api-client";
 import {
   createPulseOpsSocket,
@@ -42,6 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const selectedProjectStorageKey = "pulseops.selectedProjectId";
+const selectedOrganizationStorageKey = "pulseops.selectedOrganizationId";
 const selectedEnvironmentStorageKey = "pulseops.selectedEnvironment";
 const selectedTimeRangeStorageKey = "pulseops.selectedTimeRange";
 
@@ -53,6 +62,8 @@ type DashboardTimeRange = (typeof dashboardTimeRanges)[number];
 type RealtimeState = "connected" | "connecting" | "disconnected" | "stale";
 
 export type DashboardContextValue = {
+  readonly organizations: Organization[];
+  readonly selectedOrganization: Organization | null;
   readonly projects: Project[];
   readonly selectedProject: Project | null;
   readonly selectedEnvironment: DashboardEnvironment;
@@ -60,7 +71,9 @@ export type DashboardContextValue = {
   readonly isLoadingProjects: boolean;
   readonly projectError: string | null;
   readonly refreshProjects: (preferredProjectId?: string) => Promise<Project[]>;
+  readonly refreshOrganizations: (preferredOrgId?: string) => Promise<Organization[]>;
   readonly setSelectedProjectId: (projectId: string) => void;
+  readonly setSelectedOrganizationId: (organizationId: string) => void;
   readonly setSelectedEnvironment: (environment: DashboardEnvironment) => void;
 };
 
@@ -78,6 +91,7 @@ const navItems = [
   { to: "/dashboard/vault", label: "Vault", icon: LockKeyhole },
   { to: "/dashboard/vault-audit", label: "Vault Audit", icon: ShieldCheck },
   { to: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
+  { to: "/dashboard/organization", label: "Organization", icon: Building2 },
   { to: "/dashboard/projects", label: "Projects", icon: Settings },
   { to: "/dashboard/platform", label: "Platform", icon: ServerCog },
 ] as const;
@@ -87,8 +101,12 @@ export function DashboardLayout() {
   const location = useLocation();
   const { notify } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(() =>
     localStorage.getItem(selectedProjectStorageKey),
+  );
+  const [selectedOrganizationId, setSelectedOrganizationIdState] = useState<string | null>(() =>
+    localStorage.getItem(selectedOrganizationStorageKey),
   );
   const [selectedEnvironment, setSelectedEnvironmentState] = useState<DashboardEnvironment>(() => {
     const saved = localStorage.getItem(selectedEnvironmentStorageKey);
@@ -106,6 +124,34 @@ export function DashboardLayout() {
     const saved = localStorage.getItem(selectedTimeRangeStorageKey);
     return isDashboardTimeRange(saved) ? saved : "1h";
   });
+
+  const refreshOrganizations = useCallback(
+    async (preferredOrgId?: string): Promise<Organization[]> => {
+      try {
+        const nextOrgs = await listOrganizations();
+        setOrganizations(nextOrgs);
+
+        const nextSelectedOrg =
+          nextOrgs.find((org) => org.id === preferredOrgId) ??
+          nextOrgs.find((org) => org.id === selectedOrganizationId) ??
+          nextOrgs[0] ??
+          null;
+
+        if (nextSelectedOrg === null) {
+          setSelectedOrganizationIdState(null);
+          localStorage.removeItem(selectedOrganizationStorageKey);
+        } else {
+          setSelectedOrganizationIdState(nextSelectedOrg.id);
+          localStorage.setItem(selectedOrganizationStorageKey, nextSelectedOrg.id);
+        }
+
+        return nextOrgs;
+      } catch {
+        return [];
+      }
+    },
+    [selectedOrganizationId],
+  );
 
   const refreshProjects = useCallback(
     async (preferredProjectId?: string): Promise<Project[]> => {
@@ -139,7 +185,11 @@ export function DashboardLayout() {
     async function loadShell(): Promise<void> {
       setIsLoadingProjects(true);
       try {
-        const [projectList, user] = await Promise.all([refreshProjects(), getCurrentUser()]);
+        const [projectList, user] = await Promise.all([
+          refreshProjects(),
+          getCurrentUser(),
+          refreshOrganizations(),
+        ]);
 
         if (!isMounted) {
           return;
@@ -165,6 +215,11 @@ export function DashboardLayout() {
     };
   }, [refreshProjects]);
 
+  const selectedOrganization = useMemo(
+    () =>
+      organizations.find((org) => org.id === selectedOrganizationId) ?? organizations[0] ?? null,
+    [organizations, selectedOrganizationId],
+  );
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null,
     [projects, selectedProjectId],
@@ -173,6 +228,8 @@ export function DashboardLayout() {
 
   const contextValue = useMemo<DashboardContextValue>(
     () => ({
+      organizations,
+      selectedOrganization,
       projects,
       selectedProject,
       selectedEnvironment,
@@ -180,9 +237,14 @@ export function DashboardLayout() {
       isLoadingProjects,
       projectError,
       refreshProjects,
+      refreshOrganizations,
       setSelectedProjectId(projectId: string) {
         setSelectedProjectIdState(projectId);
         localStorage.setItem(selectedProjectStorageKey, projectId);
+      },
+      setSelectedOrganizationId(organizationId: string) {
+        setSelectedOrganizationIdState(organizationId);
+        localStorage.setItem(selectedOrganizationStorageKey, organizationId);
       },
       setSelectedEnvironment(environment: DashboardEnvironment) {
         setSelectedEnvironmentState(environment);
@@ -191,10 +253,13 @@ export function DashboardLayout() {
     }),
     [
       isLoadingProjects,
+      organizations,
       projectError,
       projects,
+      refreshOrganizations,
       refreshProjects,
       selectedEnvironment,
+      selectedOrganization,
       selectedProject,
       selectedTimeRange,
     ],
@@ -273,12 +338,15 @@ export function DashboardLayout() {
         pageTitle={pageTitle}
         selectedEnvironment={selectedEnvironment}
         selectedProject={selectedProject}
+        selectedOrganization={selectedOrganization}
         selectedTimeRange={selectedTimeRange}
         projects={projects}
+        organizations={organizations}
         realtimeState={realtimeState}
         setSelectedEnvironment={contextValue.setSelectedEnvironment}
         setSelectedTimeRange={setSelectedTimeRange}
         setSelectedProjectId={contextValue.setSelectedProjectId}
+        setSelectedOrganizationId={contextValue.setSelectedOrganizationId}
         setIsLogoutConfirmOpen={setIsLogoutConfirmOpen}
         setIsMobileNavOpen={setIsMobileNavOpen}
         setIsUserMenuOpen={setIsUserMenuOpen}
@@ -311,12 +379,15 @@ export function DashboardLayout() {
         pageTitle={pageTitle}
         selectedEnvironment={selectedEnvironment}
         selectedProject={selectedProject}
+        selectedOrganization={selectedOrganization}
         selectedTimeRange={selectedTimeRange}
         projects={projects}
+        organizations={organizations}
         realtimeState={realtimeState}
         setSelectedEnvironment={contextValue.setSelectedEnvironment}
         setSelectedTimeRange={setSelectedTimeRange}
         setSelectedProjectId={contextValue.setSelectedProjectId}
+        setSelectedOrganizationId={contextValue.setSelectedOrganizationId}
         setIsLogoutConfirmOpen={setIsLogoutConfirmOpen}
         setIsMobileNavOpen={setIsMobileNavOpen}
         setIsUserMenuOpen={setIsUserMenuOpen}
@@ -344,10 +415,12 @@ function DashboardFrame({
   isMobileNavOpen,
   isUserMenuOpen,
   onLogout,
+  organizations,
   pageTitle,
   projects,
   realtimeState,
   selectedEnvironment,
+  selectedOrganization,
   selectedProject,
   selectedTimeRange,
   setSelectedEnvironment,
@@ -356,6 +429,7 @@ function DashboardFrame({
   setIsMobileNavOpen,
   setIsUserMenuOpen,
   setSelectedProjectId,
+  setSelectedOrganizationId,
 }: {
   readonly children: ReactNode;
   readonly currentUser: CurrentUser | null;
@@ -363,10 +437,12 @@ function DashboardFrame({
   readonly isMobileNavOpen: boolean;
   readonly isUserMenuOpen: boolean;
   readonly onLogout: () => void;
+  readonly organizations: Organization[];
   readonly pageTitle: string;
   readonly projects: Project[];
   readonly realtimeState: RealtimeState;
   readonly selectedEnvironment: DashboardEnvironment;
+  readonly selectedOrganization: Organization | null;
   readonly selectedProject: Project | null;
   readonly selectedTimeRange: DashboardTimeRange;
   readonly setSelectedEnvironment: (environment: DashboardEnvironment) => void;
@@ -375,6 +451,7 @@ function DashboardFrame({
   readonly setIsMobileNavOpen: (isOpen: boolean) => void;
   readonly setIsUserMenuOpen: (isOpen: boolean) => void;
   readonly setSelectedProjectId: (projectId: string) => void;
+  readonly setSelectedOrganizationId: (organizationId: string) => void;
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[15.5rem_1fr]">
@@ -391,6 +468,9 @@ function DashboardFrame({
           onNavigate={() => {
             setIsMobileNavOpen(false);
           }}
+          organizations={organizations}
+          selectedOrganization={selectedOrganization}
+          setSelectedOrganizationId={setSelectedOrganizationId}
         />
       </aside>
 
@@ -566,6 +646,16 @@ function DashboardFrame({
                       onClick={() => {
                         setIsUserMenuOpen(false);
                       }}
+                      to="/dashboard/organization"
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      Organization & Team
+                    </Link>
+                    <Link
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                      }}
                       to="/dashboard/projects"
                     >
                       <Settings className="h-3.5 w-3.5" />
@@ -612,7 +702,17 @@ function DashboardFrame({
   );
 }
 
-function SidebarContent({ onNavigate }: { readonly onNavigate: () => void }) {
+function SidebarContent({
+  onNavigate,
+  organizations,
+  selectedOrganization,
+  setSelectedOrganizationId,
+}: {
+  readonly onNavigate: () => void;
+  readonly organizations: Organization[];
+  readonly selectedOrganization: Organization | null;
+  readonly setSelectedOrganizationId: (orgId: string) => void;
+}) {
   return (
     <div className="flex flex-col h-full">
       {/* Wordmark */}
@@ -642,8 +742,63 @@ function SidebarContent({ onNavigate }: { readonly onNavigate: () => void }) {
         </Button>
       </div>
 
+      {/* ── Organization Switcher Widget ── */}
+      <div className="px-3 pt-3 pb-2 border-b border-navy-border/70">
+        <div className="rounded-lg bg-navy-subtle/80 p-2 border border-navy-border/60">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Building2 className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <span className="text-xs font-semibold text-white truncate">
+                {selectedOrganization?.name ?? "My Workspace"}
+              </span>
+            </div>
+            {selectedOrganization ? (
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase shrink-0",
+                  selectedOrganization.role === "owner" &&
+                    "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                  selectedOrganization.role === "admin" &&
+                    "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30",
+                  selectedOrganization.role === "developer" &&
+                    "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                  selectedOrganization.role === "viewer" &&
+                    "bg-slate-500/20 text-slate-300 border border-slate-500/30",
+                )}
+              >
+                {selectedOrganization.role}
+              </span>
+            ) : null}
+          </div>
+
+          <label className="relative block">
+            <span className="sr-only">Switch organization</span>
+            <select
+              aria-label="Select organization"
+              className={cn(
+                "h-7 w-full appearance-none rounded-md border border-navy-border bg-navy/90 text-[11px] font-medium text-slate-200",
+                "pl-2 pr-6 outline-none focus:ring-1 focus:ring-indigo-400 transition-colors",
+              )}
+              disabled={organizations.length === 0}
+              onChange={(event) => {
+                setSelectedOrganizationId(event.target.value);
+              }}
+              value={selectedOrganization?.id ?? ""}
+            >
+              {organizations.length === 0 ? <option>No organizations</option> : null}
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.role})
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-1.5 top-2 h-3 w-3 text-navy-muted" />
+          </label>
+        </div>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto sidebar-scroll px-3 py-4 grid gap-0.5">
+      <nav className="flex-1 overflow-y-auto sidebar-scroll px-3 py-3 grid gap-0.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -742,6 +897,10 @@ function getPageTitle(pathname: string): string {
 
   if (pathname === "/dashboard/account") {
     return "Account Settings";
+  }
+
+  if (pathname === "/dashboard/organization") {
+    return "Organization & Teams";
   }
 
   return activeItem?.label ?? "Dashboard";
