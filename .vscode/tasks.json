@@ -1,0 +1,132 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "infra: start infrastructure",
+      "type": "shell",
+      "command": "pnpm infra:up",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Infrastructure" },
+      "problemMatcher": [],
+      "detail": "Start MongoDB, Redis, RabbitMQ, MailHog in Docker"
+    },
+    {
+      "label": "infra: stop infrastructure",
+      "type": "shell",
+      "command": "pnpm infra:down",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Infrastructure" },
+      "problemMatcher": [],
+      "detail": "Stop all Docker Compose services"
+    },
+    {
+      "label": "infra: reset (wipe volumes)",
+      "type": "shell",
+      "command": "pnpm infra:reset",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Infrastructure" },
+      "problemMatcher": [],
+      "detail": "Stop all services and wipe all Docker volumes (data reset)"
+    },
+    {
+      "label": "apps: start full Docker stack",
+      "type": "shell",
+      "command": "pnpm apps:up",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Apps" },
+      "problemMatcher": [],
+      "detail": "Build and start all app containers via Docker Compose (apps profile)"
+    },
+    {
+      "label": "apps: stop full Docker stack",
+      "type": "shell",
+      "command": "pnpm apps:down",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Apps" },
+      "problemMatcher": [],
+      "detail": "Stop all Docker app containers"
+    },
+    {
+      "label": "workers: start workers only",
+      "type": "shell",
+      "command": "pnpm workers:up",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Workers" },
+      "problemMatcher": [],
+      "detail": "Start only event workers, incidents, and audit via Docker Compose (workers profile)"
+    },
+    {
+      "label": "dev: start all services (host mode)",
+      "type": "shell",
+      "command": "pnpm dev",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Dev" },
+      "problemMatcher": ["$tsc-watch"],
+      "detail": "Run all services via tsx watch directly on the host (no Docker builds). Requires infra to be running."
+    },
+    {
+      "label": "demo: seed demo data",
+      "type": "shell",
+      "command": "pnpm demo:seed",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Create demo user, project, and ingestion API key"
+    },
+    {
+      "label": "demo: reset and re-seed",
+      "type": "shell",
+      "command": "pnpm demo:reset",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Wipe local data, restart infra, and seed demo data in one command"
+    },
+    {
+      "label": "health: show stack health dashboard",
+      "type": "shell",
+      "command": "pnpm health",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Print colour-coded Docker + HTTP health table for all services"
+    },
+    {
+      "label": "env: validate .env file",
+      "type": "shell",
+      "command": "pnpm env:validate",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Check .env for missing or placeholder values"
+    },
+    {
+      "label": "ci: run full local CI check",
+      "type": "shell",
+      "command": "pnpm ci:local",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": ["$tsc"],
+      "detail": "format:check + lint + typecheck + build + test + security"
+    },
+    {
+      "label": "test: run all unit tests",
+      "type": "shell",
+      "command": "pnpm test",
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Run vitest across all packages"
+    },
+    {
+      "label": "infra: view logs",
+      "type": "shell",
+      "command": "pnpm infra:logs",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "tab": "Logs" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Follow Docker Compose logs for all services"
+    }
+  ]
+}

@@ -498,15 +498,14 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] UI served through container.
 - [x] API gateway exposed.
 - [x] Realtime gateway exposed.
-- [ ] Partial Docker builds can be slow due dependency fetching.
-- [ ] Todo Add fast local dev mode without rebuilding every service.
-- [ ] Todo Add VS Code launch/tasks documentation.
-- [ ] Todo Add `.env` validation guide.
-- [ ] Todo Add "recreate env-only service" guide.
-- [ ] Todo Add local service health dashboard.
-- [ ] Todo Add compose profiles for infra-only, apps, workers-only.
-- [ ] Todo Add cleanup/reset commands.
-- [ ] Todo Add Windows-specific troubleshooting.
+- [x] Fast local dev mode without rebuilding every service.
+- [x] VS Code launch/tasks configurations and documentation.
+- [x] `.env` validation guide and automated validation script.
+- [x] "Recreate env-only service" guide.
+- [x] Local service health dashboard.
+- [x] Compose profiles for infra-only, apps, workers-only.
+- [x] Cleanup/reset commands (`db:reset`, `demo:reset`, `infra:reset`).
+- [x] Windows-specific troubleshooting and optimization guide.
 
 ## CI/CD
 

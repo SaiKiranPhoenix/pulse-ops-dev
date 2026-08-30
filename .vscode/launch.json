@@ -1,0 +1,191 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API Gateway",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-api-gateway/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4000",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379",
+        "AUTH_PROJECT_SERVICE_URL": "http://localhost:4010",
+        "AUDIT_SERVICE_URL": "http://localhost:4140",
+        "INGESTION_SERVICE_URL": "http://localhost:4100",
+        "INCIDENT_SERVICE_URL": "http://localhost:4120",
+        "OPS_SERVICE_URL": "http://localhost:4150",
+        "VAULT_SERVICE_URL": "http://localhost:4200"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Auth / Projects Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-auth-project-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4010",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Ingestion Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-ingestion-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4100",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Event Workers",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-event-workers/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4110",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379",
+        "WORKER_ID": "po-event-workers-debug"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Incident Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-incident-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4120",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Realtime Gateway",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-realtime-gateway/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4130",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Vault Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-vault-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4200",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Audit Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-audit-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4140",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Ops Service",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "runtimeArgs": ["watch", "${workspaceFolder}/po-ops-service/src/server.ts"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": "4150",
+        "MONGODB_URI": "mongodb://localhost:27018/pulseops",
+        "REDIS_URL": "redis://localhost:6379"
+      },
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "All Services (host dev mode)",
+      "configurations": [
+        "API Gateway",
+        "Auth / Projects Service",
+        "Ingestion Service",
+        "Event Workers",
+        "Incident Service",
+        "Realtime Gateway",
+        "Vault Service",
+        "Audit Service",
+        "Ops Service"
+      ],
+      "stopAll": true
+    }
+  ]
+}

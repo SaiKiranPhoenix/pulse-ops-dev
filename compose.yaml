@@ -106,7 +106,7 @@ services:
         condition: service_healthy
 
   po-event-workers:
-    profiles: ["apps"]
+    profiles: ["apps", "workers"]
     build:
       context: .
       dockerfile: po-event-workers/Dockerfile
@@ -133,7 +133,7 @@ services:
         condition: service_healthy
 
   po-incident-service:
-    profiles: ["apps"]
+    profiles: ["apps", "workers"]
     build:
       context: .
       dockerfile: po-incident-service/Dockerfile
@@ -207,7 +207,7 @@ services:
         condition: service_healthy
 
   po-audit-service:
-    profiles: ["apps"]
+    profiles: ["apps", "workers"]
     build:
       context: .
       dockerfile: po-audit-service/Dockerfile
