@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { Request, Response } from "express";
 import { QueryExplorerService } from "../../src/services/query-explorer.service.js";
 import { CustomDashboardController } from "../../src/controllers/custom-dashboard.controller.js";
 import type { CustomDashboardRepository } from "../../src/repositories/custom-dashboard.repository.js";
@@ -103,12 +104,12 @@ describe("Custom Dashboards & Query Explorer", () => {
       const mockReq = {
         query: { projectId: "proj_test_123" },
         headers: {},
-      } as any;
+      } as unknown as Request;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn(),
-      } as any;
+      } as unknown as Response;
 
       await controller.seedTemplates(mockReq, mockRes);
 
@@ -122,12 +123,12 @@ describe("Custom Dashboards & Query Explorer", () => {
         headers: {},
         params: { dashboardId: "dash_orig_1" },
         body: { name: "Cloned Board" },
-      } as any;
+      } as unknown as Request;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn(),
-      } as any;
+      } as unknown as Response;
 
       await controller.clone(mockReq, mockRes);
 

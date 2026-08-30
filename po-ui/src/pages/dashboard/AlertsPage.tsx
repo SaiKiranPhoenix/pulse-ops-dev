@@ -51,7 +51,6 @@ import {
   listMaintenanceWindows,
   listMonitors,
   listNotificationChannels,
-  listNotificationRoutingRules,
   listSilenceWindows,
   testNotificationChannel,
   updateMonitor,

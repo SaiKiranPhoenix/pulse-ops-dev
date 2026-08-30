@@ -82,7 +82,7 @@ export function CustomDashboardsPage() {
       notify({
         title: "Failed to load dashboards",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsLoading(false);
@@ -110,12 +110,12 @@ export function CustomDashboardsPage() {
       setIsCreatingDashboard(false);
       setNewDashboardName("");
       setNewDashboardDesc("");
-      notify({ title: "Dashboard Created", description: `"${created.name}" is ready.` });
+      notify({ title: "Dashboard Created", description: `"${created.name}" is ready.`, variant: "success" });
     } catch (err) {
       notify({
         title: "Creation failed",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -146,12 +146,12 @@ export function CustomDashboardsPage() {
       setDashboards((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       setIsAddingWidget(false);
       setWidgetTitle("");
-      notify({ title: "Widget Added", description: `Added "${newWidget.title}" to dashboard.` });
+      notify({ title: "Widget Added", description: `Added "${newWidget.title}" to dashboard.`, variant: "success" });
     } catch (err) {
       notify({
         title: "Failed to add widget",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -164,12 +164,12 @@ export function CustomDashboardsPage() {
         widgets: updatedWidgets,
       });
       setDashboards((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-      notify({ title: "Widget Removed" });
+      notify({ title: "Widget Removed", variant: "info" });
     } catch (err) {
       notify({
         title: "Failed to remove widget",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -180,12 +180,12 @@ export function CustomDashboardsPage() {
       const cloned = await cloneCustomDashboard(selectedProject.id, activeDashboard.id);
       setDashboards((prev) => [cloned, ...prev]);
       setActiveDashboardId(cloned.id);
-      notify({ title: "Dashboard Cloned", description: `Created copy "${cloned.name}".` });
+      notify({ title: "Dashboard Cloned", description: `Created copy "${cloned.name}".`, variant: "success" });
     } catch (err) {
       notify({
         title: "Clone failed",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -198,12 +198,12 @@ export function CustomDashboardsPage() {
       setDashboards(remaining);
       setActiveDashboardId(remaining[0]?.id ?? null);
       setIsDeletingDashboard(false);
-      notify({ title: "Dashboard Deleted" });
+      notify({ title: "Dashboard Deleted", variant: "info" });
     } catch (err) {
       notify({
         title: "Delete failed",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -219,12 +219,13 @@ export function CustomDashboardsPage() {
       notify({
         title: "Templates Instantiated",
         description: `Created ${res.seededCount} production dashboard templates.`,
+        variant: "success",
       });
     } catch (err) {
       notify({
         title: "Seed failed",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -260,7 +261,7 @@ export function CustomDashboardsPage() {
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}_export.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    notify({ title: "Export Started", description: `Downloaded ${title} as ${ext.toUpperCase()}` });
+    notify({ title: "Export Started", description: `Downloaded ${title} as ${ext.toUpperCase()}`, variant: "success" });
   };
 
   if (!selectedProject) {
@@ -299,7 +300,6 @@ export function CustomDashboardsPage() {
             <Button
               onClick={() => void handleSeedTemplates()}
               variant="outline"
-              size="sm"
               className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -309,7 +309,6 @@ export function CustomDashboardsPage() {
 
           <Button
             onClick={() => setIsCreatingDashboard(true)}
-            size="sm"
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-1.5 shadow-lg shadow-emerald-950/40"
           >
             <Plus className="w-4 h-4" />
@@ -382,7 +381,6 @@ export function CustomDashboardsPage() {
               <div className="flex items-center gap-2 self-end sm:self-auto">
                 <Button
                   onClick={() => setIsAddingWidget(true)}
-                  size="sm"
                   variant="outline"
                   className="border-zinc-700 text-xs text-zinc-300 hover:text-white gap-1.5"
                 >
@@ -391,7 +389,6 @@ export function CustomDashboardsPage() {
                 </Button>
                 <Button
                   onClick={() => void handleCloneDashboard()}
-                  size="sm"
                   variant="ghost"
                   className="text-xs text-zinc-400 hover:text-white gap-1.5"
                   title="Clone Dashboard"
@@ -400,7 +397,6 @@ export function CustomDashboardsPage() {
                 </Button>
                 <Button
                   onClick={() => setIsDeletingDashboard(true)}
-                  size="sm"
                   variant="ghost"
                   className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 gap-1.5"
                   title="Delete Dashboard"
@@ -444,7 +440,6 @@ export function CustomDashboardsPage() {
               </p>
               <Button
                 onClick={() => setIsAddingWidget(true)}
-                size="sm"
                 className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1.5"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -762,7 +757,6 @@ export function CustomDashboardsPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => setIsCreatingDashboard(false)}
                   className="text-xs text-zinc-400"
                 >
@@ -770,7 +764,6 @@ export function CustomDashboardsPage() {
                 </Button>
                 <Button
                   type="submit"
-                  size="sm"
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
                 >
                   Create Board
@@ -906,7 +899,6 @@ export function CustomDashboardsPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => setIsAddingWidget(false)}
                   className="text-xs text-zinc-400"
                 >
@@ -914,7 +906,6 @@ export function CustomDashboardsPage() {
                 </Button>
                 <Button
                   type="submit"
-                  size="sm"
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
                 >
                   Add Widget
@@ -932,7 +923,6 @@ export function CustomDashboardsPage() {
           title={`Delete "${activeDashboard.name}"?`}
           description="Are you sure you want to delete this custom dashboard and all its configured widgets? This action cannot be undone."
           confirmLabel="Delete Dashboard"
-          variant="danger"
           onConfirm={() => void handleDeleteDashboard()}
           onCancel={() => setIsDeletingDashboard(false)}
         />

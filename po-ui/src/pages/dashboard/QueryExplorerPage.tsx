@@ -56,7 +56,7 @@ export function QueryExplorerPage() {
       notify({
         title: "Query execution failed",
         description: getApiErrorMessage(err),
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsLoading(false);
@@ -78,7 +78,7 @@ export function QueryExplorerPage() {
     void navigator.clipboard.writeText(shareUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
-    notify({ title: "Link Copied", description: "Query state link copied to clipboard." });
+    notify({ title: "Link Copied", description: "Query state link copied to clipboard.", variant: "info" });
   };
 
   const handleExport = (format: "csv" | "json") => {
@@ -115,7 +115,7 @@ export function QueryExplorerPage() {
     a.download = `query_export_${queryType}_${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    notify({ title: "Export Started", description: `Downloaded ${response.records.length} records as ${ext.toUpperCase()}` });
+    notify({ title: "Export Started", description: `Downloaded ${response.records.length} records as ${ext.toUpperCase()}`, variant: "success" });
   };
 
   if (!selectedProject) {
@@ -153,7 +153,6 @@ export function QueryExplorerPage() {
           <Button
             onClick={handleShareLink}
             variant="outline"
-            size="sm"
             className="border-zinc-700 text-xs text-zinc-300 hover:text-white gap-1.5"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
@@ -162,7 +161,6 @@ export function QueryExplorerPage() {
 
           <Button
             onClick={() => void runQuery()}
-            size="sm"
             className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium gap-1.5 shadow-lg shadow-emerald-950/40"
           >
             {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -312,7 +310,6 @@ export function QueryExplorerPage() {
               <div className="flex items-center gap-2 mt-2">
                 <Button
                   onClick={() => handleExport("csv")}
-                  size="sm"
                   variant="outline"
                   className="flex-1 border-zinc-700 text-xs text-zinc-300 hover:text-white gap-1.5"
                 >
@@ -321,7 +318,6 @@ export function QueryExplorerPage() {
                 </Button>
                 <Button
                   onClick={() => handleExport("json")}
-                  size="sm"
                   variant="outline"
                   className="flex-1 border-zinc-700 text-xs text-zinc-300 hover:text-white gap-1.5"
                 >
