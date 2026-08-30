@@ -11,8 +11,8 @@ PulseOps is a local-first developer operations platform for real-time observabil
 - Automatic incident creation from ingested errors.
 - Socket.IO-ready realtime event fanout.
 - AES-256-GCM vault secrets, password-gated reveal, hashed integration tokens, and audit logs.
-- k6 scripts for normal traffic, repeated errors, and rate-limit behavior.
-- k6 high-latency metrics scenario for the incident/demo matrix.
+- Node demo traffic commands for normal traffic, repeated errors, high latency, and rate-limit behavior.
+- Optional k6 load scripts remain available for heavier local load testing.
 
 ## Workspace
 
@@ -71,6 +71,47 @@ The smoke test creates an isolated demo user, project, ingestion API key, vault 
 
 The script intentionally does not print raw API keys, vault tokens, passwords, or secret values.
 
+## Demo Data And Traffic
+
+Seed a reusable local demo account, project, API key, telemetry, vault secret, and vault token:
+
+```powershell
+pnpm.cmd demo:seed
+```
+
+Reset the local Docker data stores, restart the stack, and seed demo data in one command:
+
+```powershell
+pnpm.cmd demo:reset
+```
+
+Generate traffic for the project attached to a raw ingestion API key:
+
+```powershell
+$env:PULSEOPS_API_KEY="<raw-api-key-shown-once>"
+pnpm.cmd demo:traffic
+```
+
+Scenario-specific commands are also available:
+
+```powershell
+pnpm.cmd load:normal
+pnpm.cmd load:incidents
+pnpm.cmd load:latency
+pnpm.cmd load:rate-limit
+pnpm.cmd load:all
+```
+
+The traffic script prints dashboard URLs and expected results for Logs, Errors, Metrics, Incidents, and Workers. It does not print the raw API key.
+
+Typical local timings:
+
+- `pnpm.cmd stack:up`: 30 to 90 seconds after images are built.
+- `pnpm.cmd demo:seed`: 10 to 30 seconds once the API gateway is healthy.
+- `pnpm.cmd demo:smoke`: 15 to 45 seconds on a warm stack.
+- `pnpm.cmd demo:traffic`: 5 to 20 seconds for the default scenarios.
+- Dashboard events usually appear within 5 to 15 seconds after ingestion, and repeated-error incidents usually appear within 10 to 30 seconds.
+
 Useful overrides:
 
 ```powershell
@@ -101,7 +142,21 @@ The suite registers a user, creates a project and API key, sends log/error/metri
 4. Create a project from Setup. The dashboard environments are `development`, `staging`, and `production`.
 5. Create an API key and keep the raw key shown once.
 6. Use the Setup connection snippets to send a test log, error, and metric from the UI.
-7. Run one of the k6 scripts with that API key:
+7. Run demo traffic with that API key, or use the Platform page demo buttons:
+
+```powershell
+$env:PULSEOPS_API_KEY="<raw-api-key-shown-once>"
+pnpm.cmd demo:traffic
+pnpm.cmd load:normal
+pnpm.cmd load:incidents
+pnpm.cmd load:latency
+pnpm.cmd load:rate-limit
+```
+
+8. Show logs, metrics, errors, incidents, traces, workers, queue health, realtime state, vault secrets, and vault audit events.
+9. Open RabbitMQ management at `http://localhost:15672` to inspect queues.
+
+Optional k6 equivalents are kept for larger bursts:
 
 ```powershell
 $env:PULSEOPS_API_KEY="<raw-api-key-shown-once>"
@@ -110,9 +165,6 @@ k6 run scripts/load/repeated-errors.js
 k6 run scripts/load/high-latency.js
 k6 run scripts/load/rate-limit.js
 ```
-
-8. Show logs, metrics, errors, incidents, traces, workers, queue health, realtime state, vault secrets, and vault audit events.
-9. Open RabbitMQ management at `http://localhost:15672` to inspect queues.
 
 Suggested screenshot/GIF proof points:
 

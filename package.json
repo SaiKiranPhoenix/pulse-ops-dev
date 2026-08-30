@@ -38,7 +38,7 @@
     "apps:down": "docker compose --profile apps down",
     "apps:logs": "docker compose --profile apps logs -f",
     "demo:seed": "node scripts/db/seed-demo.mjs",
-    "demo:reset": "node scripts/db/reset-local.mjs",
+    "demo:reset": "node scripts/db/reset-local.mjs --yes --start --seed",
     "demo:smoke": "node scripts/e2e/check-stack-health.mjs && node scripts/demo/smoke.mjs",
     "demo:traffic": "node scripts/demo/traffic.mjs",
     "load:normal": "node scripts/demo/traffic.mjs --scenario=normal",

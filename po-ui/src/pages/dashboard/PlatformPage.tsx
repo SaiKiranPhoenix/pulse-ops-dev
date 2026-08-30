@@ -3,17 +3,22 @@ import {
   AlertTriangle,
   Clipboard,
   FileJson,
+  Gauge,
   Network,
+  Play,
   RefreshCw,
   Route,
   ServerCog,
   ShieldCheck,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ingestError, ingestLog, ingestMetric } from "@/features/ingestion/api";
 import {
   getGatewayHealth,
   getOpenApiDocument,
@@ -24,6 +29,7 @@ import {
 import { apiClient, getApiErrorMessage } from "@/lib/api-client";
 import { realtimeUrl } from "@/lib/socket-client";
 import { cn } from "@/lib/utils";
+import { useDashboardContext, type DashboardEnvironment } from "./DashboardLayout";
 
 type RouteEntry = {
   readonly method: string;
@@ -33,6 +39,23 @@ type RouteEntry = {
 
 const routeMethods = ["all", "get", "post", "put", "delete", "patch"] as const;
 type RouteMethod = (typeof routeMethods)[number];
+type DemoScenarioId = "errors" | "latency" | "normal" | "rate-limit";
+
+type DemoScenario = {
+  readonly description: string;
+  readonly expected: string;
+  readonly icon: LucideIcon;
+  readonly id: DemoScenarioId;
+  readonly label: string;
+  readonly target: string;
+};
+
+type DemoTrafficResult = {
+  readonly accepted: number;
+  readonly limited: number;
+  readonly expected: string;
+  readonly target: string;
+};
 
 const coverageItems = [
   {
@@ -133,7 +156,43 @@ const coverageItems = [
   },
 ] as const;
 
+const demoScenarios: readonly DemoScenario[] = [
+  {
+    id: "normal",
+    label: "Normal traffic",
+    description: "Sends checkout logs with info and warning levels.",
+    expected: "Logs and Overview show fresh demo-checkout-ui rows.",
+    target: "/dashboard/logs",
+    icon: Activity,
+  },
+  {
+    id: "errors",
+    label: "Repeated errors",
+    description: "Sends correlated payment timeout errors.",
+    expected: "Errors groups update, then an incident appears after processing.",
+    target: "/dashboard/errors",
+    icon: AlertTriangle,
+  },
+  {
+    id: "latency",
+    label: "High latency",
+    description: "Sends checkout.latency metrics above the warning range.",
+    expected: "Metrics shows high checkout latency samples.",
+    target: "/dashboard/metrics",
+    icon: Gauge,
+  },
+  {
+    id: "rate-limit",
+    label: "Rate-limit burst",
+    description: "Sends a burst of log events and counts accepted versus limited attempts.",
+    expected: "Setup and dashboard counters show rate-limit activity.",
+    target: "/dashboard/setup",
+    icon: Zap,
+  },
+];
+
 export function PlatformPage() {
+  const { selectedEnvironment, selectedProject } = useDashboardContext();
   const [health, setHealth] = useState<GatewayHealth | null>(null);
   const [openApi, setOpenApi] = useState<OpenApiDocument | null>(null);
   const [selectedService, setSelectedService] = useState<UpstreamHealth | null>(null);
@@ -141,6 +200,9 @@ export function PlatformPage() {
   const [routeMethod, setRouteMethod] = useState<RouteMethod>("all");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [demoApiKey, setDemoApiKey] = useState("");
+  const [lastDemoResult, setLastDemoResult] = useState<DemoTrafficResult | null>(null);
+  const [activeDemoScenario, setActiveDemoScenario] = useState<DemoScenarioId | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   async function loadPlatform(): Promise<void> {
@@ -209,6 +271,51 @@ export function PlatformPage() {
     setMessage(nextMessage);
   }
 
+  async function sendDemoTraffic(scenarioId: DemoScenarioId): Promise<void> {
+    const apiKey = demoApiKey.trim();
+
+    if (apiKey.length === 0) {
+      setError("Paste a raw ingestion API key before sending demo traffic.");
+      setMessage(null);
+      return;
+    }
+
+    if (selectedProject === null) {
+      setError("Create or select a project before sending demo traffic.");
+      setMessage(null);
+      return;
+    }
+
+    const scenario = demoScenarios.find((item) => item.id === scenarioId);
+
+    if (scenario === undefined) {
+      return;
+    }
+
+    setActiveDemoScenario(scenarioId);
+    setError(null);
+    setMessage(null);
+    setLastDemoResult(null);
+
+    try {
+      const result = await runDemoScenario({
+        apiKey,
+        environment: selectedEnvironment,
+        scenario,
+      });
+      setLastDemoResult(result);
+      setMessage(
+        `${scenario.label} sent: ${result.accepted} accepted${
+          result.limited > 0 ? `, ${result.limited} limited` : ""
+        }. Expected result: ${result.expected}`,
+      );
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    } finally {
+      setActiveDemoScenario(null);
+    }
+  }
+
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -267,6 +374,91 @@ export function PlatformPage() {
           label="Avg latency"
           value={`${avgLatency}ms`}
         />
+      </section>
+
+      <section className="grid gap-4 rounded-md border border-slate-200 bg-white p-4 xl:grid-cols-[20rem_1fr]">
+        <div>
+          <div className="flex items-center gap-2">
+            <Play className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
+              Demo traffic
+            </h2>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Trigger the same local demo scenarios from the browser for the selected project and
+            environment.
+          </p>
+          <label className="mt-4 block">
+            <span className="text-xs font-semibold uppercase tracking-normal text-slate-500">
+              Ingestion API key
+            </span>
+            <Input
+              className="mt-2"
+              onChange={(event) => setDemoApiKey(event.target.value)}
+              placeholder="Paste raw key shown once"
+              type="password"
+              value={demoApiKey}
+            />
+          </label>
+          <dl className="mt-4 grid gap-2 text-sm">
+            <Detail label="Project" value={selectedProject?.name ?? "No project selected"} />
+            <Detail label="Environment" value={selectedEnvironment} />
+          </dl>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {demoScenarios.map((scenario) => {
+            const Icon = scenario.icon;
+            const isActive = activeDemoScenario === scenario.id;
+
+            return (
+              <article
+                className="rounded-md border border-slate-200 bg-slate-50 p-3"
+                key={scenario.id}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 text-cyan-700">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-950">{scenario.label}</p>
+                    <p className="mt-1 text-sm leading-5 text-slate-600">{scenario.description}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-500">{scenario.expected}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    className="w-auto"
+                    disabled={activeDemoScenario !== null}
+                    onClick={() => void sendDemoTraffic(scenario.id)}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Play className={cn("h-4 w-4", isActive && "animate-pulse")} />
+                    {isActive ? "Sending" : "Run"}
+                  </Button>
+                  <Link
+                    className="text-sm font-medium text-cyan-700 hover:text-cyan-900"
+                    to={scenario.target}
+                  >
+                    Open result
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {lastDemoResult !== null ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 xl:col-span-2">
+            {lastDemoResult.accepted} accepted
+            {lastDemoResult.limited > 0 ? `, ${lastDemoResult.limited} limited` : ""}. Open{" "}
+            <Link className="font-semibold underline" to={lastDemoResult.target}>
+              the target view
+            </Link>{" "}
+            to verify the result.
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
@@ -469,6 +661,150 @@ export function PlatformPage() {
       </section>
     </main>
   );
+}
+
+async function runDemoScenario({
+  apiKey,
+  environment,
+  scenario,
+}: {
+  readonly apiKey: string;
+  readonly environment: DashboardEnvironment;
+  readonly scenario: DemoScenario;
+}): Promise<DemoTrafficResult> {
+  const runId = crypto.randomUUID();
+
+  switch (scenario.id) {
+    case "normal": {
+      for (let index = 0; index < 8; index += 1) {
+        await ingestLog(
+          { apiKey, idempotencyKey: `ui-demo-normal-${runId}-${index}` },
+          {
+            source: "demo-checkout-ui",
+            level: index % 5 === 0 ? "warn" : "info",
+            message:
+              index % 5 === 0 ? "demo checkout inventory was slow" : "demo checkout completed",
+            fingerprint: `ui-demo-normal-${runId}-${index}`,
+            attributes: {
+              environment,
+              route: "POST /checkout",
+              runId,
+              scenario: scenario.id,
+              service: "demo-checkout-ui",
+              statusCode: index % 5 === 0 ? 202 : 200,
+              traceId: `trace-${runId}`,
+            },
+          },
+        );
+      }
+
+      return { accepted: 8, limited: 0, expected: scenario.expected, target: scenario.target };
+    }
+
+    case "errors": {
+      for (let index = 0; index < 3; index += 1) {
+        await ingestError(
+          { apiKey, idempotencyKey: `ui-demo-error-${runId}-${index}` },
+          {
+            source: "demo-checkout-ui",
+            name: "PaymentProviderTimeout",
+            message: "demo payment provider request timed out",
+            stack:
+              "PaymentProviderTimeout: demo payment provider request timed out\n    at checkout-ui.ts:42:11",
+            fingerprint: `ui-demo-payment-provider-timeout-${runId}`,
+            attributes: {
+              environment,
+              route: "POST /payments",
+              runId,
+              scenario: scenario.id,
+              service: "demo-checkout-ui",
+              traceId: `trace-${runId}`,
+            },
+          },
+        );
+      }
+
+      return { accepted: 3, limited: 0, expected: scenario.expected, target: scenario.target };
+    }
+
+    case "latency": {
+      const values = [940, 1_180, 1_420, 1_730, 2_050, 2_340];
+
+      for (let index = 0; index < values.length; index += 1) {
+        await ingestMetric(
+          { apiKey, idempotencyKey: `ui-demo-latency-${runId}-${index}` },
+          {
+            source: "demo-checkout-ui",
+            name: "checkout.latency",
+            value: values[index] ?? 940,
+            unit: "ms",
+            fingerprint: `ui-demo-checkout-latency-${runId}-${index}`,
+            attributes: {
+              environment,
+              percentile: index % 2 === 0 ? "p95" : "avg",
+              route: "POST /checkout",
+              runId,
+              scenario: scenario.id,
+              service: "demo-checkout-ui",
+              traceId: `trace-${runId}`,
+            },
+          },
+        );
+      }
+
+      return {
+        accepted: values.length,
+        limited: 0,
+        expected: scenario.expected,
+        target: scenario.target,
+      };
+    }
+
+    case "rate-limit": {
+      const attempts = await Promise.allSettled(
+        Array.from({ length: 40 }, (_, index) =>
+          ingestLog(
+            { apiKey, idempotencyKey: `ui-demo-burst-${runId}-${index}` },
+            {
+              source: "demo-checkout-ui",
+              level: "info",
+              message: "demo burst request accepted for rate-limit visibility",
+              fingerprint: `ui-demo-rate-limit-${runId}-${index}`,
+              attributes: {
+                burstIndex: index,
+                environment,
+                route: "POST /bulk-demo",
+                runId,
+                scenario: scenario.id,
+                service: "demo-checkout-ui",
+                traceId: `trace-${runId}`,
+              },
+            },
+          ),
+        ),
+      );
+
+      return attempts.reduce(
+        (summary, attempt) => {
+          if (attempt.status === "fulfilled") {
+            return { ...summary, accepted: summary.accepted + 1 };
+          }
+
+          if (isRateLimitError(attempt.reason)) {
+            return { ...summary, limited: summary.limited + 1 };
+          }
+
+          throw attempt.reason;
+        },
+        { accepted: 0, limited: 0, expected: scenario.expected, target: scenario.target },
+      );
+    }
+  }
+}
+
+function isRateLimitError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return message.includes("rate limit") || message.includes("429");
 }
 
 function Summary({
