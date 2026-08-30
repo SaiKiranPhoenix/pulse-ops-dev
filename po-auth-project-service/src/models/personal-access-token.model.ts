@@ -23,7 +23,7 @@ const personalAccessTokenSchema = new Schema<PersonalAccessTokenRecord>(
     userId: { type: String, required: true, index: true },
     organizationId: { type: String, required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 100 },
-    tokenPrefix: { type: String, required: true, trim: true, maxlength: 16 },
+    tokenPrefix: { type: String, required: true, trim: true, maxlength: 32 },
     tokenHash: { type: String, required: true, unique: true },
     scopes: { type: [String], default: [] },
     status: {
