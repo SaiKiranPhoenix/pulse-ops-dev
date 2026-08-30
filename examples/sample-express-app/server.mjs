@@ -1,3 +1,4 @@
+import console from "node:console";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import express from "express";
@@ -113,9 +114,7 @@ app.use((err, _req, res, next) => {
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(port, () => {
-    // eslint-disable-next-line no-console
     console.log(`[Sample App] Running on http://localhost:${port}`);
-    // eslint-disable-next-line no-console
     console.log(`[Sample App] Instrumented with PulseOps SDK -> ${pulseOps.endpoint}`);
   });
 }

@@ -30,5 +30,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
 function toRouteDependencies(dependencies: IncidentServiceDependencies): RouteDependencies {
   return {
     incidentController: dependencies.incidentController,
+    monitorController: dependencies.monitorController,
   };
 }

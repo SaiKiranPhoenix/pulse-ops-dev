@@ -56,6 +56,36 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     requireProjectAccess,
     asyncHandler(dependencies.proxyController.incident),
   );
+  router.use(
+    "/monitors",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
+  router.use(
+    "/silence-windows",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
+  router.use(
+    "/maintenance-windows",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
+  router.use(
+    "/notification-channels",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
+  router.use(
+    "/notification-routing",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
   router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
   router.use(
     "/vault",

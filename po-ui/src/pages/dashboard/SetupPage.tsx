@@ -40,15 +40,7 @@ import { useDashboardContext } from "./DashboardLayout";
 
 type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
 type FrameworkTab =
-  | "express"
-  | "fastify"
-  | "jobs"
-  | "docker"
-  | "lambda"
-  | "render"
-  | "railway"
-  | "fly"
-  | "curl";
+  "express" | "fastify" | "jobs" | "docker" | "lambda" | "render" | "railway" | "fly" | "curl";
 
 const defaultScopes = ["logs:write", "errors:write", "metrics:write"] as const;
 
@@ -255,7 +247,9 @@ export function SetupPage() {
     }
   }, [packageManager]);
 
-  const frameworkSnippets = useMemo<Record<FrameworkTab, { title: string; code: string; lang: string }>>(
+  const frameworkSnippets = useMemo<
+    Record<FrameworkTab, { title: string; code: string; lang: string }>
+  >(
     () => ({
       express: {
         title: "Express.js Instrumentation",
@@ -746,10 +740,7 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
                 <button
                   type="button"
                   onClick={() =>
-                    copyToClipboard(
-                      frameworkSnippets[frameworkTab].code,
-                      `snippet_${frameworkTab}`,
-                    )
+                    copyToClipboard(frameworkSnippets[frameworkTab].code, `snippet_${frameworkTab}`)
                   }
                   className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
                 >
@@ -779,7 +770,8 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
               <h2 className="text-base font-bold text-white">Zero-Downtime Key Rotation Guide</h2>
             </div>
             <p className="text-sm text-zinc-400">
-              Follow these best practices to rotate ingestion credentials safely without dropping telemetry:
+              Follow these best practices to rotate ingestion credentials safely without dropping
+              telemetry:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
               <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-4 space-y-1.5">
@@ -790,7 +782,8 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
                   Generate New Key
                 </div>
                 <p className="text-xs text-zinc-400">
-                  Create a second ingestion key in Project Settings while keeping the current key active.
+                  Create a second ingestion key in Project Settings while keeping the current key
+                  active.
                 </p>
               </div>
 
@@ -802,7 +795,8 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
                   Deploy Secret
                 </div>
                 <p className="text-xs text-zinc-400">
-                  Update <code className="text-indigo-300">PULSEOPS_API_KEY</code> across production container environments.
+                  Update <code className="text-indigo-300">PULSEOPS_API_KEY</code> across production
+                  container environments.
                 </p>
               </div>
 
@@ -814,7 +808,8 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
                   Revoke Old Key
                 </div>
                 <p className="text-xs text-zinc-400">
-                  Once telemetry streams from the new key, revoke the old key to prevent unauthorized access.
+                  Once telemetry streams from the new key, revoke the old key to prevent
+                  unauthorized access.
                 </p>
               </div>
             </div>
@@ -865,7 +860,9 @@ curl -X POST ${apiBaseUrl}/ingest/errors \\
 
               <div className="mt-4 space-y-1 z-10">
                 <h4 className="text-sm font-bold text-white">
-                  {hasReceivedEvents ? "Telemetry Streaming Active" : "Listening for First Pulse..."}
+                  {hasReceivedEvents
+                    ? "Telemetry Streaming Active"
+                    : "Listening for First Pulse..."}
                 </h4>
                 <p className="text-xs text-zinc-400 max-w-xs">
                   {hasReceivedEvents

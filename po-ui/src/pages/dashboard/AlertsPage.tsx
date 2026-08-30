@@ -1,7 +1,53 @@
-import { AlertTriangle, CheckCircle2, Clipboard, RefreshCw, RotateCcw, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertOctagon,
+  AlertTriangle,
+  Bell,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Copy,
+  Download,
+  Flame,
+  Globe,
+  HardDrive,
+  HelpCircle,
+  KeyRound,
+  Layers,
+  ListFilter,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Moon,
+  Play,
+  Plus,
+  RadioTower,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Send,
+  Server,
+  Settings2,
+  ShieldAlert,
+  ShieldCheck,
+  Sliders,
+  Sparkles,
+  Sun,
+  Terminal,
+  Trash2,
+  Upload,
+  UserCheck,
+  Users,
+  Volume2,
+  VolumeX,
+  X,
+  Zap,
+} from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import {
   acknowledgeIncident,
   getIncident,
@@ -11,79 +57,198 @@ import {
   type Incident,
 } from "@/features/alerts/api";
 import type { RealtimeIncidentUpdate } from "@/features/dashboards/api";
+import {
+  createMaintenanceWindow,
+  createMonitor,
+  createNotificationChannel,
+  createNotificationRoutingRule,
+  createSilenceWindow,
+  deleteMaintenanceWindow,
+  deleteMonitor,
+  deleteNotificationChannel,
+  deleteNotificationRoutingRule,
+  deleteSilenceWindow,
+  evaluateMonitor,
+  exportMonitors,
+  importMonitors,
+  listMaintenanceWindows,
+  listMonitors,
+  listNotificationChannels,
+  listNotificationRoutingRules,
+  listSilenceWindows,
+  testNotificationChannel,
+  updateMonitor,
+  type MaintenanceWindow,
+  type MonitorComparator,
+  type MonitorCondition,
+  type MonitorRule,
+  type MonitorRuleType,
+  type MonitorSeverity,
+  type MonitorState,
+  type NotificationChannel,
+  type NotificationChannelType,
+  type NotificationRoutingRule,
+  type SilenceWindow,
+} from "@/features/monitors/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { formatRelativeTime, severityClass } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
-const statuses = ["all", "open", "acknowledged", "resolved"] as const;
-const severities = ["all", "critical", "high", "medium", "low"] as const;
-
-type StatusFilter = (typeof statuses)[number];
-type SeverityFilter = (typeof severities)[number];
+type TabMode = "incidents" | "monitors" | "silence" | "channels";
 
 export function AlertsPage() {
   const { selectedEnvironment, selectedProject } = useDashboardContext();
+  const { notify } = useToast();
+
+  // Active Tab
+  const [activeTab, setActiveTab] = useState<TabMode>("incidents");
+
+  // --- INCIDENTS STATE ---
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [isLoadingIncidents, setIsLoadingIncidents] = useState(true);
   const [resolutionNote, setResolutionNote] = useState("");
 
-  async function loadIncidents(): Promise<void> {
-    if (selectedProject === null) {
+  // --- MONITORS STATE ---
+  const [monitors, setMonitors] = useState<MonitorRule[]>([]);
+  const [isLoadingMonitors, setIsLoadingMonitors] = useState(false);
+  const [monitorRuleTypeFilter, setMonitorRuleTypeFilter] = useState<string>("all");
+  const [monitorStateFilter, setMonitorStateFilter] = useState<string>("all");
+  const [isCreatingMonitor, setIsCreatingMonitor] = useState(false);
+  const [evaluatingMonitorId, setEvaluatingMonitorId] = useState<string | null>(null);
+
+  // Monitor Form
+  const [formMonitorName, setFormMonitorName] = useState("");
+  const [formMonitorDesc, setFormMonitorDesc] = useState("");
+  const [formMonitorRuleType, setFormMonitorRuleType] = useState<MonitorRuleType>("error_rate");
+  const [formMonitorSeverity, setFormMonitorSeverity] = useState<MonitorSeverity>("high");
+  const [formMonitorComparator, setFormMonitorComparator] = useState<MonitorComparator>(">");
+  const [formMonitorThreshold, setFormMonitorThreshold] = useState(5.0);
+  const [formMonitorWindowMin, setFormMonitorWindowMin] = useState(5);
+  const [formMonitorMetricName, setFormMonitorMetricName] = useState("");
+  const [formMonitorLogPattern, setFormMonitorLogPattern] = useState("");
+  const [formMonitorService, setFormMonitorService] = useState("");
+  const [isSubmittingMonitor, setIsSubmittingMonitor] = useState(false);
+
+  // --- SILENCE & MAINTENANCE STATE ---
+  const [silenceWindows, setSilenceWindows] = useState<SilenceWindow[]>([]);
+  const [maintenanceWindows, setMaintenanceWindows] = useState<MaintenanceWindow[]>([]);
+  const [isCreatingSilence, setIsCreatingSilence] = useState(false);
+  const [isCreatingMaintenance, setIsCreatingMaintenance] = useState(false);
+  const [silenceReason, setSilenceReason] = useState("Investigating active incident");
+  const [silenceDurationHours, setSilenceDurationHours] = useState(2);
+  const [maintReason, setMaintReason] = useState("Scheduled cluster update");
+  const [maintDurationHours, setMaintDurationHours] = useState(1);
+
+  // --- NOTIFICATION CHANNELS STATE ---
+  const [channels, setChannels] = useState<NotificationChannel[]>([]);
+  const [routingRules, setRoutingRules] = useState<NotificationRoutingRule[]>([]);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [testingChannelId, setTestingChannelId] = useState<string | null>(null);
+  const [channelName, setChannelName] = useState("Core Team Webhook");
+  const [channelType, setChannelType] = useState<NotificationChannelType>("webhook");
+  const [channelWebhookUrl, setChannelWebhookUrl] = useState("http://localhost:5000/webhook");
+  const [channelSecret, setChannelSecret] = useState("webhook_sec_12345");
+  const [channelEmailRecipients, setChannelEmailRecipients] = useState("ops@example.com");
+
+  // --- IMPORT / EXPORT STATE ---
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+
+  // ==========================================
+  // LOADERS
+  // ==========================================
+  const loadIncidents = async () => {
+    if (!selectedProject) {
       setIncidents([]);
       setSelectedIncident(null);
       return;
     }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
+    setIsLoadingIncidents(true);
     try {
-      const nextIncidents = await listIncidents(
+      const next = await listIncidents(
         selectedProject.id,
-        statusFilter === "all" ? undefined : statusFilter,
+        statusFilter === "all" ? undefined : (statusFilter as Incident["status"]),
       );
-      setIncidents(nextIncidents);
-      setSelectedIncident((current) =>
-        current === null
-          ? (nextIncidents[0] ?? null)
-          : (nextIncidents.find((incident) => incident.id === current.id) ??
-            nextIncidents[0] ??
-            null),
+      setIncidents(next);
+      setSelectedIncident((curr) =>
+        curr === null ? (next[0] ?? null) : (next.find((i) => i.id === curr.id) ?? next[0] ?? null),
       );
-    } catch (requestError) {
-      setErrorMessage(getApiErrorMessage(requestError));
+    } catch {
+      // ignore
     } finally {
-      setIsLoading(false);
+      setIsLoadingIncidents(false);
     }
-  }
+  };
+
+  const loadMonitors = async () => {
+    if (!selectedProject) return;
+    setIsLoadingMonitors(true);
+    try {
+      const data = await listMonitors(selectedProject.id);
+      setMonitors(data);
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingMonitors(false);
+    }
+  };
+
+  const loadSilenceAndMaintenance = async () => {
+    if (!selectedProject) return;
+    try {
+      const [silence, maint] = await Promise.all([
+        listSilenceWindows(selectedProject.id),
+        listMaintenanceWindows(selectedProject.id),
+      ]);
+      setSilenceWindows(silence);
+      setMaintenanceWindows(maint);
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadChannels = async () => {
+    if (!selectedProject) return;
+    try {
+      const [chList, rules] = await Promise.all([
+        listNotificationChannels(selectedProject.id),
+        listNotificationRoutingRules(selectedProject.id),
+      ]);
+      setChannels(chList);
+      setRoutingRules(rules);
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     void loadIncidents();
+    void loadMonitors();
+    void loadSilenceAndMaintenance();
+    void loadChannels();
   }, [selectedProject?.id, statusFilter]);
 
+  // Real-time socket events for incidents
   useEffect(() => {
-    if (selectedProject === null) {
-      return;
-    }
-
+    if (!selectedProject) return;
     const socket = createPulseOpsSocket();
-
-    if (socket === null) {
-      return;
-    }
+    if (!socket) return;
 
     socket.on("connect", () => {
       void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
     });
     socket.on("incident.updated", (update: RealtimeIncidentUpdate) => {
-      setIncidents((current) => upsertIncident(current, update.incident as Incident));
+      setIncidents((current) => {
+        const index = current.findIndex((i) => i.id === update.incident.id);
+        if (index === -1) return [update.incident as Incident, ...current];
+        return current.map((item, idx) => (idx === index ? (update.incident as Incident) : item));
+      });
       setSelectedIncident((current) =>
         current?.id === update.incident.id ? (update.incident as Incident) : current,
       );
@@ -96,518 +261,1571 @@ export function AlertsPage() {
     };
   }, [selectedEnvironment, selectedProject]);
 
-  const filteredIncidents = useMemo(
-    () =>
-      incidents.filter((incident) => {
-        const searchable = [
-          incident.title,
-          incident.summary,
-          incident.fingerprint,
-          incident.severity,
-          incident.status,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        return (
-          (severityFilter === "all" || incident.severity === severityFilter) &&
-          (search.trim().length === 0 || searchable.includes(search.trim().toLowerCase()))
-        );
-      }),
-    [incidents, search, severityFilter],
-  );
-
-  const summary = useMemo(
-    () => ({
-      open: incidents.filter((incident) => incident.status === "open").length,
-      acknowledged: incidents.filter((incident) => incident.status === "acknowledged").length,
-      resolved: incidents.filter((incident) => incident.status === "resolved").length,
-      critical: incidents.filter((incident) => incident.severity === "critical").length,
-      events: incidents.reduce((total, incident) => total + incident.eventCount, 0),
-    }),
-    [incidents],
-  );
-
-  async function selectIncident(incident: Incident): Promise<void> {
-    if (selectedProject === null) {
-      return;
-    }
-
-    setSelectedIncident(incident);
-    setErrorMessage(null);
-
+  // ==========================================
+  // INCIDENT ACTIONS
+  // ==========================================
+  const handleAcknowledge = async () => {
+    if (!selectedProject || !selectedIncident) return;
     try {
-      setSelectedIncident(await getIncident(selectedProject.id, incident.id));
-    } catch (requestError) {
-      setErrorMessage(getApiErrorMessage(requestError));
+      const updated = await acknowledgeIncident(selectedProject.id, selectedIncident.id);
+      setSelectedIncident(updated);
+      await loadIncidents();
+      notify({ variant: "success", title: "Incident Acknowledged", description: updated.title });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Action Failed",
+        description: getApiErrorMessage(err),
+      });
     }
-  }
+  };
 
-  async function acknowledgeSelectedIncident(incident: Incident): Promise<void> {
-    if (selectedProject === null) {
-      return;
-    }
-
-    setErrorMessage(null);
-    setMessage(null);
-
+  const handleResolve = async () => {
+    if (!selectedProject || !selectedIncident) return;
     try {
-      const updatedIncident = await acknowledgeIncident(selectedProject.id, incident.id);
-      setIncidents((current) => upsertIncident(current, updatedIncident));
-      setSelectedIncident(updatedIncident);
-      setMessage("Incident acknowledged.");
-    } catch (requestError) {
-      setErrorMessage(getApiErrorMessage(requestError));
-    }
-  }
-
-  async function resolveSelectedIncident(incident: Incident): Promise<void> {
-    if (selectedProject === null) {
-      return;
-    }
-
-    setErrorMessage(null);
-    setMessage(null);
-
-    try {
-      const updatedIncident = await resolveIncident(
+      const updated = await resolveIncident(
         selectedProject.id,
-        incident.id,
-        resolutionNote,
+        selectedIncident.id,
+        resolutionNote.trim() || undefined,
       );
-      setIncidents((current) => upsertIncident(current, updatedIncident));
-      setSelectedIncident(updatedIncident);
+      setSelectedIncident(updated);
       setResolutionNote("");
-      setMessage("Incident resolved.");
-    } catch (requestError) {
-      setErrorMessage(getApiErrorMessage(requestError));
+      await loadIncidents();
+      notify({ variant: "success", title: "Incident Resolved", description: updated.title });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Action Failed",
+        description: getApiErrorMessage(err),
+      });
     }
-  }
+  };
 
-  async function reopenSelectedIncident(incident: Incident): Promise<void> {
-    if (selectedProject === null) {
-      return;
-    }
-
-    setErrorMessage(null);
-    setMessage(null);
-
+  const handleReopen = async () => {
+    if (!selectedProject || !selectedIncident) return;
     try {
-      const updatedIncident = await reopenIncident(selectedProject.id, incident.id);
-      setIncidents((current) => upsertIncident(current, updatedIncident));
-      setSelectedIncident(updatedIncident);
-      setMessage("Incident reopened.");
-    } catch (requestError) {
-      setErrorMessage(getApiErrorMessage(requestError));
+      const updated = await reopenIncident(selectedProject.id, selectedIncident.id);
+      setSelectedIncident(updated);
+      await loadIncidents();
+      notify({ variant: "success", title: "Incident Reopened", description: updated.title });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Action Failed",
+        description: getApiErrorMessage(err),
+      });
     }
-  }
+  };
 
-  async function copySummary(incident: Incident): Promise<void> {
-    await navigator.clipboard.writeText(toIncidentSummary(incident));
-    setMessage("Incident summary copied.");
-  }
+  // ==========================================
+  // MONITOR ACTIONS
+  // ==========================================
+  const handleCreateMonitor = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !formMonitorName.trim()) return;
+
+    setIsSubmittingMonitor(true);
+    try {
+      const newMonitor = await createMonitor(selectedProject.id, {
+        name: formMonitorName.trim(),
+        description: formMonitorDesc.trim() || undefined,
+        ruleType: formMonitorRuleType,
+        severity: formMonitorSeverity,
+        condition: {
+          comparator: formMonitorComparator,
+          threshold: Number(formMonitorThreshold),
+          timeWindowMinutes: Number(formMonitorWindowMin),
+          metricName: formMonitorMetricName.trim() || undefined,
+          logPattern: formMonitorLogPattern.trim() || undefined,
+          serviceName: formMonitorService.trim() || undefined,
+          environment: selectedEnvironment,
+        },
+        evaluationIntervalSeconds: 60,
+      });
+
+      setMonitors([newMonitor, ...monitors]);
+      setIsCreatingMonitor(false);
+      setFormMonitorName("");
+      setFormMonitorDesc("");
+      notify({
+        variant: "success",
+        title: "Monitor Created",
+        description: `Rule "${newMonitor.name}" is now active and evaluating.`,
+      });
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Creation Failed",
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setIsSubmittingMonitor(false);
+    }
+  };
+
+  const handleEvaluateMonitor = async (monitorId: string) => {
+    if (!selectedProject) return;
+    setEvaluatingMonitorId(monitorId);
+    try {
+      const res = await evaluateMonitor(selectedProject.id, monitorId);
+      notify({
+        variant: res.nextState === "alert" ? "error" : "success",
+        title: `Evaluated: ${res.nextState.toUpperCase()}`,
+        description: res.message,
+      });
+      await loadMonitors();
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Evaluation Failed",
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setEvaluatingMonitorId(null);
+    }
+  };
+
+  const handleDeleteMonitor = async (monitorId: string) => {
+    if (!selectedProject) return;
+    try {
+      await deleteMonitor(selectedProject.id, monitorId);
+      setMonitors(monitors.filter((m) => m.id !== monitorId));
+      notify({ variant: "success", title: "Monitor Deleted", description: "Rule removed." });
+    } catch (err) {
+      notify({ variant: "error", title: "Delete Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleToggleMonitor = async (monitor: MonitorRule) => {
+    if (!selectedProject) return;
+    try {
+      const updated = await updateMonitor(selectedProject.id, monitor.id, {
+        enabled: !monitor.enabled,
+      });
+      setMonitors(monitors.map((m) => (m.id === monitor.id ? updated : m)));
+      notify({
+        variant: "success",
+        title: updated.enabled ? "Monitor Enabled" : "Monitor Paused",
+        description: `"${monitor.name}" state updated.`,
+      });
+    } catch (err) {
+      notify({ variant: "error", title: "Update Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  // ==========================================
+  // SILENCE & MAINTENANCE ACTIONS
+  // ==========================================
+  const handleCreateSilence = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    try {
+      const startsAt = new Date().toISOString();
+      const endsAt = new Date(Date.now() + silenceDurationHours * 3600 * 1000).toISOString();
+      const created = await createSilenceWindow(selectedProject.id, {
+        name: `Mute ${silenceDurationHours}h`,
+        matchers: { environment: selectedEnvironment },
+        startsAt,
+        endsAt,
+        reason: silenceReason.trim(),
+        enabled: true,
+      });
+      setSilenceWindows([created, ...silenceWindows]);
+      setIsCreatingSilence(false);
+      notify({
+        variant: "success",
+        title: "Silence Window Activated",
+        description: `Alert notifications muted until ${new Date(endsAt).toLocaleTimeString()}.`,
+      });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleDeleteSilence = async (id: string) => {
+    if (!selectedProject) return;
+    try {
+      await deleteSilenceWindow(selectedProject.id, id);
+      setSilenceWindows(silenceWindows.filter((w) => w.id !== id));
+      notify({ variant: "success", title: "Silence Window Removed", description: "Mute removed." });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleCreateMaintenance = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    try {
+      const startsAt = new Date().toISOString();
+      const endsAt = new Date(Date.now() + maintDurationHours * 3600 * 1000).toISOString();
+      const created = await createMaintenanceWindow(selectedProject.id, {
+        name: `Maintenance (${maintDurationHours}h)`,
+        services: [],
+        environments: [selectedEnvironment],
+        startsAt,
+        endsAt,
+        suppressIncidents: true,
+        suppressNotifications: true,
+        reason: maintReason.trim(),
+      });
+      setMaintenanceWindows([created, ...maintenanceWindows]);
+      setIsCreatingMaintenance(false);
+      notify({
+        variant: "success",
+        title: "Maintenance Window Scheduled",
+        description: `Alerts & Incidents suppressed until ${new Date(endsAt).toLocaleTimeString()}.`,
+      });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleDeleteMaintenance = async (id: string) => {
+    if (!selectedProject) return;
+    try {
+      await deleteMaintenanceWindow(selectedProject.id, id);
+      setMaintenanceWindows(maintenanceWindows.filter((w) => w.id !== id));
+      notify({ variant: "success", title: "Maintenance Window Cleared", description: "Active." });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  // ==========================================
+  // CHANNEL ACTIONS
+  // ==========================================
+  const handleCreateChannel = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !channelName.trim()) return;
+    try {
+      const newChan = await createNotificationChannel(selectedProject.id, {
+        name: channelName.trim(),
+        type: channelType,
+        config: {
+          webhookUrl: channelType === "webhook" ? channelWebhookUrl.trim() : undefined,
+          webhookSecret: channelType === "webhook" ? channelSecret.trim() : undefined,
+          slackWebhookUrl: channelType === "slack" ? channelWebhookUrl.trim() : undefined,
+          emailRecipients:
+            channelType === "email"
+              ? channelEmailRecipients.split(",").map((s) => s.trim())
+              : undefined,
+        },
+        enabled: true,
+      });
+      setChannels([newChan, ...channels]);
+      setIsCreatingChannel(false);
+      notify({
+        variant: "success",
+        title: "Channel Registered",
+        description: `Target "${newChan.name}" ready for notifications.`,
+      });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleTestChannel = async (id: string) => {
+    if (!selectedProject) return;
+    setTestingChannelId(id);
+    try {
+      const msg = await testNotificationChannel(selectedProject.id, id, "high");
+      notify({
+        variant: "success",
+        title: "Test Notification Sent",
+        description: msg,
+      });
+      await loadChannels();
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Test Dispatch Failed",
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setTestingChannelId(null);
+    }
+  };
+
+  const handleDeleteChannel = async (id: string) => {
+    if (!selectedProject) return;
+    try {
+      await deleteNotificationChannel(selectedProject.id, id);
+      setChannels(channels.filter((c) => c.id !== id));
+      notify({ variant: "success", title: "Channel Deleted", description: "Target removed." });
+    } catch (err) {
+      notify({ variant: "error", title: "Action Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  // ==========================================
+  // EXPORT / IMPORT ACTIONS
+  // ==========================================
+  const handleExport = async () => {
+    if (!selectedProject) return;
+    try {
+      const bundle = await exportMonitors(selectedProject.id);
+      const dataStr =
+        "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundle, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `pulseops-monitors-${selectedProject.id}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      notify({
+        variant: "success",
+        title: "Export Complete",
+        description: "Monitors bundle downloaded.",
+      });
+    } catch (err) {
+      notify({ variant: "error", title: "Export Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedProject || !importJsonText.trim()) return;
+    setIsImporting(true);
+    try {
+      const parsed = JSON.parse(importJsonText);
+      const res = await importMonitors(selectedProject.id, parsed);
+      setIsImportModalOpen(false);
+      setImportJsonText("");
+      notify({
+        variant: "success",
+        title: "Import Successful",
+        description: `Imported ${res.monitors} monitors, ${res.channels} channels, ${res.routingRules} rules.`,
+      });
+      await loadMonitors();
+      await loadChannels();
+    } catch (err) {
+      notify({
+        variant: "error",
+        title: "Import Error",
+        description: getApiErrorMessage(err),
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Filtered Incidents
+  const filteredIncidents = useMemo(() => {
+    return incidents.filter((incident) => {
+      const matchesSearch =
+        search === "" ||
+        incident.title.toLowerCase().includes(search.toLowerCase()) ||
+        (incident.summary && incident.summary.toLowerCase().includes(search.toLowerCase())) ||
+        incident.fingerprint.toLowerCase().includes(search.toLowerCase());
+
+      const matchesSeverity = severityFilter === "all" || incident.severity === severityFilter;
+      return matchesSearch && matchesSeverity;
+    });
+  }, [incidents, search, severityFilter]);
+
+  // Filtered Monitors
+  const filteredMonitors = useMemo(() => {
+    return monitors.filter((m) => {
+      const matchesType = monitorRuleTypeFilter === "all" || m.ruleType === monitorRuleTypeFilter;
+      const matchesState = monitorStateFilter === "all" || m.state === monitorStateFilter;
+      return matchesType && matchesState;
+    });
+  }, [monitors, monitorRuleTypeFilter, monitorStateFilter]);
+
+  // Monitor counts
+  const monitorStats = useMemo(() => {
+    return {
+      total: monitors.length,
+      ok: monitors.filter((m) => m.state === "ok").length,
+      warning: monitors.filter((m) => m.state === "warning").length,
+      alert: monitors.filter((m) => m.state === "alert").length,
+      noData: monitors.filter((m) => m.state === "no_data").length,
+    };
+  }, [monitors]);
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-5">
-      <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6 pb-16">
+      {/* Top Header Bar */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-medium text-cyan-700">
-            {selectedProject?.name ?? "No project selected"} / {selectedEnvironment}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-normal">Incident workbench</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Triage incident state, severity, event volume, and rule context from one operational
-            surface.
-          </p>
-        </div>
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => void loadIncidents()}
-          type="button"
-          variant="outline"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </header>
-
-      {message !== null ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {message}
-        </div>
-      ) : null}
-
-      {errorMessage !== null ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
-
-      <section className="grid gap-3 md:grid-cols-4">
-        <Summary label="Open" value={summary.open} />
-        <Summary label="Acknowledged" value={summary.acknowledged} />
-        <Summary label="Resolved" value={summary.resolved} />
-        <Summary label="Critical" value={summary.critical} />
-      </section>
-
-      <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_10rem_10rem]">
-        <label className="relative block">
-          <span className="sr-only">Search incidents</span>
-          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
-          <Input
-            className="pl-9"
-            onChange={(event) => {
-              setSearch(event.target.value);
-            }}
-            placeholder="Search title, fingerprint, summary"
-            value={search}
-          />
-        </label>
-
-        <select
-          className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm capitalize shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
-          onChange={(event) => {
-            setStatusFilter(event.target.value as StatusFilter);
-          }}
-          value={statusFilter}
-        >
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm capitalize shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
-          onChange={(event) => {
-            setSeverityFilter(event.target.value as SeverityFilter);
-          }}
-          value={severityFilter}
-        >
-          {severities.map((severity) => (
-            <option key={severity} value={severity}>
-              {severity}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_28rem]">
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-          <div className="grid min-w-[36rem] grid-cols-[1fr_7rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
-            <span>Incident</span>
-            <span>Severity</span>
-            <span>Status</span>
-            <span className="text-right">Events</span>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500/20 to-amber-500/20 text-rose-400 border border-rose-500/30 shadow-lg shadow-rose-500/10">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+                Incidents & Monitors
+              </h1>
+              <p className="text-sm text-zinc-400">
+                Automated rule evaluations, real-time triage, silence windows, and multi-channel
+                routing.
+              </p>
+            </div>
           </div>
-          {filteredIncidents.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">
-              {isLoading ? "Loading incidents" : "No incidents match the current filters"}
-            </p>
-          ) : (
-            <div className="min-w-[36rem] divide-y divide-slate-100">
-              {filteredIncidents.map((incident) => (
-                <button
-                  className="grid w-full grid-cols-[1fr_7rem_8rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                  key={incident.id}
-                  onClick={() => void selectIncident(incident)}
-                  type="button"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <h2 className="truncate text-sm font-semibold text-slate-900">
-                        {incident.title}
+        </div>
+
+        {/* Global Toolbar Tabs */}
+        <div className="flex rounded-xl bg-zinc-950 p-1.5 border border-zinc-800 backdrop-blur-md">
+          {[
+            {
+              id: "incidents",
+              label: "Active Incidents",
+              count: incidents.filter((i) => i.status === "open").length,
+              icon: Flame,
+            },
+            { id: "monitors", label: "Monitors & Rules", count: monitors.length, icon: RadioTower },
+            {
+              id: "silence",
+              label: "Silence & Maintenance",
+              count: silenceWindows.length + maintenanceWindows.length,
+              icon: VolumeX,
+            },
+            { id: "channels", label: "Notification Channels", count: channels.length, icon: Bell },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as TabMode)}
+                className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-zinc-400 hover:text-white hover:bg-zinc-850"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      isActive ? "bg-white/20 text-white" : "bg-zinc-800 text-zinc-300"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* TAB 1: INCIDENTS & TRIAGE */}
+      {/* ========================================================================= */}
+      {activeTab === "incidents" && (
+        <div className="space-y-4">
+          {/* Filter Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search incidents by title or fingerprint..."
+                  className="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-zinc-950/80 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center rounded-lg bg-zinc-950/80 border border-zinc-800 p-0.5">
+                {["all", "open", "acknowledged", "resolved"].map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                      statusFilter === st
+                        ? "bg-zinc-800 text-white shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {st.charAt(0).toUpperCase() + st.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Severity Filter */}
+              <div className="flex items-center rounded-lg bg-zinc-950/80 border border-zinc-800 p-0.5">
+                {["all", "critical", "high", "medium", "low"].map((sev) => (
+                  <button
+                    key={sev}
+                    type="button"
+                    onClick={() => setSeverityFilter(sev)}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                      severityFilter === sev
+                        ? "bg-zinc-800 text-white shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {sev.charAt(0).toUpperCase() + sev.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={loadIncidents}
+              disabled={isLoadingIncidents}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs h-8 px-3"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 mr-1.5 ${isLoadingIncidents ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
+
+          {/* Incidents Split View */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Incident List */}
+            <div className="space-y-3">
+              {filteredIncidents.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-500 text-xs">
+                  No matching incidents found.
+                </div>
+              ) : (
+                filteredIncidents.map((incident) => {
+                  const isSelected = selectedIncident?.id === incident.id;
+                  return (
+                    <div
+                      key={incident.id}
+                      onClick={() => setSelectedIncident(incident)}
+                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                        isSelected
+                          ? "border-rose-500/50 bg-gradient-to-r from-rose-950/30 to-zinc-900/80 shadow-lg shadow-rose-950/20"
+                          : "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900 hover:border-zinc-700"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                incident.severity === "critical"
+                                  ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                                  : incident.severity === "high"
+                                    ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                              }`}
+                            >
+                              {incident.severity}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[120px]">
+                              {incident.fingerprint.slice(0, 12)}
+                            </span>
+                          </div>
+                          <h3 className="text-sm font-bold text-white line-clamp-1">
+                            {incident.title}
+                          </h3>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                            incident.status === "open"
+                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              : incident.status === "acknowledged"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          }`}
+                        >
+                          {incident.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/60">
+                        <span>{incident.eventCount} events</span>
+                        <span>{formatRelativeTime(incident.lastSeenAt)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Right: Incident Detail & Triage Console */}
+            <div className="lg:col-span-2">
+              {selectedIncident ? (
+                <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-6 shadow-xl backdrop-blur-md space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
+                            selectedIncident.severity === "critical"
+                              ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                              : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                          }`}
+                        >
+                          {selectedIncident.severity}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-mono">
+                          ID: {selectedIncident.id}
+                        </span>
+                      </div>
+                      <h2 className="text-lg font-bold text-white mt-1">
+                        {selectedIncident.title}
                       </h2>
                     </div>
-                    <p className="mt-1 truncate font-mono text-xs text-slate-500">
-                      {incident.fingerprint}
-                    </p>
+
+                    {/* Triage Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {selectedIncident.status === "open" && (
+                        <Button
+                          type="button"
+                          onClick={handleAcknowledge}
+                          className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs h-8 px-3"
+                        >
+                          <UserCheck className="h-3.5 w-3.5 mr-1" />
+                          Acknowledge
+                        </Button>
+                      )}
+                      {selectedIncident.status !== "resolved" && (
+                        <Button
+                          type="button"
+                          onClick={handleResolve}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8 px-3"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Resolve
+                        </Button>
+                      )}
+                      {selectedIncident.status === "resolved" && (
+                        <Button
+                          type="button"
+                          onClick={handleReopen}
+                          className="bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs h-8 px-3"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          Reopen
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <span
-                    className={`w-fit rounded-md border px-2 py-1 text-xs font-medium ${severityClass(
-                      incident.severity,
-                    )}`}
-                  >
-                    {incident.severity}
-                  </span>
-                  <span className={statusClass(incident.status)}>{incident.status}</span>
-                  <span className="text-right font-mono text-sm text-slate-700">
-                    {incident.eventCount}
-                  </span>
-                </button>
-              ))}
+
+                  {/* Incident Summary & Timeline */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
+                        Status
+                      </div>
+                      <div className="text-sm font-bold text-white capitalize mt-0.5">
+                        {selectedIncident.status}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
+                        Total Events
+                      </div>
+                      <div className="text-sm font-bold text-cyan-300 mt-0.5">
+                        {selectedIncident.eventCount}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
+                        First Seen
+                      </div>
+                      <div className="text-xs font-semibold text-zinc-300 mt-1">
+                        {formatRelativeTime(selectedIncident.firstSeenAt)}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
+                        Last Seen
+                      </div>
+                      <div className="text-xs font-semibold text-zinc-300 mt-1">
+                        {formatRelativeTime(selectedIncident.lastSeenAt)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sample Traces / Errors */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                      Event Samples & Root Cause Logs ({selectedIncident.samples?.length ?? 0})
+                    </h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {(selectedIncident.samples ?? []).map((sample, idx) => (
+                        <div
+                          key={sample.eventId || idx}
+                          className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80 font-mono text-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between text-zinc-500 text-[10px]">
+                            <span>Source: {sample.source}</span>
+                            <span>{new Date(sample.observedAt).toLocaleTimeString()}</span>
+                          </div>
+                          <p className="text-rose-300">{sample.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center text-zinc-500 text-xs">
+                  Select an incident to view root-cause samples and triage.
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        <aside className="rounded-md border border-slate-200 bg-white p-4">
-          {selectedIncident === null ? (
-            <p className="text-sm text-slate-500">Select an incident to open the triage panel.</p>
-          ) : (
-            <IncidentDetail
-              incident={selectedIncident}
-              onCopy={() => void copySummary(selectedIncident)}
-              onAcknowledge={() => void acknowledgeSelectedIncident(selectedIncident)}
-              onResolve={() => void resolveSelectedIncident(selectedIncident)}
-              onReopen={() => void reopenSelectedIncident(selectedIncident)}
-              resolutionNote={resolutionNote}
-              setResolutionNote={setResolutionNote}
-            />
-          )}
-        </aside>
-      </section>
-    </main>
-  );
-}
-
-function IncidentDetail({
-  incident,
-  onAcknowledge,
-  onCopy,
-  onReopen,
-  onResolve,
-  resolutionNote,
-  setResolutionNote,
-}: {
-  readonly incident: Incident;
-  readonly onAcknowledge: () => void;
-  readonly onCopy: () => void;
-  readonly onReopen: () => void;
-  readonly onResolve: () => void;
-  readonly resolutionNote: string;
-  readonly setResolutionNote: (value: string) => void;
-}) {
-  return (
-    <div className="grid gap-5">
-      <div>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">
-              Triage detail
-            </p>
-            <h2 className="mt-2 text-lg font-semibold leading-6 text-slate-950">
-              {incident.title}
-            </h2>
           </div>
-          <span
-            className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium ${severityClass(
-              incident.severity,
-            )}`}
-          >
-            {incident.severity}
-          </span>
         </div>
-        {incident.summary !== null ? (
-          <p className="mt-3 text-sm leading-6 text-slate-600">{incident.summary}</p>
-        ) : null}
-      </div>
+      )}
 
-      <div className="grid gap-2">
-        {incident.status === "resolved" ? (
-          <Button className="w-full" onClick={onReopen} type="button" variant="primary">
-            <RotateCcw className="h-4 w-4" />
-            Reopen incident
-          </Button>
-        ) : (
-          <>
-            {incident.status === "open" ? (
-              <Button className="w-full" onClick={onAcknowledge} type="button" variant="outline">
-                <CheckCircle2 className="h-4 w-4" />
-                Acknowledge incident
+      {/* ========================================================================= */}
+      {/* TAB 2: MONITORS & HEALTH RULES */}
+      {/* ========================================================================= */}
+      {activeTab === "monitors" && (
+        <div className="space-y-6">
+          {/* Monitor Health Stats Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="text-xs text-zinc-400 font-medium">Total Rules</div>
+              <div className="text-2xl font-bold text-white mt-1">{monitorStats.total}</div>
+            </div>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/10 p-4">
+              <div className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                State: OK
+              </div>
+              <div className="text-2xl font-bold text-emerald-400 mt-1">{monitorStats.ok}</div>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/10 p-4">
+              <div className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Warning
+              </div>
+              <div className="text-2xl font-bold text-amber-400 mt-1">{monitorStats.warning}</div>
+            </div>
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-950/10 p-4">
+              <div className="text-xs text-rose-400 font-medium flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5" />
+                Alert Triggered
+              </div>
+              <div className="text-2xl font-bold text-rose-400 mt-1">{monitorStats.alert}</div>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="text-xs text-zinc-400 font-medium">No Data</div>
+              <div className="text-2xl font-bold text-zinc-400 mt-1">{monitorStats.noData}</div>
+            </div>
+          </div>
+
+          {/* Toolbar & Filter */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Type filter */}
+              <select
+                value={monitorRuleTypeFilter}
+                onChange={(e) => setMonitorRuleTypeFilter(e.target.value)}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 focus:outline-none"
+              >
+                <option value="all">All Rule Types</option>
+                <option value="error_rate">Error Rate (%)</option>
+                <option value="latency_p95">p95 Latency (ms)</option>
+                <option value="metric_threshold">Metric Threshold</option>
+                <option value="log_match">Log Regex Match</option>
+                <option value="queue_backlog">Queue Backlog</option>
+                <option value="worker_stale">Worker Stale Heartbeat</option>
+                <option value="vault_anomaly">Vault Audit Anomaly</option>
+              </select>
+
+              {/* State filter */}
+              <select
+                value={monitorStateFilter}
+                onChange={(e) => setMonitorStateFilter(e.target.value)}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 focus:outline-none"
+              >
+                <option value="all">All States</option>
+                <option value="ok">OK</option>
+                <option value="warning">Warning</option>
+                <option value="alert">Alert</option>
+                <option value="no_data">No Data</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={handleExport}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs h-8 px-3"
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export JSON
               </Button>
-            ) : null}
-            <textarea
-              className="min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-cyan-700"
-              onChange={(event) => setResolutionNote(event.target.value)}
-              placeholder="Resolution note"
-              value={resolutionNote}
-            />
-            <Button className="w-full" onClick={onResolve} type="button" variant="primary">
-              <CheckCircle2 className="h-4 w-4" />
-              Resolve incident
-            </Button>
-          </>
-        )}
-        <Button className="w-full" onClick={onCopy} type="button" variant="outline">
-          <Clipboard className="h-4 w-4" />
-          Copy summary
-        </Button>
-      </div>
-
-      <dl className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-        <Detail label="Status" value={incident.status} />
-        <Detail label="Events" value={String(incident.eventCount)} />
-        {incident.samples[0]?.source && (
-          <div className="flex items-center justify-between text-xs">
-            <dt className="text-slate-500">Service</dt>
-            <dd>
-              <a
-                href={`/dashboard/services/${encodeURIComponent(incident.samples[0].source)}`}
-                className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+              <Button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs h-8 px-3"
               >
-                <span>{incident.samples[0].source}</span>
-                <span className="text-[10px] text-slate-400">↗</span>
-              </a>
-            </dd>
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Import JSON
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsCreatingMonitor(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs h-8 px-3"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Create Monitor
+              </Button>
+            </div>
           </div>
-        )}
-        <Detail label="Fingerprint" value={incident.fingerprint} mono />
-        <Detail label="Rule" value={incident.creationReason} />
-        <Detail label="First seen" value={new Date(incident.firstSeenAt).toLocaleString()} />
-        <Detail label="Last seen" value={new Date(incident.lastSeenAt).toLocaleString()} />
-        <Detail
-          label="Acknowledged"
-          value={
-            incident.acknowledgedAt === null
-              ? "-"
-              : new Date(incident.acknowledgedAt).toLocaleString()
-          }
-        />
-        <Detail
-          label="Resolved"
-          value={
-            incident.resolvedAt === null ? "-" : new Date(incident.resolvedAt).toLocaleString()
-          }
-        />
-      </dl>
 
-      <section>
-        <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">Timeline</h3>
-        <div className="mt-3 grid gap-3">
-          <TimelineItem label="Opened" value={incident.firstSeenAt} />
-          {incident.acknowledgedAt !== null ? (
-            <TimelineItem label="Acknowledged" value={incident.acknowledgedAt} />
-          ) : null}
-          <TimelineItem label="Last matched" value={incident.lastSeenAt} />
-          {incident.resolvedAt !== null ? (
-            <TimelineItem label="Resolved" value={incident.resolvedAt} />
-          ) : null}
+          {/* Monitors Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMonitors.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center text-zinc-500 text-xs">
+                No monitors configured yet. Click &quot;Create Monitor&quot; to build your first
+                health rule.
+              </div>
+            ) : (
+              filteredMonitors.map((mon) => (
+                <div
+                  key={mon.id}
+                  className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              mon.state === "ok"
+                                ? "bg-emerald-400 shadow-sm shadow-emerald-400"
+                                : mon.state === "alert"
+                                  ? "bg-rose-500 animate-pulse shadow-sm shadow-rose-500"
+                                  : mon.state === "warning"
+                                    ? "bg-amber-400"
+                                    : "bg-zinc-500"
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-white uppercase">
+                            {mon.state}
+                          </span>
+                          <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-400 uppercase">
+                            {mon.severity}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-white mt-1">{mon.name}</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleMonitor(mon)}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase transition-colors ${
+                          mon.enabled
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                        }`}
+                      >
+                        {mon.enabled ? "Active" : "Paused"}
+                      </button>
+                    </div>
+
+                    {mon.description && (
+                      <p className="text-xs text-zinc-400 line-clamp-2">{mon.description}</p>
+                    )}
+
+                    {/* Condition Pill */}
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800 font-mono text-xs text-zinc-300 space-y-1">
+                      <div className="text-[10px] text-zinc-500 uppercase font-sans font-semibold">
+                        Rule Condition ({mon.ruleType})
+                      </div>
+                      <div className="text-cyan-300">
+                        {mon.condition.metricName || mon.ruleType} {mon.condition.comparator}{" "}
+                        {mon.condition.threshold}
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        Window: {mon.condition.timeWindowMinutes} min | Every{" "}
+                        {mon.evaluationIntervalSeconds}s
+                      </div>
+                    </div>
+
+                    {/* Last Evaluation Message */}
+                    {mon.lastEvaluationMessage && (
+                      <div className="text-[11px] text-zinc-400 line-clamp-2">
+                        {mon.lastEvaluationMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80">
+                    <Button
+                      type="button"
+                      onClick={() => handleEvaluateMonitor(mon.id)}
+                      disabled={evaluatingMonitorId === mon.id}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs h-8 px-2.5"
+                    >
+                      <Play
+                        className={`h-3 w-3 mr-1 ${
+                          evaluatingMonitorId === mon.id ? "animate-spin text-cyan-400" : ""
+                        }`}
+                      />
+                      Evaluate
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMonitor(mon.id)}
+                      className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5"
+                      title="Delete Monitor"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </section>
+      )}
 
-      <section>
-        <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-          Linked event samples
-        </h3>
-        <div className="mt-3 grid gap-2">
-          {incident.samples.length === 0 ? (
-            <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-              No samples attached yet.
-            </p>
-          ) : (
-            incident.samples.map((sample) => (
-              <article
-                className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm"
-                key={`${sample.eventId}:${sample.receivedAt}`}
+      {/* ========================================================================= */}
+      {/* TAB 3: SILENCE & MAINTENANCE WINDOWS */}
+      {/* ========================================================================= */}
+      {activeTab === "silence" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-md">
+            <div>
+              <h2 className="text-base font-bold text-white">Silence & Maintenance Windows</h2>
+              <p className="text-xs text-zinc-400">
+                Temporarily mute alert dispatches or suppress automatic incident creation during
+                upgrades.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setIsCreatingSilence(true)}
+                className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs h-8 px-3"
               >
-                <p className="font-medium text-slate-900">{sample.message ?? sample.eventId}</p>
-                <p className="mt-1 font-mono text-xs text-slate-500">
-                  {sample.source} / {sample.level ?? "-"} /{" "}
-                  {new Date(sample.observedAt).toLocaleString()}
-                </p>
-              </article>
-            ))
-          )}
+                <VolumeX className="h-3.5 w-3.5 mr-1.5" />
+                Mute Alerts
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsCreatingMaintenance(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs h-8 px-3"
+              >
+                <Clock className="h-3.5 w-3.5 mr-1.5" />
+                Schedule Maintenance
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Active Silence Windows */}
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <VolumeX className="h-4 w-4 text-amber-400" />
+                  Active Silence Mutes ({silenceWindows.length})
+                </h3>
+              </div>
+
+              {silenceWindows.length === 0 ? (
+                <div className="rounded-xl bg-zinc-950 p-6 text-center text-zinc-500 text-xs">
+                  No active silence windows. All alerts are delivering normally.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {silenceWindows.map((sw) => (
+                    <div
+                      key={sw.id}
+                      className="rounded-xl bg-zinc-950 p-4 border border-zinc-800 space-y-2 flex items-start justify-between"
+                    >
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{sw.name}</h4>
+                        <p className="text-xs text-zinc-400">{sw.reason}</p>
+                        <div className="text-[11px] text-amber-300 font-mono mt-1">
+                          Ends: {new Date(sw.endsAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSilence(sw.id)}
+                        className="text-zinc-500 hover:text-rose-400 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Scheduled Maintenance Windows */}
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Server className="h-4 w-4 text-indigo-400" />
+                  Maintenance Windows ({maintenanceWindows.length})
+                </h3>
+              </div>
+
+              {maintenanceWindows.length === 0 ? (
+                <div className="rounded-xl bg-zinc-950 p-6 text-center text-zinc-500 text-xs">
+                  No scheduled maintenance windows.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {maintenanceWindows.map((mw) => (
+                    <div
+                      key={mw.id}
+                      className="rounded-xl bg-zinc-950 p-4 border border-zinc-800 space-y-2 flex items-start justify-between"
+                    >
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{mw.name}</h4>
+                        <p className="text-xs text-zinc-400">{mw.reason}</p>
+                        <div className="text-[11px] text-indigo-300 font-mono mt-1">
+                          Ends: {new Date(mw.endsAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMaintenance(mw.id)}
+                        className="text-zinc-500 hover:text-rose-400 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </section>
+      )}
 
-      {incident.resolutionNote !== null ? (
-        <section>
-          <h3 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-            Resolution note
-          </h3>
-          <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
-            {incident.resolutionNote}
-          </p>
-        </section>
-      ) : null}
+      {/* ========================================================================= */}
+      {/* TAB 4: NOTIFICATION CHANNELS & ROUTING */}
+      {/* ========================================================================= */}
+      {activeTab === "channels" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-md">
+            <div>
+              <h2 className="text-base font-bold text-white">
+                Notification Channels & Routing Matrix
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Route alert notifications to MailHog email, webhook endpoints with HMAC
+                verification, or Slack.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setIsCreatingChannel(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs h-8 px-3"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add Notification Channel
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {channels.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center text-zinc-500 text-xs">
+                No notification channels configured yet. Click &quot;Add Notification Channel&quot;.
+              </div>
+            ) : (
+              channels.map((chan) => (
+                <div
+                  key={chan.id}
+                  className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          {chan.type === "email" ? (
+                            <Mail className="h-4 w-4" />
+                          ) : chan.type === "slack" ? (
+                            <MessageSquare className="h-4 w-4" />
+                          ) : (
+                            <Globe className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{chan.name}</h4>
+                          <span className="text-[10px] text-zinc-400 font-semibold uppercase">
+                            {chan.type}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          chan.lastDispatchStatus === "success"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : chan.lastDispatchStatus === "failed"
+                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {chan.lastDispatchStatus || "Ready"}
+                      </span>
+                    </div>
+
+                    <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800 font-mono text-xs text-zinc-400 truncate">
+                      {chan.type === "email"
+                        ? chan.config.emailRecipients?.join(", ") || "ops@example.com"
+                        : chan.config.webhookUrl || chan.config.slackWebhookUrl || "N/A"}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80">
+                    <Button
+                      type="button"
+                      onClick={() => handleTestChannel(chan.id)}
+                      disabled={testingChannelId === chan.id}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs h-8 px-2.5"
+                    >
+                      <Send
+                        className={`h-3 w-3 mr-1 ${
+                          testingChannelId === chan.id ? "animate-spin text-cyan-400" : ""
+                        }`}
+                      />
+                      Test Dispatch
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteChannel(chan.id)}
+                      className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: CREATE MONITOR BUILDER */}
+      {/* ========================================================================= */}
+      {isCreatingMonitor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <RadioTower className="h-5 w-5 text-indigo-400" />
+                <h3 className="text-base font-bold text-white">Create Monitor Health Rule</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreatingMonitor(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMonitor} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Rule Name</label>
+                <Input
+                  value={formMonitorName}
+                  onChange={(e) => setFormMonitorName(e.target.value)}
+                  placeholder="e.g. High Payment Gateway Latency"
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Rule Type</label>
+                  <select
+                    value={formMonitorRuleType}
+                    onChange={(e) => setFormMonitorRuleType(e.target.value as MonitorRuleType)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none"
+                  >
+                    <option value="error_rate">Error Rate (%)</option>
+                    <option value="latency_p95">p95 Latency (ms)</option>
+                    <option value="metric_threshold">Metric Threshold</option>
+                    <option value="log_match">Log Regex Match</option>
+                    <option value="queue_backlog">Queue Backlog</option>
+                    <option value="worker_stale">Worker Stale Heartbeat</option>
+                    <option value="vault_anomaly">Vault Audit Anomaly</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Severity</label>
+                  <select
+                    value={formMonitorSeverity}
+                    onChange={(e) => setFormMonitorSeverity(e.target.value as MonitorSeverity)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none"
+                  >
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Condition Details */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Comparator</label>
+                  <select
+                    value={formMonitorComparator}
+                    onChange={(e) => setFormMonitorComparator(e.target.value as MonitorComparator)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none"
+                  >
+                    <option value=">">&gt; (Greater than)</option>
+                    <option value=">=">&gt;= (Greater or equal)</option>
+                    <option value="<">&lt; (Less than)</option>
+                    <option value="<=">&lt;= (Less or equal)</option>
+                    <option value="==">== (Exact equal)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Threshold</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={formMonitorThreshold}
+                    onChange={(e) => setFormMonitorThreshold(Number(e.target.value))}
+                    className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Time Window (min)</label>
+                  <Input
+                    type="number"
+                    value={formMonitorWindowMin}
+                    onChange={(e) => setFormMonitorWindowMin(Number(e.target.value))}
+                    className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                <Button
+                  type="button"
+                  onClick={() => setIsCreatingMonitor(false)}
+                  className="bg-zinc-800 text-zinc-300 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingMonitor}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                >
+                  {isSubmittingMonitor ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                  ) : null}
+                  Create Rule
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: IMPORT MONITORS JSON */}
+      {/* ========================================================================= */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Upload className="h-5 w-5 text-cyan-400" />
+                Import Monitors JSON Bundle
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400">
+              Paste a PulseOps Monitor Bundle JSON with rule definitions, notification channels, and
+              routing policies.
+            </p>
+
+            <textarea
+              value={importJsonText}
+              onChange={(e) => setImportJsonText(e.target.value)}
+              placeholder={`{\n  "version": "1.0",\n  "monitors": [\n    {\n      "name": "High Error Rate",\n      "ruleType": "error_rate",\n      "severity": "critical",\n      "condition": { "comparator": ">", "threshold": 5, "timeWindowMinutes": 5 }\n    }\n  ]\n}`}
+              className="w-full h-48 rounded-xl bg-zinc-950 p-3 font-mono text-xs text-zinc-200 border border-zinc-800 focus:outline-none focus:border-cyan-500"
+            />
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="bg-zinc-800 text-zinc-300 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleImport}
+                disabled={isImporting || !importJsonText.trim()}
+                className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs"
+              >
+                {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                Execute Import
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: CREATE NOTIFICATION CHANNEL */}
+      {/* ========================================================================= */}
+      {isCreatingChannel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Bell className="h-5 w-5 text-indigo-400" />
+                Add Notification Target Channel
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCreatingChannel(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateChannel} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Channel Name</label>
+                <Input
+                  value={channelName}
+                  onChange={(e) => setChannelName(e.target.value)}
+                  placeholder="e.g. SRE Team Webhook"
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Channel Type</label>
+                <select
+                  value={channelType}
+                  onChange={(e) => setChannelType(e.target.value as NotificationChannelType)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none"
+                >
+                  <option value="webhook">HTTP Webhook (with HMAC)</option>
+                  <option value="slack">Slack / Teams Incoming Webhook</option>
+                  <option value="email">Email / MailHog SMTP</option>
+                </select>
+              </div>
+
+              {channelType === "email" ? (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Recipients (comma separated)
+                  </label>
+                  <Input
+                    value={channelEmailRecipients}
+                    onChange={(e) => setChannelEmailRecipients(e.target.value)}
+                    placeholder="devops@company.com, oncall@company.com"
+                    className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                    required
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-zinc-300">Webhook URL</label>
+                    <Input
+                      value={channelWebhookUrl}
+                      onChange={(e) => setChannelWebhookUrl(e.target.value)}
+                      placeholder="https://hooks.slack.com/... or https://api.mycorp.com/alerts"
+                      className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                      required
+                    />
+                  </div>
+
+                  {channelType === "webhook" && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        HMAC Secret (optional)
+                      </label>
+                      <Input
+                        value={channelSecret}
+                        onChange={(e) => setChannelSecret(e.target.value)}
+                        placeholder="secret_key_for_x_pulseops_signature"
+                        className="bg-zinc-950 border-zinc-800 text-white text-xs font-mono"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <Button
+                  type="button"
+                  onClick={() => setIsCreatingChannel(false)}
+                  className="bg-zinc-800 text-zinc-300 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                >
+                  Save Channel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: CREATE SILENCE WINDOW */}
+      {/* ========================================================================= */}
+      {isCreatingSilence && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <VolumeX className="h-5 w-5 text-amber-400" />
+                Mute Notifications (Silence Window)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCreatingSilence(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSilence} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Reason</label>
+                <Input
+                  value={silenceReason}
+                  onChange={(e) => setSilenceReason(e.target.value)}
+                  placeholder="e.g. Hotfix deployment in progress"
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Duration (Hours)</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="48"
+                  value={silenceDurationHours}
+                  onChange={(e) => setSilenceDurationHours(Number(e.target.value))}
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <Button
+                  type="button"
+                  onClick={() => setIsCreatingSilence(false)}
+                  className="bg-zinc-800 text-zinc-300 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs"
+                >
+                  Activate Mute
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: SCHEDULE MAINTENANCE WINDOW */}
+      {/* ========================================================================= */}
+      {isCreatingMaintenance && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Server className="h-5 w-5 text-indigo-400" />
+                Schedule Maintenance Window
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCreatingMaintenance(false)}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMaintenance} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Maintenance Reason</label>
+                <Input
+                  value={maintReason}
+                  onChange={(e) => setMaintReason(e.target.value)}
+                  placeholder="e.g. Database engine migration"
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Duration (Hours)</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="72"
+                  value={maintDurationHours}
+                  onChange={(e) => setMaintDurationHours(Number(e.target.value))}
+                  className="bg-zinc-950 border-zinc-800 text-white text-xs"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <Button
+                  type="button"
+                  onClick={() => setIsCreatingMaintenance(false)}
+                  className="bg-zinc-800 text-zinc-300 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                >
+                  Schedule Maintenance
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Summary({ label, value }: { readonly label: string; readonly value: number }) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-white p-4">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-3 text-2xl font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-}
-
-function Detail({
-  label,
-  mono = false,
-  value,
-}: {
-  readonly label: string;
-  readonly mono?: boolean;
-  readonly value: string;
-}) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase tracking-normal text-slate-500">{label}</dt>
-      <dd className={`mt-1 break-words text-slate-900 ${mono ? "font-mono text-xs" : ""}`}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function TimelineItem({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div className="flex gap-3">
-      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan-700" />
-      <div>
-        <p className="text-sm font-medium text-slate-900">{label}</p>
-        <p className="text-xs text-slate-500">
-          {new Date(value).toLocaleString()} ({formatRelativeTime(value)})
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function upsertIncident(incidents: Incident[], incoming: Incident): Incident[] {
-  const existingIndex = incidents.findIndex((incident) => incident.id === incoming.id);
-
-  if (existingIndex === -1) {
-    return [incoming, ...incidents];
-  }
-
-  return incidents.map((incident, index) => (index === existingIndex ? incoming : incident));
-}
-
-function toIncidentSummary(incident: Incident): string {
-  return [
-    `Incident: ${incident.title}`,
-    `Status: ${incident.status}`,
-    `Severity: ${incident.severity}`,
-    `Events: ${incident.eventCount}`,
-    `Fingerprint: ${incident.fingerprint}`,
-    `First seen: ${incident.firstSeenAt}`,
-    `Last seen: ${incident.lastSeenAt}`,
-    incident.summary === null ? "" : `Summary: ${incident.summary}`,
-  ]
-    .filter((line) => line.length > 0)
-    .join("\n");
-}
-
-const openStatusClass =
-  "w-fit rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium capitalize text-red-700";
-
-const resolvedStatusClass =
-  "w-fit rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium capitalize text-emerald-700";
-
-const acknowledgedStatusClass =
-  "w-fit rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium capitalize text-amber-700";
-
-function statusClass(status: Incident["status"]): string {
-  if (status === "open") {
-    return openStatusClass;
-  }
-
-  return status === "acknowledged" ? acknowledgedStatusClass : resolvedStatusClass;
-}
+export default AlertsPage;

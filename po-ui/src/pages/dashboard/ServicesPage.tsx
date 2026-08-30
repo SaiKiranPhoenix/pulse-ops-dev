@@ -340,6 +340,25 @@ export function ServicesPage() {
             )}
           </div>
 
+          {/* Status Selector */}
+          <div className="flex items-center rounded-lg bg-zinc-950/60 border border-zinc-800 p-0.5">
+            {["all", "active", "degraded", "archived"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setSelectedStatus(status)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  selectedStatus === status
+                    ? "bg-zinc-800 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {status === "all"
+                  ? "All Statuses"
+                  : status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
+
           {/* Tier Selector */}
           <div className="flex items-center rounded-lg bg-zinc-950/60 border border-zinc-800 p-0.5">
             {["all", "tier_1", "tier_2", "tier_3"].map((tier) => (

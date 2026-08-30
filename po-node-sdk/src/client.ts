@@ -1,9 +1,5 @@
 import { Redactor } from "./redactor.js";
-import type {
-  LogLevel,
-  PulseOpsOptions,
-  QueuedIngestItem,
-} from "./types.js";
+import type { LogLevel, PulseOpsOptions, QueuedIngestItem } from "./types.js";
 
 const DEFAULT_BATCH_SIZE = 30;
 const DEFAULT_FLUSH_INTERVAL_MS = 2000;

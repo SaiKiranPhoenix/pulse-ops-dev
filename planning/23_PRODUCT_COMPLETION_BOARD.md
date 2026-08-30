@@ -589,27 +589,27 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Monitors, Alerts, And Notification Routing
 
-- [ ] Todo Add monitor/rule model.
-- [ ] Todo Add monitor builder UI.
-- [ ] Todo Add log-based monitors.
-- [ ] Todo Add metric threshold monitors.
-- [ ] Todo Add error-rate monitors.
-- [ ] Todo Add latency percentile monitors.
-- [ ] Todo Add queue backlog monitors.
-- [ ] Todo Add worker-stale monitors.
-- [ ] Todo Add vault audit anomaly monitors.
-- [ ] Todo Add monitor evaluation worker.
-- [ ] Todo Add monitor state: OK, Alert, Warning, No Data.
-- [ ] Todo Add alert grouping and deduplication.
-- [ ] Todo Add alert mute/silence windows.
-- [ ] Todo Add maintenance windows.
-- [ ] Todo Add notification channels: email via MailHog/local SMTP.
-- [ ] Todo Add webhook notification channel.
-- [ ] Todo Add Slack/Teams notification channel as later integration.
-- [ ] Todo Add notification routing rules by project, service, severity, environment.
-- [ ] Todo Add alert history.
-- [ ] Todo Add test notification button.
-- [ ] Todo Add monitor import/export JSON.
+- [x] Done Add monitor/rule model.
+- [x] Done Add monitor builder UI.
+- [x] Done Add log-based monitors.
+- [x] Done Add metric threshold monitors.
+- [x] Done Add error-rate monitors.
+- [x] Done Add latency percentile monitors.
+- [x] Done Add queue backlog monitors.
+- [x] Done Add worker-stale monitors.
+- [x] Done Add vault audit anomaly monitors.
+- [x] Done Add monitor evaluation worker (`MonitorEvaluatorService`).
+- [x] Done Add monitor state: OK, Alert, Warning, No Data.
+- [x] Done Add alert grouping and deduplication.
+- [x] Done Add alert mute/silence windows.
+- [x] Done Add maintenance windows.
+- [x] Done Add notification channels: email via MailHog/local SMTP.
+- [x] Done Add webhook notification channel (with HMAC signatures).
+- [x] Done Add Slack/Teams notification channel as later integration.
+- [x] Done Add notification routing rules by project, service, severity, environment.
+- [x] Done Add alert history.
+- [x] Done Add test notification button.
+- [x] Done Add monitor import/export JSON.
 
 ## SLOs, SLIs, And Reliability Reporting
 
