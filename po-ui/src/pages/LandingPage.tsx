@@ -6,14 +6,16 @@ import {
   Gauge,
   KeyRound,
   LockKeyhole,
+  Menu,
   RadioTower,
   RotateCcw,
   ShieldCheck,
   Timer,
   Workflow,
+  X,
   Zap,
 } from "lucide-react";
-import { lazy, Suspense, type CSSProperties } from "react";
+import { lazy, Suspense, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,6 +144,7 @@ const securityControls = [
 ] as const;
 
 export function LandingPage() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   useScrollReveal();
 
   return (
@@ -184,8 +187,48 @@ export function LandingPage() {
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </Button>
+            <Button
+              aria-expanded={isMobileMenuOpen}
+              aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
+              className="h-11 w-11 p-0 md:hidden"
+              onClick={() => setIsMobileMenuOpen((current) => !current)}
+              type="button"
+              variant="outline"
+            >
+              {isMobileMenuOpen ? (
+                <X aria-hidden="true" className="h-4 w-4" />
+              ) : (
+                <Menu aria-hidden="true" className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </nav>
+        {isMobileMenuOpen ? (
+          <div className="mx-auto mt-2 grid max-w-7xl gap-1 rounded-xl border bg-background/95 p-2 text-base shadow-lg backdrop-blur-xl md:hidden">
+            {[
+              ["MVP", "#mvp"],
+              ["Pipeline", "#pipeline"],
+              ["Security", "#security"],
+              ["Dashboard", "#dashboard"],
+            ].map(([label, href]) => (
+              <a
+                className="flex min-h-11 items-center rounded-lg px-3 font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                href={href}
+                key={href}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {label}
+              </a>
+            ))}
+            <Link
+              className="flex min-h-11 items-center rounded-lg px-3 font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground sm:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+              to="/login"
+            >
+              Sign in
+            </Link>
+          </div>
+        ) : null}
       </header>
 
       <section className="relative min-h-[86vh] overflow-hidden pt-16">
@@ -199,10 +242,10 @@ export function LandingPage() {
               <Activity aria-hidden="true" className="h-3.5 w-3.5 text-emerald-600" />
               Local-first developer operations platform
             </Badge>
-            <h1 className="max-w-4xl text-4xl font-semibold leading-[1.02] tracking-normal text-zinc-950 sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-4xl text-[clamp(2rem,9vw,3.75rem)] font-semibold leading-[1.04] tracking-normal text-zinc-950">
               Ship an operations control plane that proves the backend, not just the UI.
             </h1>
-            <p className="mt-6 max-w-3xl text-xl leading-8 text-zinc-700">
+            <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-700 sm:text-xl sm:leading-8">
               PulseOps is built for backend developers and SRE learners who want to prove a real
               end-to-end system: API-key ingestion, Redis hot state, RabbitMQ workers, automatic
               incidents, realtime dashboards, and Vault-style secret access.
@@ -245,7 +288,7 @@ export function LandingPage() {
             </CardContent>
           </Card>
 
-          <div className="mt-10 grid grid-cols-3 gap-2 md:gap-3" data-reveal>
+          <div className="mt-10 grid gap-2 sm:grid-cols-3 md:gap-3" data-reveal>
             {mvpSignals.map((signal) => (
               <Card key={signal.label} className="bg-background/78 backdrop-blur-md">
                 <CardContent className="flex min-h-28 flex-col justify-between p-3 md:min-h-0 md:flex-row md:items-end md:p-5">
@@ -270,7 +313,7 @@ export function LandingPage() {
           >
             <div>
               <Badge variant="secondary">MVP purpose</Badge>
-              <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+              <h2 className="mt-4 max-w-3xl text-[clamp(1.75rem,6vw,3rem)] font-semibold leading-tight">
                 Prove the full architecture works, not just that screens exist.
               </h2>
             </div>
@@ -317,7 +360,7 @@ export function LandingPage() {
               <Workflow aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
               Recruiter demo path
             </Badge>
-            <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
+            <h2 className="mt-4 text-[clamp(1.75rem,6vw,3rem)] font-semibold leading-tight">
               One traceable flow from app event to live incident.
             </h2>
             <p className="mt-5 text-base leading-7 text-muted-foreground">
@@ -355,7 +398,7 @@ export function LandingPage() {
               <CheckCircle2 aria-hidden="true" className="mr-2 h-3.5 w-3.5" />
               Security and resilience
             </Badge>
-            <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
+            <h2 className="mt-4 text-[clamp(1.75rem,6vw,3rem)] font-semibold leading-tight">
               The project exists to show backend discipline under pressure.
             </h2>
           </div>
@@ -390,7 +433,7 @@ export function LandingPage() {
           >
             <div>
               <Badge variant="outline">Operational dashboard</Badge>
-              <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+              <h2 className="mt-4 max-w-3xl text-[clamp(1.75rem,6vw,3rem)] font-semibold leading-tight">
                 The first real screen after login is a live command center.
               </h2>
             </div>

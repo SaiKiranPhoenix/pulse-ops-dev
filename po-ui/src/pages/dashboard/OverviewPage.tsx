@@ -358,19 +358,19 @@ export function OverviewPage() {
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button asChild className="w-auto" variant="outline">
+          <Button asChild className="w-full sm:w-auto" variant="outline">
             <Link to="/dashboard/setup">
               <PlugZap className="h-4 w-4" />
               Connect app
             </Link>
           </Button>
-          <Button asChild className="w-auto" variant="outline">
+          <Button asChild className="w-full sm:w-auto" variant="outline">
             <Link to="/dashboard/api-keys">
               <KeyRound className="h-4 w-4" />
               API keys
             </Link>
           </Button>
-          <Button className="w-auto" onClick={() => void loadDashboard()} type="button">
+          <Button className="w-full sm:w-auto" onClick={() => void loadDashboard()} type="button">
             <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
             Refresh
           </Button>

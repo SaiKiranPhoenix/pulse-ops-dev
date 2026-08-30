@@ -195,7 +195,7 @@ export function TracesPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void loadTraces()}
           type="button"
           variant="outline"
@@ -237,14 +237,14 @@ export function TracesPage() {
           />
         </label>
 
-        <form className="flex gap-2" onSubmit={sendSyntheticTrace}>
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={sendSyntheticTrace}>
           <Input
             onChange={(event) => setTestApiKey(event.target.value)}
             placeholder="API key for synthetic trace"
             type="password"
             value={testApiKey}
           />
-          <Button className="w-auto" disabled={isSendingTrace} type="submit">
+          <Button className="w-full sm:w-auto" disabled={isSendingTrace} type="submit">
             <Send className="h-4 w-4" />
           </Button>
         </form>
@@ -268,7 +268,7 @@ export function TracesPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <section className="rounded-md border border-slate-200 bg-white">
+        <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-normal text-slate-500">
             Endpoint performance
           </div>
@@ -278,7 +278,7 @@ export function TracesPage() {
             ) : (
               summary?.endpoints.slice(0, 10).map((endpoint) => (
                 <article
-                  className="grid grid-cols-[1fr_5rem_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
+                  className="grid min-w-[34rem] grid-cols-[1fr_5rem_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
                   key={`${endpoint.service}:${endpoint.operation}`}
                 >
                   <div className="min-w-0">
@@ -296,7 +296,7 @@ export function TracesPage() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-200 bg-white">
+        <section className="overflow-x-auto rounded-md border border-slate-200 bg-white">
           <div className="border-b border-slate-100 px-4 py-3 text-sm font-semibold uppercase tracking-normal text-slate-500">
             Service dependencies
           </div>
@@ -306,7 +306,7 @@ export function TracesPage() {
             ) : (
               summary?.serviceMap.map((edge) => (
                 <article
-                  className="grid grid-cols-[1fr_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
+                  className="grid min-w-[30rem] grid-cols-[1fr_5rem_6rem] items-center gap-3 px-4 py-3 text-sm"
                   key={`${edge.from}:${edge.to}`}
                 >
                   <div className="min-w-0">
@@ -341,8 +341,8 @@ function TraceList({
   readonly traces: TraceGroup[];
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white">
-      <div className="grid grid-cols-[1fr_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+      <div className="grid min-w-[32rem] grid-cols-[1fr_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
         <span>Trace</span>
         <span>Spans</span>
         <span className="text-right">Duration</span>
@@ -352,7 +352,7 @@ function TraceList({
           {isLoading ? "Loading traces" : "No trace-correlated events yet"}
         </p>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="min-w-[32rem] divide-y divide-slate-100">
           {traces.map((trace) => (
             <button
               className={`grid w-full grid-cols-[1fr_6rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50 ${
@@ -410,7 +410,12 @@ function TraceDetail({
             {trace.services.length} services - {formatRelativeTime(trace.startedAt)}
           </p>
         </div>
-        <Button className="h-9 w-9 px-0" onClick={onCopy} type="button" variant="outline">
+        <Button
+          className="h-11 w-11 px-0 sm:h-9 sm:w-9"
+          onClick={onCopy}
+          type="button"
+          variant="outline"
+        >
           <Clipboard className="h-4 w-4" />
         </Button>
       </div>

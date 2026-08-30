@@ -118,14 +118,20 @@ export function LoginPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        <Link className="font-medium text-primary hover:underline" to="/login?reset=not-supported">
+        <Link
+          className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
+          to="/login?reset=not-supported"
+        >
           Forgot password?
         </Link>
       </p>
 
       <p className="mt-3 text-center text-sm text-muted-foreground">
         No account?{" "}
-        <Link className="font-medium text-primary hover:underline" to="/register">
+        <Link
+          className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
+          to="/register"
+        >
           Create one
         </Link>
       </p>

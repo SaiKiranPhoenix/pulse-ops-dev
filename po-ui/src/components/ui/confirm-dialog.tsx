@@ -26,12 +26,12 @@ export function ConfirmDialog({
     <div
       aria-labelledby="confirm-dialog-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-3 sm:p-4"
       role="dialog"
     >
-      <div className="w-full max-w-md rounded-md border border-slate-200 bg-white p-5 shadow-xl">
+      <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-md border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
         <div className="flex items-start gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-amber-50 text-amber-700">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-amber-50 text-amber-700 sm:h-9 sm:w-9">
             <AlertTriangle className="h-5 w-5" />
           </span>
           <div>

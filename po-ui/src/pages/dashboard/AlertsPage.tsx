@@ -222,7 +222,7 @@ export function AlertsPage() {
           </p>
         </div>
         <Button
-          className="w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void loadIncidents()}
           type="button"
           variant="outline"
@@ -295,8 +295,8 @@ export function AlertsPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_28rem]">
-        <div className="rounded-md border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1fr_7rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <div className="grid min-w-[36rem] grid-cols-[1fr_7rem_8rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
             <span>Incident</span>
             <span>Severity</span>
             <span>Status</span>
@@ -307,7 +307,7 @@ export function AlertsPage() {
               {isLoading ? "Loading incidents" : "No incidents match the current filters"}
             </p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="min-w-[36rem] divide-y divide-slate-100">
               {filteredIncidents.map((incident) => (
                 <button
                   className="grid w-full grid-cols-[1fr_7rem_8rem_7rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"

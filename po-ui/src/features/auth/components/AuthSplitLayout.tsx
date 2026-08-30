@@ -67,9 +67,9 @@ export function AuthSplitLayout({ eyebrow, title, description, children }: AuthS
           </Card>
         </div>
 
-        <div className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8">
+        <div className="flex min-h-screen items-center justify-center px-4 py-6 sm:px-8 sm:py-8">
           <div className="w-full max-w-md">
-            <Link className="mb-8 flex items-center gap-3 lg:hidden" to="/">
+            <Link className="mb-8 flex min-h-11 items-center gap-3 lg:hidden" to="/">
               <span className="grid h-10 w-10 place-items-center rounded-lg bg-zinc-950 text-sm font-black text-white">
                 PO
               </span>
@@ -82,10 +82,12 @@ export function AuthSplitLayout({ eyebrow, title, description, children }: AuthS
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {eyebrow}
                   </p>
-                  <h1 className="mt-2 text-3xl font-semibold tracking-normal text-zinc-950">
+                  <h1 className="mt-2 text-[clamp(1.75rem,8vw,2rem)] font-semibold tracking-normal text-zinc-950">
                     {title}
                   </h1>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p>
+                  <p className="mt-3 text-base leading-7 text-muted-foreground sm:text-sm sm:leading-6">
+                    {description}
+                  </p>
                 </div>
 
                 {children}
