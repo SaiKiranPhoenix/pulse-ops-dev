@@ -20,8 +20,8 @@ describe("SLO Evaluator & Error Budget Engine", () => {
     };
 
     mockIncidentService = {
-      recordTelemetryEvent: vi.fn().mockResolvedValue({
-        incident: { id: "inc_1", title: "Test Incident" } as unknown as Parameters<IncidentService["recordTelemetryEvent"]>[0],
+      evaluateError: vi.fn().mockResolvedValue({
+        incident: { id: "inc_1", title: "Test Incident" },
         created: true,
       }),
     };
@@ -101,11 +101,10 @@ describe("SLO Evaluator & Error Budget Engine", () => {
 
       expect(res.calculation.status).toBe("breached");
       expect(res.incidentTriggered).toBe(true);
-      expect(mockIncidentService.recordTelemetryEvent).toHaveBeenCalledWith(
+      expect(mockIncidentService.evaluateError).toHaveBeenCalledWith(
         expect.objectContaining({
           projectId: "proj_abc",
-          type: "slo_breach",
-          title: expect.stringContaining("SLO Breach: Gateway 99.99% Availability"),
+          message: expect.stringContaining("SLO Breach: Gateway 99.99% Availability"),
         }),
       );
     });
