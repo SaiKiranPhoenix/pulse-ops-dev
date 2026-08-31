@@ -5,3 +5,4 @@ export * from "./slo.schema.js";
 export * from "./custom-dashboard.schema.js";
 export * from "./log-pipeline.schema.js";
 export * from "./metrics-platform.schema.js";
+export * from "./apm-tracing.schema.js";

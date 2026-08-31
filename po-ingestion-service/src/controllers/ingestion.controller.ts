@@ -61,6 +61,58 @@ export class IngestionController {
 
     response.status(202).json(successResponse({ event }, String(response.locals.requestId)));
   };
+
+  ingestSpan = async (request: Request, response: Response): Promise<void> => {
+    const body = response.locals.validatedBody as Record<string, unknown>;
+    const event = await this.ingestion.ingest({
+      rawApiKey: getApiKey(request),
+      idempotencyKey: getIdempotencyKey(request),
+      type: "log",
+      source: String(body.serviceName || "unknown"),
+      level: body.statusCode === "error" ? "error" : "info",
+      message: `[Span] ${String(body.name || "")} (${Number(body.durationMs || 0)}ms)`,
+      fingerprint: `span_${String(body.traceId || "")}_${String(body.spanId || "")}`,
+      attributes: {
+        traceId: body.traceId,
+        spanId: body.spanId,
+        parentSpanId: body.parentSpanId,
+        kind: body.kind,
+        durationMs: body.durationMs,
+        statusCode: body.statusCode,
+        statusMessage: body.statusMessage,
+        ...(typeof body.attributes === "object" && body.attributes !== null ? body.attributes : {}),
+      },
+      timestamp: body.startTime ? new Date(String(body.startTime)) : undefined,
+    });
+
+    response.status(202).json(successResponse({ event, spanId: body.spanId }, String(response.locals.requestId)));
+  };
+
+  ingestTrace = async (request: Request, response: Response): Promise<void> => {
+    const body = response.locals.validatedBody as Record<string, unknown>;
+    const spans = Array.isArray(body.spans) ? body.spans : [];
+
+    const event = await this.ingestion.ingest({
+      rawApiKey: getApiKey(request),
+      idempotencyKey: getIdempotencyKey(request),
+      type: body.hasError ? "error" : "log",
+      source: String(body.serviceName || "unknown"),
+      level: body.hasError ? "error" : "info",
+      message: `[Trace] ${String(body.rootSpanName || "")} (${Number(body.durationMs || 0)}ms, ${spans.length} spans)`,
+      fingerprint: `trace_${String(body.traceId || "")}`,
+      attributes: {
+        traceId: body.traceId,
+        spanCount: spans.length,
+        durationMs: body.durationMs,
+        hasError: body.hasError,
+      },
+      timestamp: body.startTime ? new Date(String(body.startTime)) : undefined,
+    });
+
+    response.status(202).json(
+      successResponse({ event, traceId: body.traceId, spanCount: spans.length }, String(response.locals.requestId)),
+    );
+  };
 }
 
 function getApiKey(request: Request): string {

@@ -35,6 +35,15 @@ export { PulseOpsClient } from "./client.js";
 export { Redactor } from "./redactor.js";
 export { createPulseOpsMiddleware, createPulseOpsErrorHandler } from "./middleware/express.js";
 export { instrumentJob } from "./helpers/jobs.js";
+export {
+  generateTraceId,
+  generateSpanId,
+  formatW3CTraceParent,
+  parseW3CTraceParent,
+  ActiveSpan,
+  withSpan,
+  type SpanOptions,
+} from "./tracing.js";
 
 // Re-export types
 export type {
@@ -47,3 +56,4 @@ export type {
   ExpressMiddlewareOptions,
 } from "./types.js";
 export type { JobInstrumentationOptions } from "./helpers/jobs.js";
+

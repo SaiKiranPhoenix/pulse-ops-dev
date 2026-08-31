@@ -676,8 +676,8 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 ## APM And Distributed Tracing
 
 - [x] Decide whether traces are MVP, v1.5, or v2; MVP is trace correlation from telemetry attributes.
-- [ ] Todo Add dedicated trace ingestion endpoint; MVP trace ingestion remains through log/error/metric attributes.
-- [ ] Todo Add dedicated span ingestion endpoint; MVP span ingestion remains through log/error/metric attributes.
+- [x] Done Add dedicated trace ingestion endpoint; MVP trace ingestion remains through log/error/metric attributes.
+- [x] Done Add dedicated span ingestion endpoint; MVP span ingestion remains through log/error/metric attributes.
 - [x] Add trace/span data model; gateway exposes trace/span summaries from correlated telemetry events.
 - [x] Add trace ID correlation across logs, errors, and metrics.
 - [x] Add service dependency map.
@@ -686,10 +686,10 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 - [x] Add slow trace detection.
 - [x] Add endpoint/resource performance table.
 - [x] Add error traces.
-- [ ] Todo Add distributed context propagation docs.
-- [ ] Todo Add SDK helpers for trace propagation.
-- [ ] Todo Add OpenTelemetry compatibility investigation.
-- [ ] Todo Add OpenTelemetry collector compatibility if adopted.
+- [x] Done Add distributed context propagation docs.
+- [x] Done Add SDK helpers for trace propagation.
+- [x] Done Add OpenTelemetry compatibility investigation.
+- [x] Done Add OpenTelemetry collector compatibility if adopted.
 
 ## Infrastructure And Container Monitoring
 

@@ -9,6 +9,7 @@ import {
   logBodySchema,
   metricBodySchema,
 } from "../validators/ingestion.validator.js";
+import { spanBodySchema, traceBodySchema } from "@pulseops/shared";
 
 export type RouteDependencies = {
   readonly ingestionController: IngestionController;
@@ -40,6 +41,18 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     createApiKeyPresenceMiddleware(),
     validateBody(metricBodySchema),
     asyncHandler(dependencies.ingestionController.ingestMetric),
+  );
+  router.post(
+    "/ingest/spans",
+    createApiKeyPresenceMiddleware(),
+    validateBody(spanBodySchema),
+    asyncHandler(dependencies.ingestionController.ingestSpan),
+  );
+  router.post(
+    "/ingest/traces",
+    createApiKeyPresenceMiddleware(),
+    validateBody(traceBodySchema),
+    asyncHandler(dependencies.ingestionController.ingestTrace),
   );
 
   // Log Pipeline Rules
