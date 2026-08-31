@@ -8,6 +8,7 @@ import { CustomDashboardController } from "../controllers/custom-dashboard.contr
 import { InfrastructureController } from "../controllers/infrastructure.controller.js";
 import { MetricsPlatformController } from "../controllers/metrics-platform.controller.js";
 import { OpsController } from "../controllers/ops.controller.js";
+import { UptimeRumController } from "../controllers/uptime-rum.controller.js";
 import {
   createRealtimeQueueStatusPublisher,
   type RealtimeQueueStatusPublisher,
@@ -19,6 +20,7 @@ import {
   RabbitQueueStatusRepository,
   type QueueStatusRepository,
 } from "../repositories/queue-status.repository.js";
+import { UptimeRumRepository } from "../repositories/uptime-rum.repository.js";
 import {
   RedisWorkerHealthRepository,
   type WorkerHealthRepository,
@@ -36,6 +38,8 @@ export type OpsServiceDependencies = {
   readonly metricsPlatformRepo: MetricsPlatformRepository;
   readonly infrastructureController: InfrastructureController;
   readonly infrastructureRepo: InfrastructureRepository;
+  readonly uptimeRumController: UptimeRumController;
+  readonly uptimeRumRepo: UptimeRumRepository;
   close(): Promise<void>;
 };
 
@@ -87,6 +91,9 @@ export function createOpsServiceDependenciesFromRepositories(options: {
   const infrastructureRepo = new InfrastructureRepository();
   const infrastructureController = new InfrastructureController(infrastructureRepo);
 
+  const uptimeRumRepo = new UptimeRumRepository();
+  const uptimeRumController = new UptimeRumController(uptimeRumRepo);
+
   return {
     opsController: new OpsController(opsService),
     opsService,
@@ -97,6 +104,8 @@ export function createOpsServiceDependenciesFromRepositories(options: {
     metricsPlatformRepo,
     infrastructureController,
     infrastructureRepo,
+    uptimeRumController,
+    uptimeRumRepo,
     async close(): Promise<void> {
       await options.close?.();
       if (options.redis !== undefined) {

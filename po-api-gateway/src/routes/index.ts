@@ -128,6 +128,18 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     requireProjectAccess,
     asyncHandler(dependencies.proxyController.ops),
   );
+  router.use(
+    "/uptime",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.ops),
+  );
+  router.use(
+    "/rum",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.ops),
+  );
   router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
   router.use(
     "/vault",

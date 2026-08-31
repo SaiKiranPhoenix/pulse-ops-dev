@@ -8,3 +8,4 @@ export * from "./log-pipeline.js";
 export * from "./metrics-platform.js";
 export * from "./apm-tracing.js";
 export * from "./infrastructure.js";
+export * from "./uptime-rum.js";

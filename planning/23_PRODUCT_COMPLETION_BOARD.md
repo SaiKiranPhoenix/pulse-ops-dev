@@ -709,17 +709,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Uptime, Synthetics, And RUM
 
-- [ ] Todo Decide whether uptime checks enter v1.5 or v2.
-- [ ] Todo Add HTTP uptime check model.
-- [ ] Todo Add uptime scheduler worker.
-- [ ] Todo Add uptime check result storage.
-- [ ] Todo Add uptime dashboard.
-- [ ] Todo Add uptime incident rule.
-- [ ] Todo Add synthetic assertion checks.
-- [ ] Todo Add regional checks as non-goal or future cloud feature.
-- [ ] Todo Add browser RUM scope decision.
-- [ ] Todo Add RUM event ingestion if in scope.
-- [ ] Todo Add frontend error/session tracking if in scope.
+- [x] Decide whether uptime checks enter v1.5 or v2; implemented in v1.5 with full synthetic SLA validations.
+- [x] Done Add HTTP uptime check model.
+- [x] Done Add uptime scheduler worker.
+- [x] Done Add uptime check result storage.
+- [x] Done Add uptime dashboard.
+- [x] Done Add uptime incident rule.
+- [x] Done Add synthetic assertion checks.
+- [x] Done Add regional checks as non-goal or future cloud feature.
+- [x] Done Add browser RUM scope decision.
+- [x] Done Add RUM event ingestion if in scope.
+- [x] Done Add frontend error/session tracking if in scope.
 
 ## Incident Response And On-Call
 

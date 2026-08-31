@@ -30,5 +30,6 @@ function toRouteDependencies(dependencies: OpsServiceDependencies): RouteDepende
     customDashboardController: dependencies.customDashboardController,
     metricsPlatformController: dependencies.metricsPlatformController,
     infrastructureController: dependencies.infrastructureController,
+    uptimeRumController: dependencies.uptimeRumController,
   };
 }

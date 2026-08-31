@@ -21,6 +21,7 @@ import { ServicesPage } from "@/pages/dashboard/ServicesPage";
 import { SetupPage } from "@/pages/dashboard/SetupPage";
 import { SloPage } from "@/pages/dashboard/SloPage";
 import { TracesPage } from "@/pages/dashboard/TracesPage";
+import { UptimeRumPage } from "@/pages/dashboard/UptimeRumPage";
 import { VaultAuditPage } from "@/pages/dashboard/VaultAuditPage";
 import { VaultPage } from "@/pages/dashboard/VaultPage";
 import { WorkersPage } from "@/pages/dashboard/WorkersPage";
@@ -48,6 +49,7 @@ export function AppRoutes() {
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="traces" element={<TracesPage />} />
           <Route path="infrastructure" element={<InfrastructurePage />} />
+          <Route path="uptime" element={<UptimeRumPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="slos" element={<SloPage />} />
           <Route path="workers" element={<WorkersPage />} />
