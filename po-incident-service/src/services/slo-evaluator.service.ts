@@ -150,16 +150,21 @@ export class SloEvaluatorService {
     if (calculation.status === "breached" || calculation.burnRate1h >= 14.4) {
       if (this.incidentService) {
         try {
-          await this.incidentService.recordTelemetryEvent({
+          await this.incidentService.evaluateError({
+            evaluationId: `eval_slo_${slo.id}_${Date.now()}`,
+            schemaVersion: 1,
+            eventId: `evt_slo_${slo.id}_${Date.now()}`,
+            telemetryMessageId: `msg_slo_${slo.id}`,
             projectId: slo.projectId,
+            ownerId: "system_slo_evaluator",
+            correlationId: `corr_slo_${slo.id}`,
             source: "po-slo-evaluator",
-            type: "slo_breach",
-            title: `SLO Breach: ${slo.name} (Burn Rate: ${calculation.burnRate1h}x)`,
-            message: `SLI dropped to ${calculation.currentSliPercent}% (Target: ${slo.target.targetPercent}%). Error budget remaining: ${calculation.errorBudgetRemainingPercent}%.`,
-            severity: calculation.burnRate1h >= 14.4 ? "critical" : "high",
+            level: calculation.burnRate1h >= 14.4 ? "fatal" : "error",
+            message: `SLO Breach: ${slo.name} (Burn Rate: ${calculation.burnRate1h}x). SLI dropped to ${calculation.currentSliPercent}% (Target: ${slo.target.targetPercent}%).`,
             fingerprint: `slo_${slo.id}_breach`,
             observedAt: calculation.evaluatedAt,
-            environment: slo.sli.environment ?? "production",
+            receivedAt: new Date().toISOString(),
+            processedAt: new Date().toISOString(),
           });
           incidentTriggered = true;
         } catch {

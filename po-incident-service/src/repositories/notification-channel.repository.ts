@@ -88,7 +88,10 @@ export class NotificationChannelRepository {
   async createRoutingRule(
     input: Omit<NotificationRoutingRule, "id" | "createdAt" | "updatedAt">,
   ): Promise<NotificationRoutingRule> {
-    const doc = await NotificationRoutingRuleModel.create(input);
+    const doc = new NotificationRoutingRuleModel({
+      ...input,
+    });
+    await doc.save();
     return this.mapRoutingRule(doc);
   }
 

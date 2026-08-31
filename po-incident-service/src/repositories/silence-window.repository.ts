@@ -48,11 +48,12 @@ export class SilenceWindowRepository {
   async createSilence(
     input: Omit<SilenceWindow, "id" | "createdAt" | "updatedAt">,
   ): Promise<SilenceWindow> {
-    const doc = await SilenceWindowModel.create({
+    const doc = new SilenceWindowModel({
       ...input,
       startsAt: new Date(input.startsAt),
       endsAt: new Date(input.endsAt),
     });
+    await doc.save();
     return this.mapSilence(doc);
   }
 
@@ -79,11 +80,12 @@ export class SilenceWindowRepository {
   async createMaintenance(
     input: Omit<MaintenanceWindow, "id" | "createdAt" | "updatedAt">,
   ): Promise<MaintenanceWindow> {
-    const doc = await MaintenanceWindowModel.create({
+    const doc = new MaintenanceWindowModel({
       ...input,
       startsAt: new Date(input.startsAt),
       endsAt: new Date(input.endsAt),
     });
+    await doc.save();
     return this.mapMaintenance(doc);
   }
 

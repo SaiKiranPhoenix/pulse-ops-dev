@@ -58,8 +58,8 @@ export class NotificationDispatcherService {
   async dispatchAlert(payload: AlertNotificationPayload): Promise<{
     dispatched: number;
     suppressed: boolean;
-    suppressionReason?: string;
-    results: Array<{ channelId: string; status: "success" | "failed"; error?: string }>;
+    suppressionReason?: string | undefined;
+    results: Array<{ channelId: string; status: "success" | "failed"; error?: string | undefined }>;
   }> {
     const suppressionCheck = await this.isSuppressed(payload);
     if (suppressionCheck.suppressed) {

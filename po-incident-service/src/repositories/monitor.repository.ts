@@ -33,9 +33,9 @@ export class MonitorRepository {
   async list(
     projectId: string,
     filters: {
-      ruleType?: MonitorRuleType;
-      state?: MonitorState;
-      enabled?: boolean;
+      ruleType?: MonitorRuleType | undefined;
+      state?: MonitorState | undefined;
+      enabled?: boolean | undefined;
     } = {},
   ): Promise<MonitorRule[]> {
     const query: Record<string, unknown> = { projectId };
@@ -56,9 +56,9 @@ export class MonitorRepository {
     input: Omit<
       MonitorRule,
       "id" | "createdAt" | "updatedAt" | "lastEvaluatedAt" | "lastStateChangeAt" | "state"
-    > & { state?: MonitorState },
+    > & { state?: MonitorState | undefined; description?: string | undefined },
   ): Promise<MonitorRule> {
-    const doc = await MonitorModel.create({
+    const doc = new MonitorModel({
       projectId: input.projectId,
       name: input.name,
       description: input.description,
@@ -68,8 +68,9 @@ export class MonitorRepository {
       enabled: input.enabled,
       condition: input.condition,
       evaluationIntervalSeconds: input.evaluationIntervalSeconds,
-      tags: input.tags,
+      tags: input.tags ?? [],
     });
+    await doc.save();
     return this.mapDocument(doc);
   }
 

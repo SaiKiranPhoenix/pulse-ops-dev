@@ -1,8 +1,10 @@
 import express, { type Express } from "express";
 import { createLogger } from "@pulseops/shared";
 import { INGESTION_LIMITS, SERVICE_NAME } from "./config/constants.js";
+import { LogPipelineController } from "./controllers/log-pipeline.controller.js";
 import { createErrorMiddleware } from "./middlewares/error.middleware.js";
 import { requestIdMiddleware } from "./middlewares/request-id.middleware.js";
+import { LogPipelineRepository } from "./repositories/log-pipeline.repository.js";
 import { createRoutes, type RouteDependencies } from "./routes/index.js";
 import {
   createIngestionServiceDependencies,
@@ -29,7 +31,11 @@ export function createApp(options: CreateAppOptions = {}): Express {
 }
 
 function toRouteDependencies(dependencies: IngestionServiceDependencies): RouteDependencies {
+  const repo = dependencies.logPipelineRepository ?? new LogPipelineRepository();
+  const controller = dependencies.logPipelineController ?? new LogPipelineController(repo);
   return {
     ingestionController: dependencies.ingestionController,
+    logPipelineController: controller,
   };
 }
+

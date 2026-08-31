@@ -9,8 +9,13 @@ export class SloController {
     private readonly evaluator: SloEvaluatorService,
   ) {}
 
+  private getProjectId(req: Request): string {
+    const raw = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    return typeof raw === "string" ? raw : "";
+  }
+
   list = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
     const serviceName = req.query.serviceName as string | undefined;
     const environment = req.query.environment as string | undefined;
     const enabled =
@@ -29,8 +34,8 @@ export class SloController {
   };
 
   detail = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { sloId } = req.params;
+    const projectId = this.getProjectId(req);
+    const sloId = String(req.params.sloId || "");
 
     const slo = await this.sloRepo.findById(projectId, sloId);
     if (!slo) {
@@ -44,7 +49,7 @@ export class SloController {
   };
 
   create = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
     const created = await this.sloRepo.create(projectId, req.body);
 
     // Initial evaluation
@@ -57,8 +62,8 @@ export class SloController {
   };
 
   update = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { sloId } = req.params;
+    const projectId = this.getProjectId(req);
+    const sloId = String(req.params.sloId || "");
 
     const updated = await this.sloRepo.update(projectId, sloId, req.body);
     if (!updated) {
@@ -72,8 +77,8 @@ export class SloController {
   };
 
   remove = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { sloId } = req.params;
+    const projectId = this.getProjectId(req);
+    const sloId = String(req.params.sloId || "");
 
     const deleted = await this.sloRepo.delete(projectId, sloId);
     if (!deleted) {
@@ -87,8 +92,8 @@ export class SloController {
   };
 
   evaluate = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { sloId } = req.params;
+    const projectId = this.getProjectId(req);
+    const sloId = String(req.params.sloId || "");
 
     const slo = await this.sloRepo.findById(projectId, sloId);
     if (!slo) {

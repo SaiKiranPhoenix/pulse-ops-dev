@@ -12,10 +12,10 @@ export class SloRepository {
   async list(
     projectId: string,
     filters: {
-      serviceName?: string;
-      environment?: string;
-      status?: SloStatus;
-      enabled?: boolean;
+      serviceName?: string | undefined;
+      environment?: string | undefined;
+      status?: SloStatus | undefined;
+      enabled?: boolean | undefined;
     } = {},
   ): Promise<SloDocumentData[]> {
     const query: Record<string, unknown> = { projectId };
@@ -46,14 +46,14 @@ export class SloRepository {
     projectId: string,
     input: {
       name: string;
-      description?: string;
+      description?: string | undefined;
       sli: SliDefinition;
       target: SloTarget;
-      tags?: string[];
-      enabled?: boolean;
+      tags?: string[] | undefined;
+      enabled?: boolean | undefined;
     },
   ): Promise<SloDocumentData> {
-    const doc = await SloModel.create({
+    const doc = new SloModel({
       projectId,
       name: input.name,
       description: input.description,
@@ -63,7 +63,8 @@ export class SloRepository {
       enabled: input.enabled ?? true,
       history: [],
     });
-    return this.toDto(doc.toObject() as SloDocument);
+    await doc.save();
+    return this.toDto(doc.toObject() as unknown as SloDocument);
   }
 
   async update(

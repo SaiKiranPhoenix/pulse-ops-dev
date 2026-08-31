@@ -3,3 +3,4 @@ export type { ValidationIssue } from "./parse.js";
 export * from "./monitor.schema.js";
 export * from "./slo.schema.js";
 export * from "./custom-dashboard.schema.js";
+export * from "./log-pipeline.schema.js";

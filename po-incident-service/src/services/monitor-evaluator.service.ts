@@ -10,31 +10,31 @@ import type { NotificationDispatcherService } from "./notification-dispatcher.se
 export interface TelemetryDataProvider {
   queryLogCount(params: {
     projectId: string;
-    logPattern?: string;
-    serviceName?: string;
-    environment?: string;
+    logPattern?: string | undefined;
+    serviceName?: string | undefined;
+    environment?: string | undefined;
     since: Date;
   }): Promise<number>;
 
   queryMetricValue(params: {
     projectId: string;
     metricName: string;
-    serviceName?: string;
-    environment?: string;
+    serviceName?: string | undefined;
+    environment?: string | undefined;
     since: Date;
   }): Promise<number | null>;
 
   queryErrorRate(params: {
     projectId: string;
-    serviceName?: string;
-    environment?: string;
+    serviceName?: string | undefined;
+    environment?: string | undefined;
     since: Date;
   }): Promise<{ errorRatePercent: number; totalEvents: number }>;
 
   queryLatencyP95(params: {
     projectId: string;
-    serviceName?: string;
-    environment?: string;
+    serviceName?: string | undefined;
+    environment?: string | undefined;
     since: Date;
   }): Promise<number | null>;
 

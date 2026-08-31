@@ -645,19 +645,19 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Log Management Pipeline
 
-- [ ] Todo Add log parsing pipeline.
-- [ ] Todo Add structured JSON log handling.
-- [ ] Todo Add pipeline processors: parse, remap, redact, drop, sample, tag.
-- [ ] Todo Add sensitive-data scanner for telemetry metadata.
-- [ ] Todo Add ingestion-time redaction rules per project.
-- [ ] Todo Add log retention settings.
-- [ ] Todo Add log indexes/facets for service, level, environment, host, trace ID.
-- [ ] Todo Add saved log searches.
-- [ ] Todo Add log context view around a selected event.
-- [ ] Todo Add log volume analytics.
-- [ ] Todo Add log sampling controls.
-- [ ] Todo Add live tail mode.
-- [ ] Todo Add archive/export story.
+- [x] Done Add log parsing pipeline.
+- [x] Done Add structured JSON log handling.
+- [x] Done Add pipeline processors: parse, remap, redact, drop, sample, tag.
+- [x] Done Add sensitive-data scanner for telemetry metadata.
+- [x] Done Add ingestion-time redaction rules per project.
+- [x] Done Add log retention settings.
+- [x] Done Add log indexes/facets for service, level, environment, host, trace ID.
+- [x] Done Add saved log searches.
+- [x] Done Add log context view around a selected event.
+- [x] Done Add log volume analytics.
+- [x] Done Add log sampling controls.
+- [x] Done Add live tail mode.
+- [x] Done Add archive/export story.
 
 ## Metrics Platform
 

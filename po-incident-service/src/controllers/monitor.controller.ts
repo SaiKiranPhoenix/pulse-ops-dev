@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { MonitorRuleType, MonitorSeverity, MonitorState } from "@pulseops/shared";
+import type { MonitorRule, MonitorRuleType, MonitorSeverity, MonitorState } from "@pulseops/shared";
 import type { MonitorRepository } from "../repositories/monitor.repository.js";
 import type { NotificationChannelRepository } from "../repositories/notification-channel.repository.js";
 import type { SilenceWindowRepository } from "../repositories/silence-window.repository.js";
@@ -11,14 +11,19 @@ export class MonitorController {
     private readonly monitorRepo: MonitorRepository,
     private readonly silenceRepo: SilenceWindowRepository,
     private readonly channelRepo: NotificationChannelRepository,
-    private readonly evaluatorService: MonitorEvaluatorService,
+    private readonly evaluator: MonitorEvaluatorService,
     private readonly notificationDispatcher: NotificationDispatcherService,
   ) {}
 
+  private getProjectId(req: Request): string {
+    const raw = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    return typeof raw === "string" ? raw : "";
+  }
+
   list = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const ruleType = req.query.ruleType as MonitorRuleType | undefined;
-    const state = req.query.state as MonitorState | undefined;
+    const projectId = this.getProjectId(req);
+    const ruleType = (req.query.ruleType as MonitorRuleType) || undefined;
+    const state = (req.query.state as MonitorState) || undefined;
     const enabled =
       req.query.enabled === "true" ? true : req.query.enabled === "false" ? false : undefined;
 
@@ -27,8 +32,8 @@ export class MonitorController {
   };
 
   detail = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const monitorId = req.params.monitorId;
+    const projectId = this.getProjectId(req);
+    const monitorId = String(req.params.monitorId || "");
     const monitor = await this.monitorRepo.findById(projectId, monitorId);
     if (!monitor) {
       res.status(404).json({ error: { message: "Monitor not found", code: "NOT_FOUND" } });
@@ -38,7 +43,7 @@ export class MonitorController {
   };
 
   create = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.body.projectId || req.query.projectId);
+    const projectId = this.getProjectId(req);
     const monitor = await this.monitorRepo.create({
       ...req.body,
       projectId,
@@ -48,8 +53,8 @@ export class MonitorController {
   };
 
   update = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const monitorId = req.params.monitorId;
+    const projectId = this.getProjectId(req);
+    const monitorId = String(req.params.monitorId || "");
     const updated = await this.monitorRepo.update(projectId, monitorId, req.body);
     if (!updated) {
       res.status(404).json({ error: { message: "Monitor not found", code: "NOT_FOUND" } });
@@ -59,8 +64,8 @@ export class MonitorController {
   };
 
   remove = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const monitorId = req.params.monitorId;
+    const projectId = this.getProjectId(req);
+    const monitorId = String(req.params.monitorId || "");
     const deleted = await this.monitorRepo.delete(projectId, monitorId);
     if (!deleted) {
       res.status(404).json({ error: { message: "Monitor not found", code: "NOT_FOUND" } });
@@ -70,20 +75,20 @@ export class MonitorController {
   };
 
   evaluateManual = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const monitorId = req.params.monitorId;
+    const projectId = this.getProjectId(req);
+    const monitorId = String(req.params.monitorId || "");
     const monitor = await this.monitorRepo.findById(projectId, monitorId);
     if (!monitor) {
       res.status(404).json({ error: { message: "Monitor not found", code: "NOT_FOUND" } });
       return;
     }
 
-    const evaluation = await this.evaluatorService.evaluateMonitor(monitor);
+    const evaluation = await this.evaluator.evaluateMonitor(monitor);
     res.status(200).json({ data: { evaluation } });
   };
 
   exportMonitors = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
+    const projectId = this.getProjectId(req);
     const [monitors, channels, routingRules] = await Promise.all([
       this.monitorRepo.list(projectId),
       this.channelRepo.listChannels(projectId),
@@ -105,7 +110,7 @@ export class MonitorController {
   };
 
   importMonitors = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId || req.body.projectId);
+    const projectId = this.getProjectId(req) || String(req.body.projectId || "");
     const { monitors = [], channels = [], routingRules = [] } = req.body;
 
     const importedMonitors = [];
@@ -149,59 +154,59 @@ export class MonitorController {
 
   // Silence & Maintenance Windows
   listSilenceWindows = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
+    const projectId = this.getProjectId(req);
     const windows = await this.silenceRepo.listSilence(projectId);
     res.status(200).json({ data: { windows } });
   };
 
   createSilenceWindow = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.body.projectId || req.query.projectId);
+    const projectId = this.getProjectId(req);
     const window = await this.silenceRepo.createSilence({ ...req.body, projectId });
     res.status(201).json({ data: { window } });
   };
 
   deleteSilenceWindow = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     await this.silenceRepo.deleteSilence(projectId, id);
     res.status(200).json({ data: { success: true } });
   };
 
   listMaintenanceWindows = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
+    const projectId = this.getProjectId(req);
     const windows = await this.silenceRepo.listMaintenance(projectId);
     res.status(200).json({ data: { windows } });
   };
 
   createMaintenanceWindow = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.body.projectId || req.query.projectId);
+    const projectId = this.getProjectId(req);
     const window = await this.silenceRepo.createMaintenance({ ...req.body, projectId });
     res.status(201).json({ data: { window } });
   };
 
   deleteMaintenanceWindow = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     await this.silenceRepo.deleteMaintenance(projectId, id);
     res.status(200).json({ data: { success: true } });
   };
 
   // Channels & Routing
   listChannels = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
+    const projectId = this.getProjectId(req);
     const channels = await this.channelRepo.listChannels(projectId);
     res.status(200).json({ data: { channels } });
   };
 
   createChannel = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.body.projectId || req.query.projectId);
+    const projectId = this.getProjectId(req);
     const channel = await this.channelRepo.createChannel({ ...req.body, projectId });
     res.status(201).json({ data: { channel } });
   };
 
   updateChannel = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     const channel = await this.channelRepo.updateChannel(projectId, id, req.body);
     if (!channel) {
       res.status(404).json({ error: { message: "Channel not found", code: "NOT_FOUND" } });
@@ -211,15 +216,15 @@ export class MonitorController {
   };
 
   deleteChannel = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     await this.channelRepo.deleteChannel(projectId, id);
     res.status(200).json({ data: { success: true } });
   };
 
   testChannel = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     const channel = await this.channelRepo.findChannelById(projectId, id);
     if (!channel) {
       res.status(404).json({ error: { message: "Channel not found", code: "NOT_FOUND" } });
@@ -257,20 +262,20 @@ export class MonitorController {
   };
 
   listRoutingRules = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
+    const projectId = this.getProjectId(req);
     const rules = await this.channelRepo.listRoutingRules(projectId);
     res.status(200).json({ data: { rules } });
   };
 
   createRoutingRule = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.body.projectId || req.query.projectId);
+    const projectId = this.getProjectId(req);
     const rule = await this.channelRepo.createRoutingRule({ ...req.body, projectId });
     res.status(201).json({ data: { rule } });
   };
 
   deleteRoutingRule = async (req: Request, res: Response): Promise<void> => {
-    const projectId = String(req.query.projectId);
-    const id = req.params.id;
+    const projectId = this.getProjectId(req);
+    const id = String(req.params.id || "");
     await this.channelRepo.deleteRoutingRule(projectId, id);
     res.status(200).json({ data: { success: true } });
   };
