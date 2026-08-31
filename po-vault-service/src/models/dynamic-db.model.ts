@@ -18,7 +18,12 @@ const dynamicDbSchema = new Schema<DynamicDbRecord>(
     ttlSeconds: { type: Number, required: true },
     expiresAt: { type: String, required: true },
     renewable: { type: Boolean, default: true },
-    status: { type: String, enum: ["active", "revoked", "expired"], default: "active", index: true },
+    status: {
+      type: String,
+      enum: ["active", "revoked", "expired"],
+      default: "active",
+      index: true,
+    },
   },
   {
     collection: "vault_dynamic_credentials",
@@ -28,4 +33,5 @@ const dynamicDbSchema = new Schema<DynamicDbRecord>(
 );
 
 export const DynamicDbModel: Model<DynamicDbRecord> =
-  mongoose.models.DynamicDbCredential ?? model<DynamicDbRecord>("DynamicDbCredential", dynamicDbSchema);
+  mongoose.models.DynamicDbCredential ??
+  model<DynamicDbRecord>("DynamicDbCredential", dynamicDbSchema);

@@ -113,10 +113,16 @@ export class PolicyEvaluationEngine {
   /**
    * Simulates policy check given input parameters.
    */
-  public simulate(input: PolicySimulationInput, availablePolicies: VaultPolicy[]): PolicySimulationResult {
-    const activePolicies = input.policyIds && input.policyIds.length > 0
-      ? availablePolicies.filter((p) => input.policyIds?.includes(p.id) || input.policyIds?.includes(p.name))
-      : availablePolicies;
+  public simulate(
+    input: PolicySimulationInput,
+    availablePolicies: VaultPolicy[],
+  ): PolicySimulationResult {
+    const activePolicies =
+      input.policyIds && input.policyIds.length > 0
+        ? availablePolicies.filter(
+            (p) => input.policyIds?.includes(p.id) || input.policyIds?.includes(p.name),
+          )
+        : availablePolicies;
 
     const context: { environment?: string; userRole?: string } = {};
     if (input.environment) context.environment = input.environment;

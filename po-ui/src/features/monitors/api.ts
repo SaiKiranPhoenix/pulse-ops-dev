@@ -219,10 +219,9 @@ export async function evaluateMonitor(
 }
 
 export async function exportMonitors(projectId: string): Promise<Record<string, unknown>> {
-  const response = await apiClient.get<ApiSuccessResponse<{ readonly bundle: Record<string, unknown> }>>(
-    "/monitors/export",
-    { params: { projectId } },
-  );
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly bundle: Record<string, unknown> }>
+  >("/monitors/export", { params: { projectId } });
   return response.data.data.bundle;
 }
 
@@ -231,7 +230,9 @@ export async function importMonitors(
   bundle: {
     monitors: Array<Omit<MonitorRule, "id" | "createdAt" | "updatedAt" | "projectId">>;
     channels?: Array<Omit<NotificationChannel, "id" | "createdAt" | "updatedAt" | "projectId">>;
-    routingRules?: Array<Omit<NotificationRoutingRule, "id" | "createdAt" | "updatedAt" | "projectId">>;
+    routingRules?: Array<
+      Omit<NotificationRoutingRule, "id" | "createdAt" | "updatedAt" | "projectId">
+    >;
   },
 ): Promise<{ monitors: number; channels: number; routingRules: number }> {
   const response = await apiClient.post<
@@ -279,10 +280,9 @@ export async function deleteSilenceWindow(projectId: string, id: string): Promis
 }
 
 export async function listMaintenanceWindows(projectId: string): Promise<MaintenanceWindow[]> {
-  const response = await apiClient.get<ApiSuccessResponse<{ readonly windows: MaintenanceWindow[] }>>(
-    "/maintenance-windows",
-    { params: { projectId } },
-  );
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly windows: MaintenanceWindow[] }>
+  >("/maintenance-windows", { params: { projectId } });
   return response.data.data.windows;
 }
 
@@ -313,10 +313,9 @@ export async function deleteMaintenanceWindow(projectId: string, id: string): Pr
 
 // Channels & Routing
 export async function listNotificationChannels(projectId: string): Promise<NotificationChannel[]> {
-  const response = await apiClient.get<ApiSuccessResponse<{ readonly channels: NotificationChannel[] }>>(
-    "/notification-channels",
-    { params: { projectId } },
-  );
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly channels: NotificationChannel[] }>
+  >("/notification-channels", { params: { projectId } });
   return response.data.data.channels;
 }
 
@@ -329,11 +328,9 @@ export async function createNotificationChannel(
     enabled?: boolean;
   },
 ): Promise<NotificationChannel> {
-  const response = await apiClient.post<ApiSuccessResponse<{ readonly channel: NotificationChannel }>>(
-    "/notification-channels",
-    input,
-    { params: { projectId } },
-  );
+  const response = await apiClient.post<
+    ApiSuccessResponse<{ readonly channel: NotificationChannel }>
+  >("/notification-channels", input, { params: { projectId } });
   return response.data.data.channel;
 }
 
@@ -347,11 +344,9 @@ export async function updateNotificationChannel(
     enabled?: boolean;
   }>,
 ): Promise<NotificationChannel> {
-  const response = await apiClient.patch<ApiSuccessResponse<{ readonly channel: NotificationChannel }>>(
-    `/notification-channels/${id}`,
-    input,
-    { params: { projectId } },
-  );
+  const response = await apiClient.patch<
+    ApiSuccessResponse<{ readonly channel: NotificationChannel }>
+  >(`/notification-channels/${id}`, input, { params: { projectId } });
   return response.data.data.channel;
 }
 
@@ -375,10 +370,9 @@ export async function testNotificationChannel(
 export async function listNotificationRoutingRules(
   projectId: string,
 ): Promise<NotificationRoutingRule[]> {
-  const response = await apiClient.get<ApiSuccessResponse<{ readonly rules: NotificationRoutingRule[] }>>(
-    "/notification-routing",
-    { params: { projectId } },
-  );
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly rules: NotificationRoutingRule[] }>
+  >("/notification-routing", { params: { projectId } });
   return response.data.data.rules;
 }
 

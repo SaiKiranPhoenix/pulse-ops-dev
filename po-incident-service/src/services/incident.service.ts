@@ -132,7 +132,11 @@ export class IncidentService {
   async triage(
     projectId: string,
     incidentId: string,
-    input: { severity?: SafeIncidentRecord["severity"]; assignee?: string | null; runbookUrl?: string | null },
+    input: {
+      severity?: SafeIncidentRecord["severity"];
+      assignee?: string | null;
+      runbookUrl?: string | null;
+    },
   ): Promise<IncidentDto> {
     const incident = await this.incidents.triage(projectId, incidentId, input);
     if (incident === null) throw notFound("Incident not found");

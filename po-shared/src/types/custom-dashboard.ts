@@ -1,11 +1,5 @@
 export type DashboardWidgetType =
-  | "timeseries"
-  | "toplist"
-  | "table"
-  | "query_value"
-  | "incident_list"
-  | "log_stream"
-  | "markdown";
+  "timeseries" | "toplist" | "table" | "query_value" | "incident_list" | "log_stream" | "markdown";
 
 export interface DashboardGridPos {
   readonly x: number;

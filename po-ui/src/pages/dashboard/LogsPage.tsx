@@ -344,7 +344,11 @@ export function LogsPage() {
       setSavedSearches((prev) => [created, ...prev]);
       setIsSaveSearchModalOpen(false);
       setNewSearchName("");
-      notify({ title: "Search Saved", description: `Saved "${created.name}" for quick access.`, variant: "success" });
+      notify({
+        title: "Search Saved",
+        description: `Saved "${created.name}" for quick access.`,
+        variant: "success",
+      });
     } catch (err) {
       notify({
         title: "Save failed",
@@ -386,7 +390,8 @@ export function LogsPage() {
       config: {
         redactionPatterns: processorPattern ? [processorPattern] : undefined,
         dropFilter: processorType === "drop_filter" ? processorPattern : undefined,
-        sampleRatePercent: processorType === "sample_rate" ? Number(processorPattern) || 10 : undefined,
+        sampleRatePercent:
+          processorType === "sample_rate" ? Number(processorPattern) || 10 : undefined,
       },
     };
 
@@ -401,9 +406,17 @@ export function LogsPage() {
       setIsAddingRule(false);
       setRuleName("");
       setProcessorPattern("");
-      notify({ title: "Rule Created", description: `Active in ingestion pipeline.`, variant: "success" });
+      notify({
+        title: "Rule Created",
+        description: `Active in ingestion pipeline.`,
+        variant: "success",
+      });
     } catch (err) {
-      notify({ title: "Failed to create rule", description: getApiErrorMessage(err), variant: "error" });
+      notify({
+        title: "Failed to create rule",
+        description: getApiErrorMessage(err),
+        variant: "error",
+      });
     }
   };
 
@@ -426,7 +439,11 @@ export function LogsPage() {
         coldArchiveEnabled: retention?.coldArchiveEnabled ?? false,
       });
       setRetention(updated);
-      notify({ title: "Retention Updated", description: `Retaining logs for ${days} days.`, variant: "success" });
+      notify({
+        title: "Retention Updated",
+        description: `Retaining logs for ${days} days.`,
+        variant: "success",
+      });
     } catch (err) {
       notify({ title: "Update failed", description: getApiErrorMessage(err), variant: "error" });
     }
@@ -436,7 +453,11 @@ export function LogsPage() {
     if (!selectedProject) return;
     const url = `${window.location.origin}/logs/export?projectId=${encodeURIComponent(selectedProject.id)}&format=${format}`;
     window.open(url, "_blank");
-    notify({ title: "Export Started", description: `Downloading log stream as ${format.toUpperCase()}`, variant: "success" });
+    notify({
+      title: "Export Started",
+      description: `Downloading log stream as ${format.toUpperCase()}`,
+      variant: "success",
+    });
   };
 
   return (
@@ -454,9 +475,12 @@ export function LogsPage() {
               </span>
             )}
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mt-1">Log Event Explorer & Pipeline</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
+            Log Event Explorer & Pipeline
+          </h1>
           <p className="mt-1 max-w-3xl text-xs text-zinc-400">
-            Real-time multi-source log inspection with automated sensitive-data masking, context windows, and pipeline transforms.
+            Real-time multi-source log inspection with automated sensitive-data masking, context
+            windows, and pipeline transforms.
           </p>
         </div>
 
@@ -479,11 +503,7 @@ export function LogsPage() {
             {isLive ? "Pause Stream" : "Live Tail"}
           </Button>
 
-          <Button
-            onClick={() => void loadEvents()}
-            variant="outline"
-            className="text-xs gap-1.5"
-          >
+          <Button onClick={() => void loadEvents()} variant="outline" className="text-xs gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -530,7 +550,9 @@ export function LogsPage() {
             </div>
             <div>
               <p className="text-[10px] text-zinc-500 uppercase font-semibold">Ingestion Rate</p>
-              <p className="text-sm font-bold text-white font-mono">{volumeAnalytics.totalEventsPerSec} events/s</p>
+              <p className="text-sm font-bold text-white font-mono">
+                {volumeAnalytics.totalEventsPerSec} events/s
+              </p>
             </div>
           </div>
 
@@ -540,7 +562,9 @@ export function LogsPage() {
             </div>
             <div>
               <p className="text-[10px] text-zinc-500 uppercase font-semibold">Throughput</p>
-              <p className="text-sm font-bold text-white font-mono">{(volumeAnalytics.totalBytesPerSec / 1024).toFixed(1)} KB/s</p>
+              <p className="text-sm font-bold text-white font-mono">
+                {(volumeAnalytics.totalBytesPerSec / 1024).toFixed(1)} KB/s
+              </p>
             </div>
           </div>
 
@@ -550,7 +574,9 @@ export function LogsPage() {
             </div>
             <div>
               <p className="text-[10px] text-zinc-500 uppercase font-semibold">Redactions Masked</p>
-              <p className="text-sm font-bold text-white font-mono">{volumeAnalytics.redactedCount} secrets</p>
+              <p className="text-sm font-bold text-white font-mono">
+                {volumeAnalytics.redactedCount} secrets
+              </p>
             </div>
           </div>
 
@@ -560,7 +586,9 @@ export function LogsPage() {
             </div>
             <div>
               <p className="text-[10px] text-zinc-500 uppercase font-semibold">Sampling Rate</p>
-              <p className="text-sm font-bold text-white font-mono">{volumeAnalytics.sampledPercentage}% kept</p>
+              <p className="text-sm font-bold text-white font-mono">
+                {volumeAnalytics.sampledPercentage}% kept
+              </p>
             </div>
           </div>
         </div>
@@ -709,7 +737,8 @@ export function LogsPage() {
                   <div
                     className={cn(
                       "grid w-full grid-cols-[5rem_6rem_8rem_1fr_9rem_7rem_6rem] items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-800/40 group",
-                      selectedEventId === event.id && "bg-emerald-500/10 border-l-2 border-emerald-400",
+                      selectedEventId === event.id &&
+                        "bg-emerald-500/10 border-l-2 border-emerald-400",
                     )}
                     key={event.id}
                   >
@@ -727,7 +756,9 @@ export function LogsPage() {
                         {event.type}
                       </span>
                     </button>
-                    <span className="text-xs uppercase font-bold text-zinc-400">{event.level ?? "-"}</span>
+                    <span className="text-xs uppercase font-bold text-zinc-400">
+                      {event.level ?? "-"}
+                    </span>
                     <span className="truncate text-xs font-mono text-zinc-300">{event.source}</span>
                     <button
                       type="button"
@@ -738,7 +769,8 @@ export function LogsPage() {
                         {event.message ?? event.name ?? event.fingerprint}
                       </span>
                       <span className="mt-0.5 block truncate font-mono text-[10px] text-zinc-500">
-                        {readAttribute(event.attributes, "environment") ?? "unknown"} • {event.fingerprint}
+                        {readAttribute(event.attributes, "environment") ?? "unknown"} •{" "}
+                        {event.fingerprint}
                       </span>
                     </button>
                     <span className="truncate font-mono text-[11px] text-zinc-400">
@@ -809,12 +841,19 @@ export function LogsPage() {
                   ▲ Precursor Events (25 lines before)
                 </div>
                 {contextData.before.map((b, idx) => (
-                  <div key={idx} className="py-1 px-2 hover:bg-zinc-800/40 rounded flex items-center gap-2 text-zinc-400">
-                    <span className="text-zinc-600 text-[10px] w-20">{String(b.timestamp).slice(11, 19)}</span>
+                  <div
+                    key={idx}
+                    className="py-1 px-2 hover:bg-zinc-800/40 rounded flex items-center gap-2 text-zinc-400"
+                  >
+                    <span className="text-zinc-600 text-[10px] w-20">
+                      {String(b.timestamp).slice(11, 19)}
+                    </span>
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-zinc-800 text-zinc-300 uppercase">
                       {String(b.level)}
                     </span>
-                    <span className="text-zinc-500 text-[11px] w-32 truncate">{String(b.service)}</span>
+                    <span className="text-zinc-500 text-[11px] w-32 truncate">
+                      {String(b.service)}
+                    </span>
                     <span className="truncate flex-1 text-zinc-300">{String(b.message)}</span>
                   </div>
                 ))}
@@ -826,9 +865,13 @@ export function LogsPage() {
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 uppercase">
                         TARGET INVESTIGATION EVENT
                       </span>
-                      <span className="text-[11px] font-mono text-zinc-400">{String(contextData.target.id)}</span>
+                      <span className="text-[11px] font-mono text-zinc-400">
+                        {String(contextData.target.id)}
+                      </span>
                     </div>
-                    <p className="font-bold text-sm text-rose-200 mt-1">{String(contextData.target.message)}</p>
+                    <p className="font-bold text-sm text-rose-200 mt-1">
+                      {String(contextData.target.message)}
+                    </p>
                     {Boolean(contextData.target.stack) && (
                       <pre className="mt-1 p-2 rounded bg-zinc-950 border border-zinc-800 text-[10px] text-rose-300 whitespace-pre-wrap">
                         {String(contextData.target.stack)}
@@ -841,12 +884,19 @@ export function LogsPage() {
                   ▼ Post-Incident Successors (25 lines after)
                 </div>
                 {contextData.after.map((a, idx) => (
-                  <div key={idx} className="py-1 px-2 hover:bg-zinc-800/40 rounded flex items-center gap-2 text-zinc-400">
-                    <span className="text-zinc-600 text-[10px] w-20">{String(a.timestamp).slice(11, 19)}</span>
+                  <div
+                    key={idx}
+                    className="py-1 px-2 hover:bg-zinc-800/40 rounded flex items-center gap-2 text-zinc-400"
+                  >
+                    <span className="text-zinc-600 text-[10px] w-20">
+                      {String(a.timestamp).slice(11, 19)}
+                    </span>
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-zinc-800 text-zinc-300 uppercase">
                       {String(a.level)}
                     </span>
-                    <span className="text-zinc-500 text-[11px] w-32 truncate">{String(a.service)}</span>
+                    <span className="text-zinc-500 text-[11px] w-32 truncate">
+                      {String(a.service)}
+                    </span>
                     <span className="truncate flex-1 text-zinc-300">{String(a.message)}</span>
                   </div>
                 ))}
@@ -854,7 +904,11 @@ export function LogsPage() {
             ) : null}
 
             <div className="flex justify-end pt-3 border-t border-zinc-800">
-              <Button onClick={() => setIsContextModalOpen(false)} variant="ghost" className="text-xs text-zinc-400">
+              <Button
+                onClick={() => setIsContextModalOpen(false)}
+                variant="ghost"
+                className="text-xs text-zinc-400"
+              >
                 Close
               </Button>
             </div>
@@ -871,7 +925,10 @@ export function LogsPage() {
                 <BookmarkPlus className="w-4 h-4 text-emerald-400" />
                 Save Log Search
               </h3>
-              <button onClick={() => setIsSaveSearchModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setIsSaveSearchModalOpen(false)}
+                className="text-zinc-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -889,17 +946,33 @@ export function LogsPage() {
               </div>
 
               <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1 text-xs text-zinc-400">
-                <p><span className="text-zinc-500">Query:</span> {search || "*"}</p>
-                <p><span className="text-zinc-500">Service:</span> {serviceFilter}</p>
-                <p><span className="text-zinc-500">Level:</span> {levelFilter}</p>
-                <p><span className="text-zinc-500">Timeframe:</span> {timeRange}</p>
+                <p>
+                  <span className="text-zinc-500">Query:</span> {search || "*"}
+                </p>
+                <p>
+                  <span className="text-zinc-500">Service:</span> {serviceFilter}
+                </p>
+                <p>
+                  <span className="text-zinc-500">Level:</span> {levelFilter}
+                </p>
+                <p>
+                  <span className="text-zinc-500">Timeframe:</span> {timeRange}
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                <Button type="button" variant="ghost" onClick={() => setIsSaveSearchModalOpen(false)} className="text-xs text-zinc-400">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsSaveSearchModalOpen(false)}
+                  className="text-xs text-zinc-400"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium">
+                <Button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
+                >
                   Save Search
                 </Button>
               </div>
@@ -915,9 +988,14 @@ export function LogsPage() {
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-bold text-white">Log Pipeline Processors & Retention</h3>
+                <h3 className="text-base font-bold text-white">
+                  Log Pipeline Processors & Retention
+                </h3>
               </div>
-              <button onClick={() => setIsPipelineDrawerOpen(false)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setIsPipelineDrawerOpen(false)}
+                className="text-zinc-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -930,7 +1008,9 @@ export function LogsPage() {
                     <Layers className="w-4 h-4 text-emerald-400" />
                     Project Log Retention Policy
                   </h4>
-                  <span className="text-xs text-zinc-500 font-mono">Current: {retention?.retentionDays ?? 30} days</span>
+                  <span className="text-xs text-zinc-500 font-mono">
+                    Current: {retention?.retentionDays ?? 30} days
+                  </span>
                 </div>
                 <div className="grid grid-cols-4 gap-2 pt-1">
                   {[7, 30, 90, 365].map((d) => (
@@ -971,16 +1051,21 @@ export function LogsPage() {
                 <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/30 flex items-start gap-3">
                   <Shield className="w-5 h-5 text-emerald-400 mt-0.5" />
                   <div>
-                    <h5 className="text-xs font-bold text-emerald-300">Automated Sensitive-Data Scanner Active</h5>
+                    <h5 className="text-xs font-bold text-emerald-300">
+                      Automated Sensitive-Data Scanner Active
+                    </h5>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Automatically detects and redacts JWTs, Bearer tokens, AWS Access Keys, SSH Private Keys, Credit Cards (Luhn), and password fields across all inbound telemetry.
+                      Automatically detects and redacts JWTs, Bearer tokens, AWS Access Keys, SSH
+                      Private Keys, Credit Cards (Luhn), and password fields across all inbound
+                      telemetry.
                     </p>
                   </div>
                 </div>
 
                 {pipelineRules.length === 0 ? (
                   <div className="p-8 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
-                    No custom pipeline processors configured. All logs pass through the default scanner.
+                    No custom pipeline processors configured. All logs pass through the default
+                    scanner.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1022,7 +1107,10 @@ export function LogsPage() {
 
               {/* Add Rule Form */}
               {isAddingRule && (
-                <form onSubmit={handleAddPipelineRule} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
+                <form
+                  onSubmit={handleAddPipelineRule}
+                  className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3"
+                >
                   <h5 className="text-xs font-bold text-white">Create Pipeline Processor</h5>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -1036,7 +1124,9 @@ export function LogsPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-400">Processor Type</label>
+                      <label className="text-[11px] font-semibold text-zinc-400">
+                        Processor Type
+                      </label>
                       <select
                         value={processorType}
                         onChange={(e) => setProcessorType(e.target.value as LogProcessorType)}
@@ -1053,7 +1143,9 @@ export function LogsPage() {
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-zinc-400">
-                      {processorType === "sample_rate" ? "Sample Percentage (0-100)" : "Pattern / Filter String"}
+                      {processorType === "sample_rate"
+                        ? "Sample Percentage (0-100)"
+                        : "Pattern / Filter String"}
                     </label>
                     <Input
                       placeholder={
@@ -1070,10 +1162,18 @@ export function LogsPage() {
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="ghost" onClick={() => setIsAddingRule(false)} className="text-xs text-zinc-400">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsAddingRule(false)}
+                      className="text-xs text-zinc-400"
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium">
+                    <Button
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
+                    >
                       Save Processor
                     </Button>
                   </div>
@@ -1082,7 +1182,11 @@ export function LogsPage() {
             </div>
 
             <div className="flex justify-end pt-3 border-t border-zinc-800">
-              <Button onClick={() => setIsPipelineDrawerOpen(false)} variant="ghost" className="text-xs text-zinc-400">
+              <Button
+                onClick={() => setIsPipelineDrawerOpen(false)}
+                variant="ghost"
+                className="text-xs text-zinc-400"
+              >
                 Close
               </Button>
             </div>
@@ -1141,7 +1245,9 @@ function EventDetail({
         </div>
 
         {event === null ? (
-          <p className="mt-6 text-xs text-zinc-500">Select an event from the feed to inspect attributes and surrounding context.</p>
+          <p className="mt-6 text-xs text-zinc-500">
+            Select an event from the feed to inspect attributes and surrounding context.
+          </p>
         ) : (
           <div className="mt-4 grid gap-4">
             <dl className="grid gap-2.5 text-xs">
@@ -1192,7 +1298,8 @@ function EmptyLogs({ isLoading }: { readonly isLoading: boolean }) {
           {isLoading ? "Streaming events..." : "No logs match the current filters"}
         </p>
         <p className="mt-1 text-zinc-500">
-          Generate an API key, send test telemetry, or adjust filters to broaden the log exploration window.
+          Generate an API key, send test telemetry, or adjust filters to broaden the log exploration
+          window.
         </p>
       </div>
     </div>

@@ -766,16 +766,16 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Vault Auth Methods And Identity
 
-- [ ] Todo Add service account auth method.
-- [ ] Todo Add app role style auth for deployed applications.
-- [ ] Todo Add token renewal endpoint.
-- [ ] Todo Add token revoke self endpoint.
-- [ ] Todo Add token lookup endpoint.
-- [ ] Todo Add token TTL and max TTL.
-- [ ] Todo Add renewable/non-renewable token flags.
-- [ ] Todo Add child token hierarchy only if product needs it.
-- [ ] Todo Add identity aliases for OAuth/user/service accounts.
-- [ ] Todo Add auth method management UI.
+- [x] Add service account auth method.
+- [x] Add app role style auth for deployed applications.
+- [x] Add token renewal endpoint.
+- [x] Add token revoke self endpoint.
+- [x] Add token lookup endpoint.
+- [x] Add token TTL and max TTL.
+- [x] Add renewable/non-renewable token flags.
+- [x] Add child token hierarchy for AppRole-issued tokens.
+- [x] Add identity aliases for OAuth/user/service accounts.
+- [x] Add auth method management UI.
 
 ## Vault Leases, Rotation, And Secret Delivery
 

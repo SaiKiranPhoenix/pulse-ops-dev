@@ -19,6 +19,7 @@ Infrastructure monitoring in PulseOps consists of three primary layers:
 Every container monitored by PulseOps is tagged with its `containerId`, `serviceName`, and `hostId`.
 
 When inspecting containers in the **Infrastructure Console**, clicking **"View Container Logs"** automatically navigates to the Log Management Pipeline filtering by:
+
 ```
 attributes.serviceName: "<service>" AND attributes.containerId: "<containerId>"
 ```

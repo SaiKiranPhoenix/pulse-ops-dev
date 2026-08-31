@@ -59,23 +59,41 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/log-pipelines", asyncHandler(dependencies.logPipelineController.listRules));
   router.post("/log-pipelines", asyncHandler(dependencies.logPipelineController.createRule));
   router.get("/log-pipelines/:ruleId", asyncHandler(dependencies.logPipelineController.detailRule));
-  router.patch("/log-pipelines/:ruleId", asyncHandler(dependencies.logPipelineController.updateRule));
-  router.delete("/log-pipelines/:ruleId", asyncHandler(dependencies.logPipelineController.deleteRule));
+  router.patch(
+    "/log-pipelines/:ruleId",
+    asyncHandler(dependencies.logPipelineController.updateRule),
+  );
+  router.delete(
+    "/log-pipelines/:ruleId",
+    asyncHandler(dependencies.logPipelineController.deleteRule),
+  );
 
   // Log Retention Settings
   router.get("/logs/retention", asyncHandler(dependencies.logPipelineController.getRetention));
   router.put("/logs/retention", asyncHandler(dependencies.logPipelineController.updateRetention));
 
   // Saved Log Searches
-  router.get("/logs/saved-searches", asyncHandler(dependencies.logPipelineController.listSavedSearches));
-  router.post("/logs/saved-searches", asyncHandler(dependencies.logPipelineController.createSavedSearch));
-  router.delete("/logs/saved-searches/:searchId", asyncHandler(dependencies.logPipelineController.deleteSavedSearch));
+  router.get(
+    "/logs/saved-searches",
+    asyncHandler(dependencies.logPipelineController.listSavedSearches),
+  );
+  router.post(
+    "/logs/saved-searches",
+    asyncHandler(dependencies.logPipelineController.createSavedSearch),
+  );
+  router.delete(
+    "/logs/saved-searches/:searchId",
+    asyncHandler(dependencies.logPipelineController.deleteSavedSearch),
+  );
 
   // Log Context Window (+-25 events)
   router.get("/logs/:eventId/context", asyncHandler(dependencies.logPipelineController.getContext));
 
   // Volume Analytics
-  router.get("/logs/analytics/volume", asyncHandler(dependencies.logPipelineController.getVolumeAnalytics));
+  router.get(
+    "/logs/analytics/volume",
+    asyncHandler(dependencies.logPipelineController.getVolumeAnalytics),
+  );
 
   // Log Export / Archive Download
   router.get("/logs/export", asyncHandler(dependencies.logPipelineController.exportLogs));

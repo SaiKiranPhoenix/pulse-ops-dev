@@ -25,9 +25,52 @@ export type VaultToken = {
   readonly tokenPrefix: string;
   readonly scopes: string[];
   readonly environments: string[];
+  readonly authMethod: "integration-token" | "service-account" | "approle";
+  readonly identityAlias: string;
+  readonly parentTokenId: string | null;
+  readonly ttlSeconds: number;
+  readonly maxTtlSeconds: number;
+  readonly renewable: boolean;
+  readonly issuedAt: string;
+  readonly renewedAt: string | null;
   readonly status: "active" | "revoked";
   readonly lastUsedAt: string | null;
   readonly expiresAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type VaultAuthMethod = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly type: "service-account" | "approle";
+  readonly name: string;
+  readonly identityAlias: string;
+  readonly roleId: string | null;
+  readonly tokenScopes: string[];
+  readonly tokenEnvironments: string[];
+  readonly tokenTtlSeconds: number;
+  readonly tokenMaxTtlSeconds: number;
+  readonly renewable: boolean;
+  readonly status: "active" | "disabled";
+  readonly lastUsedAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type CreatedVaultAuthMethod = {
+  readonly authMethod: VaultAuthMethod;
+  readonly secretId: string | null;
+  readonly rawToken: string | null;
+};
+
+export type VaultIdentity = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly alias: string;
+  readonly type: "user" | "oauth" | "service-account" | "approle";
+  readonly displayName: string;
+  readonly metadata: Record<string, string>;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
@@ -183,12 +226,82 @@ export async function createVaultToken(input: {
   readonly scopes?: string[];
   readonly environments?: string[];
   readonly expiresAt?: string | null;
+  readonly ttlSeconds?: number;
+  readonly maxTtlSeconds?: number;
+  readonly renewable?: boolean;
 }): Promise<CreatedVaultToken> {
   const response = await apiClient.post<ApiSuccessResponse<CreatedVaultToken>>(
     "/vault/tokens",
     input,
   );
   return response.data.data;
+}
+
+export async function lookupVaultToken(rawToken: string): Promise<VaultToken> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly token: VaultToken }>>(
+    "/vault/token/lookup-self",
+    { headers: { "x-vault-token": rawToken } },
+  );
+  return response.data.data.token;
+}
+
+export async function renewVaultToken(rawToken: string): Promise<VaultToken> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly token: VaultToken }>>(
+    "/vault/token/renew-self",
+    undefined,
+    { headers: { "x-vault-token": rawToken } },
+  );
+  return response.data.data.token;
+}
+
+export async function revokeVaultTokenSelf(rawToken: string): Promise<VaultToken> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly token: VaultToken }>>(
+    "/vault/token/revoke-self",
+    undefined,
+    { headers: { "x-vault-token": rawToken } },
+  );
+  return response.data.data.token;
+}
+
+export async function createVaultAuthMethod(input: {
+  readonly projectId: string;
+  readonly type: "service-account" | "approle";
+  readonly name: string;
+  readonly scopes?: string[];
+  readonly environments?: string[];
+  readonly ttlSeconds?: number;
+  readonly maxTtlSeconds?: number;
+  readonly renewable?: boolean;
+}): Promise<CreatedVaultAuthMethod> {
+  const response = await apiClient.post<ApiSuccessResponse<CreatedVaultAuthMethod>>(
+    "/vault/auth-methods",
+    input,
+  );
+  return response.data.data;
+}
+
+export async function listVaultAuthMethods(projectId: string): Promise<VaultAuthMethod[]> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly authMethods: VaultAuthMethod[] }>
+  >("/vault/auth-methods", { params: { projectId } });
+  return response.data.data.authMethods;
+}
+
+export async function disableVaultAuthMethod(
+  projectId: string,
+  authMethodId: string,
+): Promise<VaultAuthMethod> {
+  const response = await apiClient.post<
+    ApiSuccessResponse<{ readonly authMethod: VaultAuthMethod }>
+  >(`/vault/auth-methods/${authMethodId}/disable`, undefined, { params: { projectId } });
+  return response.data.data.authMethod;
+}
+
+export async function listVaultIdentities(projectId: string): Promise<VaultIdentity[]> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly identities: VaultIdentity[] }>
+  >("/vault/identities", { params: { projectId } });
+  return response.data.data.identities;
 }
 
 export async function listVaultTokens(projectId: string): Promise<VaultToken[]> {

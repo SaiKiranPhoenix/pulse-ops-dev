@@ -21,8 +21,7 @@ export class QueryExplorerService {
 
     for (let i = 0; i <= bucketCount; i++) {
       const bucketTime = new Date(startTime + i * bucketInterval).toISOString();
-      const baseValue =
-        query.queryType === "metrics" ? 45 : query.queryType === "errors" ? 3 : 150;
+      const baseValue = query.queryType === "metrics" ? 45 : query.queryType === "errors" ? 3 : 150;
       const jitter = Math.floor(Math.sin(i) * 15) + (i % 3);
       timeseries.push({
         timestamp: bucketTime,

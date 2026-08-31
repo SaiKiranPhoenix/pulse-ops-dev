@@ -38,4 +38,3 @@ function toRouteDependencies(dependencies: IngestionServiceDependencies): RouteD
     logPipelineController: controller,
   };
 }
-

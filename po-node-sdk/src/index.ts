@@ -56,4 +56,3 @@ export type {
   ExpressMiddlewareOptions,
 } from "./types.js";
 export type { JobInstrumentationOptions } from "./helpers/jobs.js";
-

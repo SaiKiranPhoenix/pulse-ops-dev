@@ -5,6 +5,8 @@ import { loadEnv } from "../config/env.js";
 import { createVaultAuditPublisher } from "../events/publishers/vault-audit.publisher.js";
 import { MongoVaultSecretRepository } from "../repositories/vault-secret.repository.js";
 import { MongoVaultTokenRepository } from "../repositories/vault-token.repository.js";
+import { MongoVaultAuthMethodRepository } from "../repositories/vault-auth-method.repository.js";
+import { MongoVaultIdentityRepository } from "../repositories/vault-identity.repository.js";
 import { AesGcmSecretCryptoService } from "./secret-crypto.service.js";
 import { VaultService } from "./vault.service.js";
 import { VaultPolicyService } from "./vault-policy.service.js";
@@ -30,6 +32,8 @@ export function createVaultServiceDependencies(): VaultServiceDependencies {
     new AesGcmSecretCryptoService(env.VAULT_MASTER_PASSWORD),
     new VaultTokenHasher(env.VAULT_TOKEN_PEPPER),
     auditPublisher,
+    new MongoVaultAuthMethodRepository(),
+    new MongoVaultIdentityRepository(),
   );
   const vaultPolicyService = new VaultPolicyService();
   const dynamicSecretService = new DynamicSecretService();

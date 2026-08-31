@@ -84,7 +84,9 @@ export class MetricsRollupEngine {
     const bucketMs = this.getBucketDurationMs(timeBucket);
     const buckets = new Map<number, number[]>();
 
-    const start = startTimeMs ?? (samples.length > 0 ? Math.min(...samples.map((s) => s.timestamp)) : Date.now() - 3600000);
+    const start =
+      startTimeMs ??
+      (samples.length > 0 ? Math.min(...samples.map((s) => s.timestamp)) : Date.now() - 3600000);
     const end = endTimeMs ?? Date.now();
 
     // Initialize all intermediate buckets to produce a clean continuous series

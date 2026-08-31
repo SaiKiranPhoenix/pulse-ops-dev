@@ -18,11 +18,7 @@ export function generateSpanId(): string {
 /**
  * Format a W3C TraceContext traceparent header: `00-${traceId}-${spanId}-${flags}`
  */
-export function formatW3CTraceParent(
-  traceId: string,
-  spanId: string,
-  sampled = true,
-): string {
+export function formatW3CTraceParent(traceId: string, spanId: string, sampled = true): string {
   const flags = sampled ? "01" : "00";
   return `00-${traceId}-${spanId}-${flags}`;
 }
@@ -75,7 +71,9 @@ export class ActiveSpan {
     this.name = name;
     this.traceId = options?.traceId || generateTraceId();
     this.spanId = generateSpanId();
-    this.parentSpanId = options?.parentSpanId;
+    if (options?.parentSpanId !== undefined) {
+      this.parentSpanId = options.parentSpanId;
+    }
     this.kind = options?.kind || "server";
     this.serviceName = options?.serviceName || "unnamed-service";
     this.startTime = Date.now();
@@ -94,7 +92,9 @@ export class ActiveSpan {
 
   public setStatus(code: SpanStatusCode, message?: string): this {
     this.statusCode = code;
-    this.statusMessage = message;
+    if (message !== undefined) {
+      this.statusMessage = message;
+    }
     return this;
   }
 

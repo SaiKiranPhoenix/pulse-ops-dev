@@ -29,9 +29,7 @@ export class LogPipelineProcessorEngine {
     const applied: string[] = [];
 
     // Sort rules by execution order
-    const sortedRules = [...rules]
-      .filter((r) => r.enabled)
-      .sort((a, b) => a.order - b.order);
+    const sortedRules = [...rules].filter((r) => r.enabled).sort((a, b) => a.order - b.order);
 
     for (const rule of sortedRules) {
       for (const processor of rule.processors) {

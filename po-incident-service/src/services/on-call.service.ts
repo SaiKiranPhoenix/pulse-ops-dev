@@ -83,7 +83,10 @@ export class OnCallService {
     return found;
   }
 
-  async createSchedule(projectId: string, input: CreateOnCallScheduleInput): Promise<OnCallSchedule> {
+  async createSchedule(
+    projectId: string,
+    input: CreateOnCallScheduleInput,
+  ): Promise<OnCallSchedule> {
     const id = `sched_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const now = new Date().toISOString();
 
@@ -151,7 +154,10 @@ export class OnCallService {
     return found;
   }
 
-  async createPolicy(projectId: string, input: CreateEscalationPolicyInput): Promise<EscalationPolicy> {
+  async createPolicy(
+    projectId: string,
+    input: CreateEscalationPolicyInput,
+  ): Promise<EscalationPolicy> {
     const id = `policy_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const now = new Date().toISOString();
 

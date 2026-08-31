@@ -207,16 +207,10 @@ export class UptimeRumRepository {
       status: result.status,
       lastCheckedAt: result.timestamp,
       avgResponseTimeMs: Number(
-        (
-          history.reduce((sum, r) => sum + r.responseTimeMs, 0) /
-          history.length
-        ).toFixed(1),
+        (history.reduce((sum, r) => sum + r.responseTimeMs, 0) / history.length).toFixed(1),
       ),
       uptimePercent24h: Number(
-        (
-          (history.filter((r) => r.status === "up").length / history.length) *
-          100
-        ).toFixed(2),
+        ((history.filter((r) => r.status === "up").length / history.length) * 100).toFixed(2),
       ),
       consecutiveFailures: result.status === "down" ? check.consecutiveFailures + 1 : 0,
       updatedAt: new Date().toISOString(),
@@ -233,7 +227,10 @@ export class UptimeRumRepository {
   }
 
   // RUM Operations
-  async recordRumEvent(projectId: string, event: Omit<RumEvent, "id" | "projectId" | "timestamp">): Promise<RumEvent> {
+  async recordRumEvent(
+    projectId: string,
+    event: Omit<RumEvent, "id" | "projectId" | "timestamp">,
+  ): Promise<RumEvent> {
     const recorded: RumEvent = {
       ...event,
       id: `rum_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

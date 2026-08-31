@@ -1,10 +1,5 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
-import type {
-  SliDefinition,
-  SloCalculation,
-  SloHistoryPoint,
-  SloTarget,
-} from "@pulseops/shared";
+import type { SliDefinition, SloCalculation, SloHistoryPoint, SloTarget } from "@pulseops/shared";
 
 export interface SloDocument extends Document {
   projectId: string;

@@ -6,6 +6,8 @@ import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import {
+  appRoleLoginBodySchema,
+  createVaultAuthMethodBodySchema,
   createSecretBodySchema,
   createVaultTokenBodySchema,
   revealSecretBodySchema,
@@ -13,6 +15,7 @@ import {
   secretQuerySchema,
   tokenFetchParamsSchema,
   updateSecretBodySchema,
+  vaultAuthMethodParamsSchema,
   vaultTokenParamsSchema,
 } from "../validators/vault.validator.js";
 
@@ -33,6 +36,14 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateParams(tokenFetchParamsSchema),
     asyncHandler(dependencies.vaultController.fetchWithToken),
   );
+  router.post(
+    "/vault/auth/approle/login",
+    validateBody(appRoleLoginBodySchema),
+    asyncHandler(dependencies.vaultController.loginAppRole),
+  );
+  router.get("/vault/token/lookup-self", asyncHandler(dependencies.vaultController.lookupToken));
+  router.post("/vault/token/renew-self", asyncHandler(dependencies.vaultController.renewToken));
+  router.post("/vault/token/revoke-self", asyncHandler(dependencies.vaultController.revokeSelf));
 
   router.use(createAuthMiddleware());
 
@@ -91,22 +102,10 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   );
 
   // --- POLICIES & ACCESS MODEL ---
-  router.get(
-    "/vault/policies",
-    asyncHandler(dependencies.vaultPolicyController.list),
-  );
-  router.post(
-    "/vault/policies",
-    asyncHandler(dependencies.vaultPolicyController.create),
-  );
-  router.get(
-    "/vault/policies/:policyId",
-    asyncHandler(dependencies.vaultPolicyController.get),
-  );
-  router.put(
-    "/vault/policies/:policyId",
-    asyncHandler(dependencies.vaultPolicyController.update),
-  );
+  router.get("/vault/policies", asyncHandler(dependencies.vaultPolicyController.list));
+  router.post("/vault/policies", asyncHandler(dependencies.vaultPolicyController.create));
+  router.get("/vault/policies/:policyId", asyncHandler(dependencies.vaultPolicyController.get));
+  router.put("/vault/policies/:policyId", asyncHandler(dependencies.vaultPolicyController.update));
   router.delete(
     "/vault/policies/:policyId",
     asyncHandler(dependencies.vaultPolicyController.delete),
@@ -170,7 +169,28 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.revokeToken),
   );
+  // --- AUTH METHODS & IDENTITY ---
+  router.post(
+    "/vault/auth-methods",
+    validateBody(createVaultAuthMethodBodySchema),
+    asyncHandler(dependencies.vaultController.createAuthMethod),
+  );
+  router.get(
+    "/vault/auth-methods",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listAuthMethods),
+  );
+  router.post(
+    "/vault/auth-methods/:authMethodId/disable",
+    validateParams(vaultAuthMethodParamsSchema),
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.disableAuthMethod),
+  );
+  router.get(
+    "/vault/identities",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listIdentities),
+  );
 
   return router;
 }
-

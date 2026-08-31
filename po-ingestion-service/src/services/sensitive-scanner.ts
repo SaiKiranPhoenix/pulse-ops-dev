@@ -15,7 +15,7 @@ export class SensitiveDataScanner {
     },
     {
       type: "bearer_token",
-      regex: /Bearer\s+[a-zA-Z0-9_\-\.]{20,}/gi,
+      regex: /Bearer\s+[a-zA-Z0-9_.-]{20,}/gi,
       replacement: "Bearer [REDACTED_TOKEN]",
     },
     // AWS Access Key ID
@@ -27,7 +27,8 @@ export class SensitiveDataScanner {
     // Private RSA/OpenSSH Keys
     {
       type: "private_key",
-      regex: /-----BEGIN[ A-Z0-9_-]+PRIVATE KEY-----[a-zA-Z0-9\s+/=]+-----END[ A-Z0-9_-]+PRIVATE KEY-----/g,
+      regex:
+        /-----BEGIN[ A-Z0-9_-]+PRIVATE KEY-----[a-zA-Z0-9\s+/=]+-----END[ A-Z0-9_-]+PRIVATE KEY-----/g,
       replacement: "[REDACTED_PRIVATE_KEY]",
     },
     // Credit Card Numbers (13-19 digits with dashes/spaces)
@@ -39,7 +40,8 @@ export class SensitiveDataScanner {
     // Password in JSON or key-value structures
     {
       type: "password_field",
-      regex: /(["']?(?:password|passwd|secret|apiKey|api_key|access_token|auth_token|client_secret)["']?\s*[:=]\s*["'])([^"'\s]+)(["'])/gi,
+      regex:
+        /(["']?(?:password|passwd|secret|apiKey|api_key|access_token|auth_token|client_secret)["']?\s*[:=]\s*["'])([^"'\s]+)(["'])/gi,
       replacement: "$1[REDACTED_SECRET]$3",
     },
   ];

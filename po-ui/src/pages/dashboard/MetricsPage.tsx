@@ -251,7 +251,11 @@ export function MetricsPage() {
 
   const handleSendTestMetric = async () => {
     if (!testApiKey.trim()) {
-      notify({ title: "API Key Required", description: "Paste an ingestion API key first.", variant: "error" });
+      notify({
+        title: "API Key Required",
+        description: "Paste an ingestion API key first.",
+        variant: "error",
+      });
       return;
     }
 
@@ -291,9 +295,7 @@ export function MetricsPage() {
     const timestampMap = new Map<string, Record<string, number | string>>();
 
     seriesResults.forEach((series, idx) => {
-      const seriesKey = groupBy
-        ? `${series.tags[groupBy] || `Series ${idx + 1}`}`
-        : "value";
+      const seriesKey = groupBy ? `${series.tags[groupBy] || `Series ${idx + 1}`}` : "value";
 
       series.points.forEach((pt) => {
         const timeLabel = new Date(pt.timestamp).toLocaleTimeString([], {
@@ -302,7 +304,10 @@ export function MetricsPage() {
           second: "2-digit",
         });
 
-        const current = timestampMap.get(pt.timestamp) || { timestamp: timeLabel, fullTime: pt.timestamp };
+        const current = timestampMap.get(pt.timestamp) || {
+          timestamp: timeLabel,
+          fullTime: pt.timestamp,
+        };
         current[seriesKey] = pt.value;
         timestampMap.set(pt.timestamp, current);
       });
@@ -316,9 +321,7 @@ export function MetricsPage() {
   const seriesKeys = useMemo(() => {
     if (seriesResults.length === 0) return ["value"];
     if (!groupBy) return ["value"];
-    return seriesResults.map(
-      (s, idx) => s.tags[groupBy] || `Series ${idx + 1}`,
-    );
+    return seriesResults.map((s, idx) => s.tags[groupBy] || `Series ${idx + 1}`);
   }, [seriesResults, groupBy]);
 
   const selectedMetricDef = useMemo(
@@ -343,7 +346,8 @@ export function MetricsPage() {
             Metrics & Time-Series Platform
           </h1>
           <p className="mt-1 max-w-3xl text-xs text-zinc-400">
-            Multi-dimensional time-bucket rollups (P50, P95, P99, Avg, Sum), cardinality guardrails, and service performance matrix.
+            Multi-dimensional time-bucket rollups (P50, P95, P99, Avg, Sum), cardinality guardrails,
+            and service performance matrix.
           </p>
         </div>
 
@@ -362,16 +366,16 @@ export function MetricsPage() {
               disabled={isSendingTest}
               className="text-xs h-7 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white gap-1"
             >
-              {isSendingTest ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              {isSendingTest ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Send className="w-3 h-3" />
+              )}
               Send Metric
             </Button>
           </div>
 
-          <Button
-            onClick={() => void loadData()}
-            variant="outline"
-            className="text-xs gap-1.5 h-9"
-          >
+          <Button onClick={() => void loadData()} variant="outline" className="text-xs gap-1.5 h-9">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -432,7 +436,9 @@ export function MetricsPage() {
         {guardrails && guardrails.highCardinalityViolations.length > 0 && (
           <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>High Cardinality Warning on {guardrails.highCardinalityViolations[0]?.metricName}</span>
+            <span>
+              High Cardinality Warning on {guardrails.highCardinalityViolations[0]?.metricName}
+            </span>
           </div>
         )}
       </div>
@@ -444,7 +450,9 @@ export function MetricsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/70 border border-zinc-800/80 p-3.5 rounded-2xl backdrop-blur-md shadow-xl">
             {/* Metric Selector */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Metric Name</label>
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">
+                Metric Name
+              </label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value)}
@@ -460,7 +468,9 @@ export function MetricsPage() {
 
             {/* Rollup Aggregation */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Rollup Aggregation</label>
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">
+                Rollup Aggregation
+              </label>
               <select
                 value={aggregation}
                 onChange={(e) => setAggregation(e.target.value as MetricRollupAggregation)}
@@ -476,7 +486,9 @@ export function MetricsPage() {
 
             {/* Time Bucket Granularity */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Time Bucket Window</label>
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">
+                Time Bucket Window
+              </label>
               <select
                 value={timeBucket}
                 onChange={(e) => setTimeBucket(e.target.value as MetricTimeBucket)}
@@ -492,7 +504,9 @@ export function MetricsPage() {
 
             {/* Group By Tag */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Group By Dimension</label>
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">
+                Group By Dimension
+              </label>
               <select
                 value={groupBy}
                 onChange={(e) => setGroupBy(e.target.value)}
@@ -516,7 +530,8 @@ export function MetricsPage() {
                   {selectedMetric} • {aggregation.toUpperCase()} rollup ({timeBucket} buckets)
                 </h3>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  {selectedMetricDef?.description || "Inbound time-series telemetry"} • Unit: {selectedMetricDef?.unit || "val"}
+                  {selectedMetricDef?.description || "Inbound time-series telemetry"} • Unit:{" "}
+                  {selectedMetricDef?.unit || "val"}
                 </p>
               </div>
 
@@ -525,7 +540,9 @@ export function MetricsPage() {
                   onClick={() => setChartType("area")}
                   className={cn(
                     "px-2.5 py-1 rounded text-xs font-semibold transition-all",
-                    chartType === "area" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300",
+                    chartType === "area"
+                      ? "bg-zinc-800 text-emerald-400"
+                      : "text-zinc-500 hover:text-zinc-300",
                   )}
                 >
                   Area
@@ -534,7 +551,9 @@ export function MetricsPage() {
                   onClick={() => setChartType("line")}
                   className={cn(
                     "px-2.5 py-1 rounded text-xs font-semibold transition-all",
-                    chartType === "line" ? "bg-zinc-800 text-cyan-400" : "text-zinc-500 hover:text-zinc-300",
+                    chartType === "line"
+                      ? "bg-zinc-800 text-cyan-400"
+                      : "text-zinc-500 hover:text-zinc-300",
                   )}
                 >
                   Line
@@ -543,7 +562,9 @@ export function MetricsPage() {
                   onClick={() => setChartType("bar")}
                   className={cn(
                     "px-2.5 py-1 rounded text-xs font-semibold transition-all",
-                    chartType === "bar" ? "bg-zinc-800 text-purple-400" : "text-zinc-500 hover:text-zinc-300",
+                    chartType === "bar"
+                      ? "bg-zinc-800 text-purple-400"
+                      : "text-zinc-500 hover:text-zinc-300",
                   )}
                 >
                   Bar
@@ -711,7 +732,11 @@ export function MetricsPage() {
                       {s.throughputRps.toFixed(1)} req/s
                     </td>
                     <td className="px-4 py-3.5 font-mono">
-                      <span className={cn(s.errorRatePercent > 1.0 ? "text-rose-400 font-bold" : "text-zinc-300")}>
+                      <span
+                        className={cn(
+                          s.errorRatePercent > 1.0 ? "text-rose-400 font-bold" : "text-zinc-300",
+                        )}
+                      >
                         {s.errorRatePercent.toFixed(2)}%
                       </span>
                     </td>
@@ -732,9 +757,7 @@ export function MetricsPage() {
                         <span>{s.cpuUsagePercent.toFixed(1)}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-zinc-300">
-                      {s.memoryUsageMb} MB
-                    </td>
+                    <td className="px-4 py-3.5 font-mono text-zinc-300">{s.memoryUsageMb} MB</td>
                     <td className="px-4 py-3.5 text-right font-mono text-zinc-500">
                       {s.hostCount} hosts • {s.containerCount} cont
                     </td>
@@ -757,28 +780,38 @@ export function MetricsPage() {
                   <Database className="w-4 h-4" />
                   <h4 className="text-xs font-bold uppercase tracking-wider">Registered Metrics</h4>
                 </div>
-                <p className="text-2xl font-bold text-white mt-2 font-mono">{guardrails.totalMetrics}</p>
+                <p className="text-2xl font-bold text-white mt-2 font-mono">
+                  {guardrails.totalMetrics}
+                </p>
                 <p className="text-[11px] text-zinc-500 mt-1">Catalog metric types</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-cyan-400">
                   <Layers className="w-4 h-4" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider">Active Dimension Tags</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider">
+                    Active Dimension Tags
+                  </h4>
                 </div>
-                <p className="text-2xl font-bold text-white mt-2 font-mono">{guardrails.activeTagsCount}</p>
+                <p className="text-2xl font-bold text-white mt-2 font-mono">
+                  {guardrails.activeTagsCount}
+                </p>
                 <p className="text-[11px] text-zinc-500 mt-1">Indexed tag dimensions</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-amber-400">
                   <ShieldAlert className="w-4 h-4" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider">Cardinality Guardrails</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider">
+                    Cardinality Guardrails
+                  </h4>
                 </div>
                 <p className="text-2xl font-bold text-white mt-2 font-mono">
                   {guardrails.highCardinalityViolations.length} Warnings
                 </p>
-                <p className="text-[11px] text-zinc-500 mt-1">Tag key limits enforced (max 1000/hr)</p>
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Tag key limits enforced (max 1000/hr)
+                </p>
               </div>
             </div>
           )}
@@ -808,11 +841,11 @@ export function MetricsPage() {
                         </span>
                       )}
                     </div>
-                    {def.description && (
-                      <p className="text-xs text-zinc-400">{def.description}</p>
-                    )}
+                    {def.description && <p className="text-xs text-zinc-400">{def.description}</p>}
                     <div className="flex flex-wrap items-center gap-1 pt-1">
-                      <span className="text-[10px] text-zinc-500 font-semibold uppercase mr-1">Tags:</span>
+                      <span className="text-[10px] text-zinc-500 font-semibold uppercase mr-1">
+                        Tags:
+                      </span>
                       {def.tagKeys.map((tag) => (
                         <span
                           key={tag}
@@ -855,7 +888,10 @@ export function MetricsPage() {
                 <Plus className="w-4 h-4 text-cyan-400" />
                 Define Catalog Metric
               </h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-zinc-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -909,7 +945,9 @@ export function MetricsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Indexed Tag Keys (comma-separated)</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  Indexed Tag Keys (comma-separated)
+                </label>
                 <Input
                   placeholder="service, environment, region, host"
                   value={newMetricTags}
@@ -919,10 +957,18 @@ export function MetricsPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-xs text-zinc-400">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-xs text-zinc-400"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium">
+                <Button
+                  type="submit"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium"
+                >
                   Register Metric
                 </Button>
               </div>

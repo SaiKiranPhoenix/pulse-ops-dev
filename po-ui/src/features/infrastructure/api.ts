@@ -94,9 +94,7 @@ export async function listContainers(projectId: string): Promise<ContainerNode[]
   return res.data.data.containers;
 }
 
-export async function getDependencyHealth(
-  projectId: string,
-): Promise<DependencyHealth[]> {
+export async function getDependencyHealth(projectId: string): Promise<DependencyHealth[]> {
   const res = await apiClient.get<ApiResponse<{ dependencies: DependencyHealth[] }>>(
     `/infra/dependencies?projectId=${encodeURIComponent(projectId)}`,
   );

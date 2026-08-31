@@ -100,7 +100,10 @@ export class MetricsPlatformRepository {
     return found;
   }
 
-  async createDefinition(projectId: string, input: CreateMetricDefinitionInput): Promise<MetricDefinition> {
+  async createDefinition(
+    projectId: string,
+    input: CreateMetricDefinitionInput,
+  ): Promise<MetricDefinition> {
     const id = `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const def: MetricDefinition = {
       id,
@@ -156,7 +159,12 @@ export class MetricsPlatformRepository {
 
     samples = [];
     const now = Date.now();
-    const services = ["po-api-gateway", "po-event-workers", "po-auth-project-service", "po-vault-service"];
+    const services = [
+      "po-api-gateway",
+      "po-event-workers",
+      "po-auth-project-service",
+      "po-vault-service",
+    ];
     const endpoints = ["/v1/ingest", "/v1/auth/login", "/v1/projects", "/v1/vault/secrets"];
 
     // Generate last 60 minutes of data at 10-second intervals

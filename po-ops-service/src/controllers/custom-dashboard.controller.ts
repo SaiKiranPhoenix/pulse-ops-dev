@@ -109,9 +109,7 @@ export class CustomDashboardController {
       environment: queryPayload.environment,
       severity: queryPayload.severity,
       searchTerm: queryPayload.searchTerm,
-      timeRangeMinutes: queryPayload.timeRangeMinutes
-        ? Number(queryPayload.timeRangeMinutes)
-        : 60,
+      timeRangeMinutes: queryPayload.timeRangeMinutes ? Number(queryPayload.timeRangeMinutes) : 60,
       limit: queryPayload.limit ? Number(queryPayload.limit) : 50,
     });
 

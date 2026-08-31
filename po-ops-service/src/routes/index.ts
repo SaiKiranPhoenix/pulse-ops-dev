@@ -38,14 +38,8 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/dashboard/dead-letters", asyncHandler(dependencies.opsController.deadLetters));
 
   // Custom Dashboards
-  router.get(
-    "/custom-dashboards",
-    asyncHandler(dependencies.customDashboardController.list),
-  );
-  router.post(
-    "/custom-dashboards",
-    asyncHandler(dependencies.customDashboardController.create),
-  );
+  router.get("/custom-dashboards", asyncHandler(dependencies.customDashboardController.list));
+  router.post("/custom-dashboards", asyncHandler(dependencies.customDashboardController.create));
   router.post(
     "/custom-dashboards/seed-templates",
     asyncHandler(dependencies.customDashboardController.seedTemplates),
@@ -69,22 +63,49 @@ export function createRoutes(dependencies: RouteDependencies): Router {
 
   // Query Explorer
   router.get("/explorer/query", asyncHandler(dependencies.customDashboardController.queryExplorer));
-  router.post("/explorer/query", asyncHandler(dependencies.customDashboardController.queryExplorer));
+  router.post(
+    "/explorer/query",
+    asyncHandler(dependencies.customDashboardController.queryExplorer),
+  );
 
   // Metrics Platform
-  router.get("/metrics/catalog", asyncHandler(dependencies.metricsPlatformController.listDefinitions));
-  router.post("/metrics/catalog", asyncHandler(dependencies.metricsPlatformController.createDefinition));
-  router.patch("/metrics/catalog/:id", asyncHandler(dependencies.metricsPlatformController.updateDefinition));
-  router.delete("/metrics/catalog/:id", asyncHandler(dependencies.metricsPlatformController.deleteDefinition));
+  router.get(
+    "/metrics/catalog",
+    asyncHandler(dependencies.metricsPlatformController.listDefinitions),
+  );
+  router.post(
+    "/metrics/catalog",
+    asyncHandler(dependencies.metricsPlatformController.createDefinition),
+  );
+  router.patch(
+    "/metrics/catalog/:id",
+    asyncHandler(dependencies.metricsPlatformController.updateDefinition),
+  );
+  router.delete(
+    "/metrics/catalog/:id",
+    asyncHandler(dependencies.metricsPlatformController.deleteDefinition),
+  );
   router.get("/metrics/query", asyncHandler(dependencies.metricsPlatformController.queryMetric));
-  router.get("/metrics/services/summary", asyncHandler(dependencies.metricsPlatformController.getServiceMetricsSummary));
-  router.get("/metrics/cardinality/guardrails", asyncHandler(dependencies.metricsPlatformController.getCardinalityGuardrails));
+  router.get(
+    "/metrics/services/summary",
+    asyncHandler(dependencies.metricsPlatformController.getServiceMetricsSummary),
+  );
+  router.get(
+    "/metrics/cardinality/guardrails",
+    asyncHandler(dependencies.metricsPlatformController.getCardinalityGuardrails),
+  );
 
   // Infrastructure & Containers
   router.get("/infra/overview", asyncHandler(dependencies.infrastructureController.getOverview));
   router.get("/infra/hosts", asyncHandler(dependencies.infrastructureController.listHosts));
-  router.get("/infra/containers", asyncHandler(dependencies.infrastructureController.listContainers));
-  router.get("/infra/dependencies", asyncHandler(dependencies.infrastructureController.getDependencies));
+  router.get(
+    "/infra/containers",
+    asyncHandler(dependencies.infrastructureController.listContainers),
+  );
+  router.get(
+    "/infra/dependencies",
+    asyncHandler(dependencies.infrastructureController.getDependencies),
+  );
 
   // Uptime & Synthetics
   router.get("/uptime/checks", asyncHandler(dependencies.uptimeRumController.listChecks));
@@ -92,7 +113,10 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.patch("/uptime/checks/:id", asyncHandler(dependencies.uptimeRumController.updateCheck));
   router.delete("/uptime/checks/:id", asyncHandler(dependencies.uptimeRumController.deleteCheck));
   router.post("/uptime/checks/:id/test", asyncHandler(dependencies.uptimeRumController.testCheck));
-  router.get("/uptime/checks/:id/history", asyncHandler(dependencies.uptimeRumController.getCheckHistory));
+  router.get(
+    "/uptime/checks/:id/history",
+    asyncHandler(dependencies.uptimeRumController.getCheckHistory),
+  );
 
   // Real User Monitoring (RUM)
   router.get("/rum/overview", asyncHandler(dependencies.uptimeRumController.getRumOverview));

@@ -16,7 +16,11 @@ export const metricRollupAggregationSchema = z.enum([
 export const metricTimeBucketSchema = z.enum(["10s", "1m", "5m", "15m", "1h", "1d"]);
 
 export const createMetricDefinitionBodySchema = z.object({
-  name: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_.\-]+$/, "Invalid metric name format"),
+  name: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_.-]+$/, "Invalid metric name format"),
   type: metricTypeSchema,
   unit: z.string().max(32).optional(),
   description: z.string().max(512).optional(),
@@ -26,7 +30,12 @@ export const createMetricDefinitionBodySchema = z.object({
 });
 
 export const updateMetricDefinitionBodySchema = z.object({
-  name: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_.\-]+$/).optional(),
+  name: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_.-]+$/)
+    .optional(),
   type: metricTypeSchema.optional(),
   unit: z.string().max(32).optional(),
   description: z.string().max(512).optional(),

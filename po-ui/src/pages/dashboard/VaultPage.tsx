@@ -27,20 +27,30 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
+  createVaultAuthMethod,
   createSecret,
   createVaultToken,
   deleteSecret,
+  disableVaultAuthMethod,
   fetchSecretWithIntegrationToken,
   getVaultTokenCacheDiagnostics,
   listSecrets,
   listSecretVersions,
   listVaultAuditEvents,
+  listVaultAuthMethods,
+  listVaultIdentities,
   listVaultTokens,
+  lookupVaultToken,
   revealSecret,
+  renewVaultToken,
   revokeVaultToken,
+  revokeVaultTokenSelf,
   updateSecret,
+  type CreatedVaultAuthMethod,
   type RevealedVaultSecret,
   type VaultAuditEvent,
+  type VaultAuthMethod,
+  type VaultIdentity,
   type VaultSecretMetadata,
   type VaultSecretVersion,
   type VaultToken,
@@ -102,6 +112,8 @@ export function VaultPage() {
   // KV Secrets State
   const [secrets, setSecrets] = useState<VaultSecretMetadata[]>([]);
   const [tokens, setTokens] = useState<VaultToken[]>([]);
+  const [authMethods, setAuthMethods] = useState<VaultAuthMethod[]>([]);
+  const [identities, setIdentities] = useState<VaultIdentity[]>([]);
   const [tokenCacheDiagnostics, setTokenCacheDiagnostics] =
     useState<VaultTokenCacheDiagnostics | null>(null);
   const [auditEvents, setAuditEvents] = useState<VaultAuditEvent[]>([]);
@@ -110,6 +122,8 @@ export function VaultPage() {
   const [pendingDeleteSecret, setPendingDeleteSecret] = useState<VaultSecretMetadata | null>(null);
   const [revealedSecret, setRevealedSecret] = useState<RevealedVaultSecret | null>(null);
   const [rawToken, setRawToken] = useState<string | null>(null);
+  const [createdAuthMethod, setCreatedAuthMethod] = useState<CreatedVaultAuthMethod | null>(null);
+  const [tokenLookup, setTokenLookup] = useState<VaultToken | null>(null);
   const [integrationFetch, setIntegrationFetch] = useState<RevealedVaultSecret | null>(null);
   const [secretForm, setSecretForm] = useState<SecretForm>({
     environment: selectedEnvironment,
@@ -124,6 +138,17 @@ export function VaultPage() {
     environment: selectedEnvironment,
     scopes: [defaultTokenScope],
     expiresAt: "",
+    ttlSeconds: 3600,
+    maxTtlSeconds: 86400,
+    renewable: true,
+  });
+  const [authMethodForm, setAuthMethodForm] = useState({
+    type: "approle" as "service-account" | "approle",
+    name: "render-worker",
+    environment: selectedEnvironment,
+    ttlSeconds: 3600,
+    maxTtlSeconds: 86400,
+    renewable: true,
   });
   const [fetchForm, setFetchForm] = useState({
     token: "",
@@ -170,6 +195,8 @@ export function VaultPage() {
     if (selectedProject === null) {
       setSecrets([]);
       setTokens([]);
+      setAuthMethods([]);
+      setIdentities([]);
       setTokenCacheDiagnostics(null);
       setAuditEvents([]);
       return;
@@ -179,9 +206,20 @@ export function VaultPage() {
     setErrorMessage(null);
 
     try {
-      const [secretList, tokenList, tokenCache, events, policyList, dynamicList] = await Promise.all([
+      const [
+        secretList,
+        tokenList,
+        authMethodList,
+        identityList,
+        tokenCache,
+        events,
+        policyList,
+        dynamicList,
+      ] = await Promise.all([
         listSecrets(selectedProject.id, selectedEnvironment),
         listVaultTokens(selectedProject.id),
+        listVaultAuthMethods(selectedProject.id),
+        listVaultIdentities(selectedProject.id),
         getVaultTokenCacheDiagnostics(selectedProject.id),
         listVaultAuditEvents(selectedProject.id),
         listVaultPolicies(selectedProject.id).catch(() => []),
@@ -189,6 +227,8 @@ export function VaultPage() {
       ]);
       setSecrets(secretList);
       setTokens(tokenList);
+      setAuthMethods(authMethodList);
+      setIdentities(identityList);
       setTokenCacheDiagnostics(tokenCache);
       setAuditEvents(events);
       setPolicies(policyList);
@@ -207,6 +247,7 @@ export function VaultPage() {
   useEffect(() => {
     setSecretForm((current) => ({ ...current, environment: selectedEnvironment }));
     setTokenForm((current) => ({ ...current, environment: selectedEnvironment }));
+    setAuthMethodForm((current) => ({ ...current, environment: selectedEnvironment }));
     setFetchForm((current) => ({ ...current, environment: selectedEnvironment }));
   }, [selectedEnvironment]);
 
@@ -398,10 +439,111 @@ export function VaultPage() {
           tokenForm.expiresAt.trim().length === 0
             ? null
             : new Date(tokenForm.expiresAt).toISOString(),
+        ttlSeconds: tokenForm.ttlSeconds,
+        maxTtlSeconds: tokenForm.maxTtlSeconds,
+        renewable: tokenForm.renewable,
       });
       setRawToken(created.rawToken);
+      setTokenLookup(created.token);
       setFetchForm((current) => ({ ...current, token: created.rawToken }));
       setMessage("Vault integration token created. Copy it now; the raw token is shown once.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function createAuthMethod(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (selectedProject === null) return;
+    setMessage(null);
+    setErrorMessage(null);
+    setCreatedAuthMethod(null);
+
+    try {
+      const created = await createVaultAuthMethod({
+        projectId: selectedProject.id,
+        type: authMethodForm.type,
+        name: authMethodForm.name,
+        scopes: [defaultTokenScope],
+        environments: [authMethodForm.environment],
+        ttlSeconds: authMethodForm.ttlSeconds,
+        maxTtlSeconds: authMethodForm.maxTtlSeconds,
+        renewable: authMethodForm.renewable,
+      });
+      setCreatedAuthMethod(created);
+      if (created.rawToken !== null) {
+        const bootstrapToken = created.rawToken;
+        setRawToken(bootstrapToken);
+        setFetchForm((current) => ({ ...current, token: bootstrapToken }));
+      }
+      setMessage("Vault auth method created. Copy any one-time credential shown now.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function disableAuthMethod(authMethod: VaultAuthMethod): Promise<void> {
+    setMessage(null);
+    setErrorMessage(null);
+
+    try {
+      await disableVaultAuthMethod(authMethod.projectId, authMethod.id);
+      setMessage("Vault auth method disabled.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function lookupRawToken(): Promise<void> {
+    if (fetchForm.token.trim().length === 0) {
+      setErrorMessage("Paste a vault token before lookup.");
+      return;
+    }
+
+    setMessage(null);
+    setErrorMessage(null);
+
+    try {
+      setTokenLookup(await lookupVaultToken(fetchForm.token));
+      setMessage("Vault token lookup succeeded.");
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function renewRawToken(): Promise<void> {
+    if (fetchForm.token.trim().length === 0) {
+      setErrorMessage("Paste a vault token before renewal.");
+      return;
+    }
+
+    setMessage(null);
+    setErrorMessage(null);
+
+    try {
+      setTokenLookup(await renewVaultToken(fetchForm.token));
+      setMessage("Vault token renewed.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function revokeRawTokenSelf(): Promise<void> {
+    if (fetchForm.token.trim().length === 0) {
+      setErrorMessage("Paste a vault token before self-revoke.");
+      return;
+    }
+
+    setMessage(null);
+    setErrorMessage(null);
+
+    try {
+      setTokenLookup(await revokeVaultTokenSelf(fetchForm.token));
+      setMessage("Vault token revoked itself.");
       await loadVault();
     } catch (requestError) {
       setErrorMessage(getApiErrorMessage(requestError));
@@ -574,7 +716,14 @@ export function VaultPage() {
       policies: policies.length,
       dynamicLeases: dynamicLeases.length,
     };
-  }, [auditEvents, secrets.length, tokenCacheDiagnostics, tokens, policies.length, dynamicLeases.length]);
+  }, [
+    auditEvents,
+    secrets.length,
+    tokenCacheDiagnostics,
+    tokens,
+    policies.length,
+    dynamicLeases.length,
+  ]);
 
   return (
     <main className="space-y-6 pb-16">
@@ -589,7 +738,8 @@ export function VaultPage() {
               Vault & Secret Engines
             </h1>
             <p className="text-sm text-zinc-400">
-              Zero-knowledge envelope encryption, RBAC policy simulation, leased DB credentials, and transit cryptography.
+              Zero-knowledge envelope encryption, RBAC policy simulation, leased DB credentials, and
+              transit cryptography.
             </p>
           </div>
         </div>
@@ -598,8 +748,18 @@ export function VaultPage() {
         <div className="flex rounded-xl bg-zinc-950 p-1.5 border border-zinc-800 backdrop-blur-md">
           {[
             { id: "kv", label: "KV Secrets (v2)", count: vaultSummary.secrets, icon: LockKeyhole },
-            { id: "policies", label: "Access Policies & RBAC", count: vaultSummary.policies, icon: ShieldCheck },
-            { id: "dynamic", label: "Dynamic DB Credentials", count: vaultSummary.dynamicLeases, icon: Database },
+            {
+              id: "policies",
+              label: "Access Policies & RBAC",
+              count: vaultSummary.policies,
+              icon: ShieldCheck,
+            },
+            {
+              id: "dynamic",
+              label: "Dynamic DB Credentials",
+              count: vaultSummary.dynamicLeases,
+              icon: Database,
+            },
             { id: "transit", label: "Transit Cryptography", icon: Binary },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -684,7 +844,10 @@ export function VaultPage() {
               className="bg-zinc-950 border-zinc-800 text-xs text-white"
             />
             <div className="flex gap-2">
-              <Button className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold" type="submit">
+              <Button
+                className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold"
+                type="submit"
+              >
                 <LockKeyhole className="h-3.5 w-3.5 mr-1" />
                 {vaultPasswordSession === null ? "Unlock Session" : "Update Unlock"}
               </Button>
@@ -725,7 +888,10 @@ export function VaultPage() {
 
           {/* Secret Store Form & Secret Table */}
           <section className="grid gap-6 xl:grid-cols-[25rem_1fr]">
-            <form className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md" onSubmit={submitSecret}>
+            <form
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+              onSubmit={submitSecret}
+            >
               <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
                 <LockKeyhole className="h-4 w-4 text-cyan-400" />
                 <h3 className="text-sm font-bold text-white">Store Encrypted KV Secret</h3>
@@ -772,14 +938,18 @@ export function VaultPage() {
                     onChange={(event) =>
                       setSecretForm((current) => ({ ...current, value: event.target.value }))
                     }
-                    placeholder="e.g. postgres://user:pass@host:5432/db"
+                    placeholder="e.g. paste the production database URL"
                     required
                     type="password"
                     value={secretForm.value}
                   />
                 </div>
 
-                <Button className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9" disabled={selectedProject === null} type="submit">
+                <Button
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9"
+                  disabled={selectedProject === null}
+                  type="submit"
+                >
                   <Save className="h-3.5 w-3.5 mr-1" />
                   Save Encrypted Secret (AES-256-GCM)
                 </Button>
@@ -796,7 +966,9 @@ export function VaultPage() {
 
               {secrets.length === 0 ? (
                 <p className="py-8 text-center text-xs text-zinc-500">
-                  {isLoading ? "Loading encrypted secrets..." : "No active secrets stored for this environment."}
+                  {isLoading
+                    ? "Loading encrypted secrets..."
+                    : "No active secrets stored for this environment."}
                 </p>
               ) : (
                 <div className="divide-y divide-zinc-850">
@@ -856,7 +1028,10 @@ export function VaultPage() {
 
           {/* Integration Tokens & Diagnostics */}
           <section className="grid gap-6 xl:grid-cols-[25rem_1fr]">
-            <form className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md" onSubmit={createToken}>
+            <form
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+              onSubmit={createToken}
+            >
               <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
                 <KeyRound className="h-4 w-4 text-cyan-400" />
                 <h3 className="text-sm font-bold text-white">Create Integration Token</h3>
@@ -879,25 +1054,287 @@ export function VaultPage() {
                   <label className="text-xs font-semibold text-zinc-300">Scopes</label>
                   <div className="flex gap-2">
                     {tokenScopeOptions.map((scope) => (
-                      <span key={scope} className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300">
+                      <span
+                        key={scope}
+                        className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300"
+                      >
                         {scope}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <Button className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9" type="submit">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    TTL seconds
+                    <Input
+                      className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                      min={60}
+                      onChange={(event) =>
+                        setTokenForm((current) => ({
+                          ...current,
+                          ttlSeconds: Number(event.target.value),
+                        }))
+                      }
+                      type="number"
+                      value={tokenForm.ttlSeconds}
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    Max TTL
+                    <Input
+                      className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                      min={60}
+                      onChange={(event) =>
+                        setTokenForm((current) => ({
+                          ...current,
+                          maxTtlSeconds: Number(event.target.value),
+                        }))
+                      }
+                      type="number"
+                      value={tokenForm.maxTtlSeconds}
+                    />
+                  </label>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                  <input
+                    checked={tokenForm.renewable}
+                    className="h-4 w-4 accent-cyan-500"
+                    onChange={(event) =>
+                      setTokenForm((current) => ({
+                        ...current,
+                        renewable: event.target.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  Renewable token
+                </label>
+
+                <Button
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9"
+                  type="submit"
+                >
                   Generate Token
                 </Button>
               </div>
 
               {rawToken && (
                 <div className="mt-3 p-3 rounded-xl bg-zinc-950 border border-cyan-500/40 space-y-1 font-mono text-xs">
-                  <span className="text-[10px] text-cyan-400 font-bold uppercase">Raw Token (Copy Now):</span>
+                  <span className="text-[10px] text-cyan-400 font-bold uppercase">
+                    Raw Token (Copy Now):
+                  </span>
                   <p className="text-white break-all">{rawToken}</p>
                 </div>
               )}
             </form>
+
+            <div className="grid gap-4">
+              <form
+                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+                onSubmit={createAuthMethod}
+              >
+                <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                  <h3 className="text-sm font-bold text-white">Auth Methods & Identity</h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    Method
+                    <select
+                      className="h-11 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 text-xs text-white"
+                      onChange={(event) =>
+                        setAuthMethodForm((current) => ({
+                          ...current,
+                          type: event.target.value as "service-account" | "approle",
+                        }))
+                      }
+                      value={authMethodForm.type}
+                    >
+                      <option value="approle">AppRole</option>
+                      <option value="service-account">Service account</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    Name
+                    <Input
+                      className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                      onChange={(event) =>
+                        setAuthMethodForm((current) => ({ ...current, name: event.target.value }))
+                      }
+                      required
+                      value={authMethodForm.name}
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    TTL seconds
+                    <Input
+                      className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                      min={60}
+                      onChange={(event) =>
+                        setAuthMethodForm((current) => ({
+                          ...current,
+                          ttlSeconds: Number(event.target.value),
+                        }))
+                      }
+                      type="number"
+                      value={authMethodForm.ttlSeconds}
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-zinc-300">
+                    Max TTL
+                    <Input
+                      className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                      min={60}
+                      onChange={(event) =>
+                        setAuthMethodForm((current) => ({
+                          ...current,
+                          maxTtlSeconds: Number(event.target.value),
+                        }))
+                      }
+                      type="number"
+                      value={authMethodForm.maxTtlSeconds}
+                    />
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                  <input
+                    checked={authMethodForm.renewable}
+                    className="h-4 w-4 accent-cyan-500"
+                    onChange={(event) =>
+                      setAuthMethodForm((current) => ({
+                        ...current,
+                        renewable: event.target.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  Issue renewable tokens
+                </label>
+                <Button
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9"
+                  type="submit"
+                >
+                  Create Auth Method
+                </Button>
+
+                {createdAuthMethod !== null ? (
+                  <div className="rounded-xl border border-cyan-500/40 bg-zinc-950 p-3 text-xs text-zinc-300">
+                    <p className="font-mono text-white break-all">
+                      roleId: {createdAuthMethod.authMethod.roleId ?? "service-account"}
+                    </p>
+                    {createdAuthMethod.secretId === null ? null : (
+                      <p className="mt-1 font-mono text-white break-all">
+                        secretId: {createdAuthMethod.secretId}
+                      </p>
+                    )}
+                    {createdAuthMethod.rawToken === null ? null : (
+                      <p className="mt-1 font-mono text-white break-all">
+                        token: {createdAuthMethod.rawToken}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </form>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <KeyRound className="w-4 h-4 text-cyan-400" />
+                  Token Self-Service
+                </h3>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    className="w-full sm:w-auto bg-zinc-800 text-zinc-100"
+                    onClick={() => void lookupRawToken()}
+                    type="button"
+                  >
+                    Lookup
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto bg-zinc-800 text-zinc-100"
+                    onClick={() => void renewRawToken()}
+                    type="button"
+                  >
+                    Renew
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto bg-rose-600 hover:bg-rose-500 text-white"
+                    onClick={() => void revokeRawTokenSelf()}
+                    type="button"
+                  >
+                    Revoke Self
+                  </Button>
+                </div>
+                {tokenLookup === null ? null : (
+                  <div className="grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300 sm:grid-cols-2">
+                    <span>identity: {tokenLookup.identityAlias}</span>
+                    <span>method: {tokenLookup.authMethod}</span>
+                    <span>ttl: {tokenLookup.ttlSeconds}s</span>
+                    <span>renewable: {tokenLookup.renewable ? "yes" : "no"}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-3 backdrop-blur-md">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                  Auth Methods
+                </h3>
+                {authMethods.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-zinc-500">
+                    No auth methods created yet.
+                  </p>
+                ) : (
+                  authMethods.slice(0, 6).map((authMethod) => (
+                    <div
+                      key={authMethod.id}
+                      className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-xs sm:grid-cols-[1fr_auto] sm:items-center"
+                    >
+                      <div>
+                        <p className="font-mono text-white">{authMethod.identityAlias}</p>
+                        <p className="mt-1 text-zinc-500">
+                          {authMethod.type} · ttl {authMethod.tokenTtlSeconds}s ·{" "}
+                          {authMethod.status}
+                        </p>
+                      </div>
+                      <Button
+                        className="w-full bg-zinc-800 text-zinc-100 sm:w-auto"
+                        disabled={authMethod.status === "disabled"}
+                        onClick={() => void disableAuthMethod(authMethod)}
+                        type="button"
+                      >
+                        Disable
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-3 backdrop-blur-md">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                  Identity Aliases
+                </h3>
+                {identities.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-zinc-500">
+                    No identities mapped yet.
+                  </p>
+                ) : (
+                  identities.slice(0, 6).map((identity) => (
+                    <div
+                      key={identity.id}
+                      className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-xs"
+                    >
+                      <span className="font-mono text-white">{identity.alias}</span>
+                      <span className="rounded bg-zinc-900 px-2 py-1 uppercase text-zinc-400">
+                        {identity.type}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
             {/* Token List & Live Audit Events */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md space-y-4">
@@ -908,25 +1345,32 @@ export function VaultPage() {
 
               <div className="space-y-2 max-h-56 overflow-y-auto divide-y divide-zinc-850">
                 {auditEvents.length === 0 ? (
-                  <p className="py-6 text-xs text-zinc-500 text-center">No vault audit events recorded yet.</p>
+                  <p className="py-6 text-xs text-zinc-500 text-center">
+                    No vault audit events recorded yet.
+                  </p>
                 ) : (
                   auditEvents.slice(0, 10).map((event) => (
                     <div key={event.id} className="pt-2 flex items-center justify-between text-xs">
                       <div>
                         <span className="font-bold text-white font-mono">{event.action}</span>
                         <p className="text-[11px] text-zinc-400">
-                          {event.environment} / {event.secretKey ?? event.tokenPrefix ?? "system"} by {event.actorId}
+                          {event.environment} / {event.secretKey ?? event.tokenPrefix ?? "system"}{" "}
+                          by {event.actorId}
                         </p>
                       </div>
                       <div className="text-right">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          event.result === "success"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            event.result === "success"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          }`}
+                        >
                           {event.result}
                         </span>
-                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{formatRelativeTime(event.occurredAt)}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                          {formatRelativeTime(event.occurredAt)}
+                        </p>
                       </div>
                     </div>
                   ))
@@ -949,7 +1393,8 @@ export function VaultPage() {
                 Granular Path Access Policies & Simulation
               </h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Enforce strict deny-by-default access rules, project/environment permissions, and safe verification.
+                Enforce strict deny-by-default access rules, project/environment permissions, and
+                safe verification.
               </p>
             </div>
 
@@ -997,9 +1442,7 @@ export function VaultPage() {
                       </div>
                     </div>
 
-                    {pol.description && (
-                      <p className="text-xs text-zinc-400">{pol.description}</p>
-                    )}
+                    {pol.description && <p className="text-xs text-zinc-400">{pol.description}</p>}
 
                     <div className="space-y-1.5 pt-2 border-t border-zinc-800/80">
                       {pol.rules.map((rule: VaultPolicyRule, rIdx: number) => (
@@ -1053,7 +1496,9 @@ export function VaultPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-zinc-300">Requested Capability</label>
+                    <label className="text-xs font-semibold text-zinc-300">
+                      Requested Capability
+                    </label>
                     <select
                       value={simCap}
                       onChange={(e) => setSimCap(e.target.value as VaultCapability)}
@@ -1069,7 +1514,9 @@ export function VaultPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-zinc-300">Environment Context</label>
+                    <label className="text-xs font-semibold text-zinc-300">
+                      Environment Context
+                    </label>
                     <div className="h-9 px-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center text-xs font-mono text-zinc-300 uppercase">
                       {selectedEnvironment}
                     </div>
@@ -1087,14 +1534,20 @@ export function VaultPage() {
               </form>
 
               {simResult && (
-                <div className={`p-4 rounded-xl border space-y-2 ${
-                  simResult.allowed
-                    ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
-                    : "bg-rose-950/20 border-rose-500/30 text-rose-300"
-                }`}>
+                <div
+                  className={`p-4 rounded-xl border space-y-2 ${
+                    simResult.allowed
+                      ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
+                      : "bg-rose-950/20 border-rose-500/30 text-rose-300"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      {simResult.allowed ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-rose-400" />}
+                      {simResult.allowed ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-400" />
+                      )}
                       Result: {simResult.allowed ? "ALLOWED" : "DENIED"}
                     </span>
                     {simResult.requiresProductionConfirmation && (
@@ -1125,14 +1578,18 @@ export function VaultPage() {
                 Dynamic Leased Database Credentials
               </h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Generate short-lived, just-in-time database credentials with automated lease expiration and revocation.
+                Generate short-lived, just-in-time database credentials with automated lease
+                expiration and revocation.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Generate Form */}
-            <form onSubmit={handleGenerateDynamicDb} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md">
+            <form
+              onSubmit={handleGenerateDynamicDb}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+            >
               <h4 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
                 <Sparkles className="w-4 h-4 text-cyan-400" />
                 Generate Leased Credential
@@ -1193,7 +1650,9 @@ export function VaultPage() {
 
               <div className="space-y-3">
                 {dynamicLeases.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-zinc-500">No active dynamic credentials generated yet.</p>
+                  <p className="py-8 text-center text-xs text-zinc-500">
+                    No active dynamic credentials generated yet.
+                  </p>
                 ) : (
                   dynamicLeases.map((l) => (
                     <div
@@ -1219,10 +1678,12 @@ export function VaultPage() {
 
                       <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-400 pt-2 border-t border-zinc-850">
                         <div>
-                          <span className="text-zinc-500">Password:</span> <span className="text-amber-300 font-bold">{l.password}</span>
+                          <span className="text-zinc-500">Password:</span>{" "}
+                          <span className="text-amber-300 font-bold">{l.password}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-zinc-500">Expires:</span> {new Date(l.expiresAt).toLocaleTimeString()}
+                          <span className="text-zinc-500">Expires:</span>{" "}
+                          {new Date(l.expiresAt).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
@@ -1246,7 +1707,8 @@ export function VaultPage() {
                 Transit Encryption Engine (Encryption-as-a-Service)
               </h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Perform hardware-accelerated AES-256-GCM encryption without ever exposing raw cryptographic keys.
+                Perform hardware-accelerated AES-256-GCM encryption without ever exposing raw
+                cryptographic keys.
               </p>
             </div>
 
@@ -1262,8 +1724,13 @@ export function VaultPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Encrypt Workbench */}
-            <form onSubmit={handleTransitEncrypt} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md">
-              <h4 className="text-sm font-bold text-white border-b border-zinc-800 pb-3">Encrypt Plaintext</h4>
+            <form
+              onSubmit={handleTransitEncrypt}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+            >
+              <h4 className="text-sm font-bold text-white border-b border-zinc-800 pb-3">
+                Encrypt Plaintext
+              </h4>
 
               <div className="space-y-3">
                 <div className="space-y-1">
@@ -1287,22 +1754,32 @@ export function VaultPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9">
+                <Button
+                  type="submit"
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs h-9"
+                >
                   Encrypt Data
                 </Button>
               </div>
 
               {transitCiphertext && (
                 <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-850 space-y-1 font-mono text-xs">
-                  <span className="text-[10px] text-cyan-400 font-bold uppercase">Transit Ciphertext:</span>
+                  <span className="text-[10px] text-cyan-400 font-bold uppercase">
+                    Transit Ciphertext:
+                  </span>
                   <p className="text-zinc-300 break-all">{transitCiphertext}</p>
                 </div>
               )}
             </form>
 
             {/* Decrypt Workbench */}
-            <form onSubmit={handleTransitDecrypt} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md">
-              <h4 className="text-sm font-bold text-white border-b border-zinc-800 pb-3">Decrypt Ciphertext</h4>
+            <form
+              onSubmit={handleTransitDecrypt}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+            >
+              <h4 className="text-sm font-bold text-white border-b border-zinc-800 pb-3">
+                Decrypt Ciphertext
+              </h4>
 
               <div className="space-y-3">
                 <div className="space-y-1">
@@ -1317,14 +1794,19 @@ export function VaultPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs h-9">
+                <Button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs h-9"
+                >
                   Decrypt Ciphertext
                 </Button>
               </div>
 
               {transitDecryptedText && (
                 <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1 font-mono text-xs">
-                  <span className="text-[10px] text-emerald-400 font-bold uppercase">Decrypted Plaintext:</span>
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase">
+                    Decrypted Plaintext:
+                  </span>
                   <p className="text-white">{transitDecryptedText}</p>
                 </div>
               )}
@@ -1356,7 +1838,10 @@ export function VaultPage() {
                 <ShieldCheck className="w-5 h-5 text-cyan-400" />
                 Create Vault Policy
               </h3>
-              <button onClick={() => setIsCreatingPolicy(false)} className="text-zinc-500 hover:text-white">
+              <button
+                onClick={() => setIsCreatingPolicy(false)}
+                className="text-zinc-500 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1384,7 +1869,9 @@ export function VaultPage() {
               </div>
 
               <div className="space-y-2 border-t border-zinc-800 pt-3">
-                <label className="text-xs font-semibold text-zinc-300">Rules (Path & Capabilities)</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  Rules (Path & Capabilities)
+                </label>
                 <div className="flex gap-2">
                   <Input
                     value={newRulePath}
@@ -1409,7 +1896,10 @@ export function VaultPage() {
                     type="button"
                     onClick={() => {
                       if (newRulePath.trim()) {
-                        setNewPolicyRules([...newPolicyRules, { path: newRulePath.trim(), capabilities: [newRuleCap] }]);
+                        setNewPolicyRules([
+                          ...newPolicyRules,
+                          { path: newRulePath.trim(), capabilities: [newRuleCap] },
+                        ]);
                         setNewRulePath("");
                       }
                     }}
@@ -1421,7 +1911,10 @@ export function VaultPage() {
 
                 <div className="space-y-1 max-h-28 overflow-y-auto">
                   {newPolicyRules.map((r, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded bg-zinc-950 text-xs font-mono">
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded bg-zinc-950 text-xs font-mono"
+                    >
                       <span className="text-zinc-300">{r.path}</span>
                       <div className="flex items-center gap-2">
                         <span className="px-1.5 py-0.2 rounded text-[10px] bg-zinc-800 text-zinc-300 uppercase">
@@ -1429,7 +1922,9 @@ export function VaultPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setNewPolicyRules(newPolicyRules.filter((_, i) => i !== idx))}
+                          onClick={() =>
+                            setNewPolicyRules(newPolicyRules.filter((_, i) => i !== idx))
+                          }
                           className="text-zinc-500 hover:text-rose-400"
                         >
                           <X className="w-3 h-3" />
@@ -1441,10 +1936,17 @@ export function VaultPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
-                <Button type="button" onClick={() => setIsCreatingPolicy(false)} className="bg-zinc-800 text-xs">
+                <Button
+                  type="button"
+                  onClick={() => setIsCreatingPolicy(false)}
+                  className="bg-zinc-800 text-xs"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold">
+                <Button
+                  type="submit"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold"
+                >
                   Create Policy
                 </Button>
               </div>
@@ -1530,7 +2032,11 @@ function RevealPanel({
           type="password"
           value={vaultPassword}
         />
-        <Button className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs" onClick={onReveal} type="button">
+        <Button
+          className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs"
+          onClick={onReveal}
+          type="button"
+        >
           <Eye className="h-4 w-4 mr-1" />
           Reveal Value
         </Button>
@@ -1542,7 +2048,9 @@ function RevealPanel({
             Revealed Secret Value:
           </p>
           <div className="flex items-center justify-between gap-3">
-            <p className="break-all font-mono text-sm font-bold text-white">{revealedSecret.value}</p>
+            <p className="break-all font-mono text-sm font-bold text-white">
+              {revealedSecret.value}
+            </p>
             <Button
               className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-2.5"
               onClick={() => void onCopy(revealedSecret.value)}

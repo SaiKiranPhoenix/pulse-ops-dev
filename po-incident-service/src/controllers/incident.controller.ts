@@ -60,11 +60,7 @@ export class IncidentController {
   triage = async (request: Request, response: Response): Promise<void> => {
     const query = response.locals.validatedQuery as IncidentListQuery;
     const params = response.locals.validatedParams as IncidentParams;
-    const incident = await this.incidents.triage(
-      query.projectId,
-      params.incidentId,
-      request.body,
-    );
+    const incident = await this.incidents.triage(query.projectId, params.incidentId, request.body);
 
     response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
   };

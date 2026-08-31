@@ -53,13 +53,7 @@ describe("MetricsRollupEngine", () => {
         { timestamp: base + 65000, value: 300, tags: { service: "api" } },
       ];
 
-      const rolled = MetricsRollupEngine.rollupSamples(
-        samples,
-        "avg",
-        "1m",
-        base,
-        base + 120000,
-      );
+      const rolled = MetricsRollupEngine.rollupSamples(samples, "avg", "1m", base, base + 120000);
 
       expect(rolled.length).toBeGreaterThanOrEqual(2);
       // First 1-minute bucket (0 to 60s): avg(100, 200) = 150

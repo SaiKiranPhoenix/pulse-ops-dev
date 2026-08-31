@@ -3,12 +3,15 @@ import { successResponse } from "@pulseops/shared";
 import { getAuthContext } from "../middlewares/auth.middleware.js";
 import type { VaultService } from "../services/vault.service.js";
 import type {
+  AppRoleLoginBody,
+  CreateVaultAuthMethodBody,
   CreateSecretBody,
   CreateVaultTokenBody,
   RevealSecretBody,
   SecretParams,
   SecretQuery,
   UpdateSecretBody,
+  VaultAuthMethodParams,
   VaultTokenParams,
 } from "../validators/vault.validator.js";
 
@@ -88,6 +91,9 @@ export class VaultController {
       ...body,
       expiresAt:
         body.expiresAt === undefined || body.expiresAt === null ? null : new Date(body.expiresAt),
+      ttlSeconds: body.ttlSeconds,
+      maxTtlSeconds: body.maxTtlSeconds,
+      renewable: body.renewable,
       ...auditContext(request, response),
     });
 
@@ -118,6 +124,68 @@ export class VaultController {
     );
 
     response.status(200).json(successResponse({ token }, String(response.locals.requestId)));
+  };
+
+  lookupToken = async (request: Request, response: Response): Promise<void> => {
+    const token = await this.vault.lookupToken(extractVaultToken(request));
+
+    response.status(200).json(successResponse({ token }, String(response.locals.requestId)));
+  };
+
+  renewToken = async (request: Request, response: Response): Promise<void> => {
+    const token = await this.vault.renewToken(extractVaultToken(request));
+
+    response.status(200).json(successResponse({ token }, String(response.locals.requestId)));
+  };
+
+  revokeSelf = async (request: Request, response: Response): Promise<void> => {
+    const token = await this.vault.revokeSelf(extractVaultToken(request));
+
+    response.status(200).json(successResponse({ token }, String(response.locals.requestId)));
+  };
+
+  createAuthMethod = async (request: Request, response: Response): Promise<void> => {
+    const body = response.locals.validatedBody as CreateVaultAuthMethodBody;
+    const authMethod = await this.vault.createAuthMethod({
+      ...body,
+      ...auditContext(request, response),
+    });
+
+    response.status(201).json(successResponse(authMethod, String(response.locals.requestId)));
+  };
+
+  listAuthMethods = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const authMethods = await this.vault.listAuthMethods(query.projectId);
+
+    response.status(200).json(successResponse({ authMethods }, String(response.locals.requestId)));
+  };
+
+  disableAuthMethod = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const params = response.locals.validatedParams as VaultAuthMethodParams;
+    const authMethod = await this.vault.disableAuthMethod(query.projectId, params.authMethodId);
+
+    response.status(200).json(successResponse({ authMethod }, String(response.locals.requestId)));
+  };
+
+  listIdentities = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const identities = await this.vault.listIdentities(query.projectId);
+
+    response.status(200).json(successResponse({ identities }, String(response.locals.requestId)));
+  };
+
+  loginAppRole = async (_request: Request, response: Response): Promise<void> => {
+    const body = response.locals.validatedBody as AppRoleLoginBody;
+    const token = await this.vault.loginAppRole({
+      projectId: body.projectId,
+      roleId: body.roleId,
+      secretId: body.secretId,
+      correlationId: String(response.locals.requestId ?? "unknown"),
+    });
+
+    response.status(200).json(successResponse(token, String(response.locals.requestId)));
   };
 
   fetchWithToken = async (request: Request, response: Response): Promise<void> => {

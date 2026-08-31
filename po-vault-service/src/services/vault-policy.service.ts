@@ -22,12 +22,22 @@ export class VaultPolicyService {
         id: `pol_admin_${projectId}`,
         projectId,
         name: "admin-root-policy",
-        description: "Full administrative and sudo permissions across all secret engines and sys paths.",
+        description:
+          "Full administrative and sudo permissions across all secret engines and sys paths.",
         rules: [
-          { path: "secret/*", capabilities: ["create", "read", "update", "delete", "list", "sudo"] },
+          {
+            path: "secret/*",
+            capabilities: ["create", "read", "update", "delete", "list", "sudo"],
+          },
           { path: "sys/*", capabilities: ["create", "read", "update", "delete", "list", "sudo"] },
-          { path: "transit/*", capabilities: ["create", "read", "update", "delete", "list", "sudo"] },
-          { path: "database/*", capabilities: ["create", "read", "update", "delete", "list", "sudo"] },
+          {
+            path: "transit/*",
+            capabilities: ["create", "read", "update", "delete", "list", "sudo"],
+          },
+          {
+            path: "database/*",
+            capabilities: ["create", "read", "update", "delete", "list", "sudo"],
+          },
         ],
         version: 1,
         isDefault: true,
@@ -43,7 +53,11 @@ export class VaultPolicyService {
         rules: [
           { path: "secret/data/development/*", capabilities: ["read", "list", "create", "update"] },
           { path: "secret/data/staging/*", capabilities: ["read", "list"] },
-          { path: "secret/data/production/*", capabilities: ["deny"], description: "Production secrets strictly blocked" },
+          {
+            path: "secret/data/production/*",
+            capabilities: ["deny"],
+            description: "Production secrets strictly blocked",
+          },
           { path: "transit/encrypt/*", capabilities: ["update"] },
         ],
         version: 1,
@@ -56,10 +70,15 @@ export class VaultPolicyService {
         id: `pol_ci_${projectId}`,
         projectId,
         name: "ci-deployer-policy",
-        description: "Automated deployment token permissions for staging and production runtime variables.",
+        description:
+          "Automated deployment token permissions for staging and production runtime variables.",
         rules: [
           { path: "secret/data/staging/*", capabilities: ["read", "list"] },
-          { path: "secret/data/production/*", capabilities: ["read"], description: "Read-only for runtime configs" },
+          {
+            path: "secret/data/production/*",
+            capabilities: ["read"],
+            description: "Read-only for runtime configs",
+          },
           { path: "database/creds/*", capabilities: ["read"] },
         ],
         version: 1,
@@ -140,7 +159,8 @@ export class VaultPolicyService {
     const updated: VaultPolicy = {
       ...current,
       name: input.name ? input.name.trim() : current.name,
-      description: input.description !== undefined ? input.description.trim() : (current.description ?? ""),
+      description:
+        input.description !== undefined ? input.description.trim() : (current.description ?? ""),
       rules: nextRules,
       isDefault: input.isDefault !== undefined ? input.isDefault : current.isDefault,
       version: nextVersion,

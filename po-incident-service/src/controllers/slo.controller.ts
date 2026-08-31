@@ -18,8 +18,7 @@ export class SloController {
     const projectId = this.getProjectId(req);
     const serviceName = req.query.serviceName as string | undefined;
     const environment = req.query.environment as string | undefined;
-    const enabled =
-      req.query.enabled === undefined ? undefined : req.query.enabled === "true";
+    const enabled = req.query.enabled === undefined ? undefined : req.query.enabled === "true";
 
     const slos = await this.sloRepo.list(projectId, {
       serviceName,
