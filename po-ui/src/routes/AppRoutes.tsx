@@ -8,6 +8,7 @@ import { ApiKeysPage } from "@/pages/dashboard/ApiKeysPage";
 import { CustomDashboardsPage } from "@/pages/dashboard/CustomDashboardsPage";
 import { DashboardLayout } from "@/pages/dashboard/DashboardLayout";
 import { ErrorsPage } from "@/pages/dashboard/ErrorsPage";
+import { InfrastructurePage } from "@/pages/dashboard/InfrastructurePage";
 import { LogsPage } from "@/pages/dashboard/LogsPage";
 import { MetricsPage } from "@/pages/dashboard/MetricsPage";
 import { OrganizationPage } from "@/pages/dashboard/OrganizationPage";
@@ -46,6 +47,7 @@ export function AppRoutes() {
           <Route path="errors" element={<ErrorsPage />} />
           <Route path="metrics" element={<MetricsPage />} />
           <Route path="traces" element={<TracesPage />} />
+          <Route path="infrastructure" element={<InfrastructurePage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="slos" element={<SloPage />} />
           <Route path="workers" element={<WorkersPage />} />

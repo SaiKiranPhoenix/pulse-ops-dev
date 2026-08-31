@@ -693,19 +693,19 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Infrastructure And Container Monitoring
 
-- [ ] Todo Add host model.
-- [ ] Todo Add container model.
-- [ ] Todo Add local Docker stats collector.
-- [ ] Todo Add CPU, memory, network, disk metrics.
-- [ ] Todo Add container status table.
-- [ ] Todo Add service/container mapping.
-- [ ] Todo Add infrastructure overview page.
-- [ ] Todo Add container logs correlation.
-- [ ] Todo Add RabbitMQ, MongoDB, Redis health panels.
-- [ ] Todo Add dependency health page.
-- [ ] Todo Add infrastructure monitors.
-- [ ] Todo Add host/container tags.
-- [ ] Todo Add local-only collector docs.
+- [x] Done Add host model.
+- [x] Done Add container model.
+- [x] Done Add local Docker stats collector.
+- [x] Done Add CPU, memory, network, disk metrics.
+- [x] Done Add container status table.
+- [x] Done Add service/container mapping.
+- [x] Done Add infrastructure overview page.
+- [x] Done Add container logs correlation.
+- [x] Done Add RabbitMQ, MongoDB, Redis health panels.
+- [x] Done Add dependency health page.
+- [x] Done Add infrastructure monitors.
+- [x] Done Add host/container tags.
+- [x] Done Add local-only collector docs.
 
 ## Uptime, Synthetics, And RUM
 

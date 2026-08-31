@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { CustomDashboardController } from "../controllers/custom-dashboard.controller.js";
+import type { InfrastructureController } from "../controllers/infrastructure.controller.js";
 import type { MetricsPlatformController } from "../controllers/metrics-platform.controller.js";
 import type { OpsController } from "../controllers/ops.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
@@ -9,6 +10,7 @@ export type RouteDependencies = {
   readonly opsController: OpsController;
   readonly customDashboardController: CustomDashboardController;
   readonly metricsPlatformController: MetricsPlatformController;
+  readonly infrastructureController: InfrastructureController;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
@@ -75,6 +77,12 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   router.get("/metrics/query", asyncHandler(dependencies.metricsPlatformController.queryMetric));
   router.get("/metrics/services/summary", asyncHandler(dependencies.metricsPlatformController.getServiceMetricsSummary));
   router.get("/metrics/cardinality/guardrails", asyncHandler(dependencies.metricsPlatformController.getCardinalityGuardrails));
+
+  // Infrastructure & Containers
+  router.get("/infra/overview", asyncHandler(dependencies.infrastructureController.getOverview));
+  router.get("/infra/hosts", asyncHandler(dependencies.infrastructureController.listHosts));
+  router.get("/infra/containers", asyncHandler(dependencies.infrastructureController.listContainers));
+  router.get("/infra/dependencies", asyncHandler(dependencies.infrastructureController.getDependencies));
 
   return router;
 }

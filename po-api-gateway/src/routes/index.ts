@@ -122,6 +122,12 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     requireProjectAccess,
     asyncHandler(dependencies.proxyController.ops),
   );
+  router.use(
+    "/infra",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.ops),
+  );
   router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
   router.use(
     "/vault",
