@@ -101,20 +101,14 @@ export async function createUptimeCheck(
   return res.data.data.check;
 }
 
-export async function testUptimeCheck(
-  projectId: string,
-  id: string,
-): Promise<UptimeCheckResult> {
+export async function testUptimeCheck(projectId: string, id: string): Promise<UptimeCheckResult> {
   const res = await apiClient.post<ApiResponse<{ result: UptimeCheckResult }>>(
     `/uptime/checks/${encodeURIComponent(id)}/test?projectId=${encodeURIComponent(projectId)}`,
   );
   return res.data.data.result;
 }
 
-export async function deleteUptimeCheck(
-  projectId: string,
-  id: string,
-): Promise<boolean> {
+export async function deleteUptimeCheck(projectId: string, id: string): Promise<boolean> {
   const res = await apiClient.delete<ApiResponse<{ deleted: boolean }>>(
     `/uptime/checks/${encodeURIComponent(id)}?projectId=${encodeURIComponent(projectId)}`,
   );

@@ -11,7 +11,12 @@ export const auditActionSchema = z.enum([
   "vault.secret.update",
   "vault.secret.delete",
   "vault.token.create",
+  "vault.token.renew",
   "vault.token.revoke",
+  "vault.token.revoke_self",
+  "vault.auth_method.create",
+  "vault.auth_method.disable",
+  "vault.auth_method.login",
   "vault.integration.fetch",
 ]);
 export const auditResultSchema = z.enum(["success", "failure"]);

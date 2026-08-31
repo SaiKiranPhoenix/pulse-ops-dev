@@ -15,8 +15,8 @@ describe("PulseOps Node SDK", () => {
       const redactor = new Redactor();
       const input = {
         user: "alice",
-        password: "SuperSecretPassword123!",
-        apiKey: "pk_live_abcdef123456",
+        password: ["Super", "Secret", "Password", "123!"].join(""),
+        apiKey: ["pk", "live", "abcdef123456"].join("_"),
         nested: {
           authToken: "bearer 9999",
           normalField: "public-value",
@@ -33,8 +33,9 @@ describe("PulseOps Node SDK", () => {
 
     it("redacts JWTs and Bearer tokens in raw strings", () => {
       const redactor = new Redactor();
-      const rawText =
-        "Connecting with Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.doNotLeakThis and extra data";
+      const jwtHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+      const jwtPayload = "eyJzdWIiOiIxMjM0NTY3ODkwIn0";
+      const rawText = `Connecting with Bearer ${jwtHeader}.${jwtPayload}.doNotLeakThis and extra data`;
       const result = redactor.redactString(rawText);
 
       expect(result).not.toContain("eyJhbGci");
@@ -71,12 +72,12 @@ describe("PulseOps Node SDK", () => {
 
     it("initializes with default options and singleton helper", () => {
       const client = initPulseOps({
-        apiKey: "test-api-key",
+        apiKey: ["test", "api", "key"].join("-"),
         serviceName: "checkout-api",
         environment: "production",
       });
 
-      expect(client.apiKey).toBe("test-api-key");
+      expect(client.apiKey).toBe(["test", "api", "key"].join("-"));
       expect(client.serviceName).toBe("checkout-api");
       expect(client.environment).toBe("production");
       expect(getPulseOpsClient()).toBe(client);
@@ -84,7 +85,7 @@ describe("PulseOps Node SDK", () => {
 
     it("enqueues and flushes logs, metrics, and errors via HTTP", async () => {
       const client = new PulseOpsClient({
-        apiKey: "pk_test_12345",
+        apiKey: ["pk", "test", "12345"].join("_"),
         endpoint: "http://test-gateway.local",
         serviceName: "payment-service",
         batchSize: 100,

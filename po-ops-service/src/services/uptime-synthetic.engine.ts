@@ -48,7 +48,9 @@ export class UptimeSyntheticEngine {
         return {
           name,
           passed,
-          message: passed ? undefined : `Response time ${actual}ms exceeded threshold ${expected}ms`,
+          message: passed
+            ? undefined
+            : `Response time ${actual}ms exceeded threshold ${expected}ms`,
         };
       }
 
@@ -80,7 +82,9 @@ export class UptimeSyntheticEngine {
         return {
           name,
           passed,
-          message: passed ? undefined : `Header ${assertion.target} ("${headerVal}") did not match "${expected}"`,
+          message: passed
+            ? undefined
+            : `Header ${assertion.target} ("${headerVal}") did not match "${expected}"`,
         };
       }
 

@@ -11,6 +11,14 @@ export type CreateVaultTokenInput = {
   readonly tokenHash: string;
   readonly scopes: string[];
   readonly environments: string[];
+  readonly authMethod: VaultTokenRecord["authMethod"];
+  readonly identityAlias: string;
+  readonly parentTokenId: string | null;
+  readonly ttlSeconds: number;
+  readonly maxTtlSeconds: number;
+  readonly renewable: boolean;
+  readonly issuedAt: Date;
+  readonly renewedAt: Date | null;
   readonly expiresAt: Date | null;
 };
 
@@ -27,6 +35,13 @@ export interface VaultTokenRepository {
   findByProject(projectId: string): Promise<SafeVaultTokenRecord[]>;
   findActiveByHash(tokenHash: string): Promise<VaultTokenWithHashRecord | null>;
   revoke(projectId: string, tokenId: string): Promise<SafeVaultTokenRecord | null>;
+  revokeByHash(tokenHash: string): Promise<SafeVaultTokenRecord | null>;
+  renew(
+    tokenId: string,
+    expiresAt: Date,
+    ttlSeconds: number,
+    renewedAt: Date,
+  ): Promise<SafeVaultTokenRecord | null>;
   markUsed(tokenId: string, lastUsedAt: Date): Promise<void>;
 }
 
@@ -57,6 +72,29 @@ export class MongoVaultTokenRepository implements VaultTokenRepository {
     return token === null ? null : toSafeVaultTokenRecord(token);
   }
 
+  async revokeByHash(tokenHash: string): Promise<SafeVaultTokenRecord | null> {
+    const token = await VaultTokenModel.findOneAndUpdate(
+      { tokenHash, status: "active" },
+      { $set: { status: "revoked" } },
+      { new: true },
+    ).exec();
+    return token === null ? null : toSafeVaultTokenRecord(token);
+  }
+
+  async renew(
+    tokenId: string,
+    expiresAt: Date,
+    ttlSeconds: number,
+    renewedAt: Date,
+  ): Promise<SafeVaultTokenRecord | null> {
+    const token = await VaultTokenModel.findOneAndUpdate(
+      { _id: tokenId, status: "active" },
+      { $set: { expiresAt, ttlSeconds, renewedAt } },
+      { new: true },
+    ).exec();
+    return token === null ? null : toSafeVaultTokenRecord(token);
+  }
+
   async markUsed(tokenId: string, lastUsedAt: Date): Promise<void> {
     await VaultTokenModel.updateOne({ _id: tokenId }, { $set: { lastUsedAt } }).exec();
   }
@@ -70,6 +108,14 @@ function toSafeVaultTokenRecord(token: VaultTokenDocument): SafeVaultTokenRecord
     tokenPrefix: token.tokenPrefix,
     scopes: [...token.scopes],
     environments: [...token.environments],
+    authMethod: token.authMethod,
+    identityAlias: token.identityAlias,
+    parentTokenId: token.parentTokenId,
+    ttlSeconds: token.ttlSeconds,
+    maxTtlSeconds: token.maxTtlSeconds,
+    renewable: token.renewable,
+    issuedAt: token.issuedAt,
+    renewedAt: token.renewedAt,
     status: token.status,
     lastUsedAt: token.lastUsedAt,
     expiresAt: token.expiresAt,

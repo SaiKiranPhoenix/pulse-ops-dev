@@ -87,13 +87,31 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   // On-Call & Escalation Policies
   router.get("/on-call/schedules", asyncHandler(dependencies.onCallController.listSchedules));
   router.post("/on-call/schedules", asyncHandler(dependencies.onCallController.createSchedule));
-  router.patch("/on-call/schedules/:id", asyncHandler(dependencies.onCallController.updateSchedule));
-  router.delete("/on-call/schedules/:id", asyncHandler(dependencies.onCallController.deleteSchedule));
+  router.patch(
+    "/on-call/schedules/:id",
+    asyncHandler(dependencies.onCallController.updateSchedule),
+  );
+  router.delete(
+    "/on-call/schedules/:id",
+    asyncHandler(dependencies.onCallController.deleteSchedule),
+  );
 
-  router.get("/on-call/escalation-policies", asyncHandler(dependencies.onCallController.listPolicies));
-  router.post("/on-call/escalation-policies", asyncHandler(dependencies.onCallController.createPolicy));
-  router.patch("/on-call/escalation-policies/:id", asyncHandler(dependencies.onCallController.updatePolicy));
-  router.delete("/on-call/escalation-policies/:id", asyncHandler(dependencies.onCallController.deletePolicy));
+  router.get(
+    "/on-call/escalation-policies",
+    asyncHandler(dependencies.onCallController.listPolicies),
+  );
+  router.post(
+    "/on-call/escalation-policies",
+    asyncHandler(dependencies.onCallController.createPolicy),
+  );
+  router.patch(
+    "/on-call/escalation-policies/:id",
+    asyncHandler(dependencies.onCallController.updatePolicy),
+  );
+  router.delete(
+    "/on-call/escalation-policies/:id",
+    asyncHandler(dependencies.onCallController.deletePolicy),
+  );
 
   // Monitors
   router.get("/monitors", asyncHandler(dependencies.monitorController.list));

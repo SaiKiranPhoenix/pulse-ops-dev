@@ -44,7 +44,12 @@ export type Incident = {
     readonly impactDurationMinutes: number;
     readonly detectionTimeMinutes: number;
     readonly resolutionTimeMinutes: number;
-    readonly actionItems: Array<{ readonly id: string; readonly description: string; readonly assignee?: string; readonly completed: boolean }>;
+    readonly actionItems: Array<{
+      readonly id: string;
+      readonly description: string;
+      readonly assignee?: string;
+      readonly completed: boolean;
+    }>;
     readonly status: string;
     readonly updatedAt: string;
   } | null;

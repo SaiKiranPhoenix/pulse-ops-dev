@@ -94,7 +94,11 @@ export async function createEscalationPolicy(
 export async function triageIncident(
   projectId: string,
   incidentId: string,
-  input: { severity?: "critical" | "high" | "medium" | "low"; assignee?: string; runbookUrl?: string },
+  input: {
+    severity?: "critical" | "high" | "medium" | "low";
+    assignee?: string;
+    runbookUrl?: string;
+  },
 ): Promise<unknown> {
   const res = await apiClient.patch<ApiResponse<{ incident: unknown }>>(
     `/incidents/${encodeURIComponent(incidentId)}/triage?projectId=${encodeURIComponent(projectId)}`,

@@ -1,5 +1,9 @@
 import mongoose, { Schema, model, type HydratedDocument, type Model } from "mongoose";
-import type { VaultCapability, VaultPolicyHistoryItem, VaultPolicyRule } from "@pulseops/shared/types";
+import type {
+  VaultCapability,
+  VaultPolicyHistoryItem,
+  VaultPolicyRule,
+} from "@pulseops/shared/types";
 
 export interface VaultPolicyRecord {
   projectId: string;
@@ -55,7 +59,10 @@ const vaultPolicySchema = new Schema<VaultPolicyRecord>(
   },
 );
 
-vaultPolicySchema.index({ projectId: 1, name: 1 }, { unique: true, name: "idx_vault_policies_project_name" });
+vaultPolicySchema.index(
+  { projectId: 1, name: 1 },
+  { unique: true, name: "idx_vault_policies_project_name" },
+);
 
 export const VaultPolicyModel: Model<VaultPolicyRecord> =
   mongoose.models.VaultPolicy ?? model<VaultPolicyRecord>("VaultPolicy", vaultPolicySchema);

@@ -1,12 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
 export type LogProcessorType =
-  | "parse_json"
-  | "remap_fields"
-  | "redact_regex"
-  | "drop_filter"
-  | "sample_rate"
-  | "add_tags";
+  "parse_json" | "remap_fields" | "redact_regex" | "drop_filter" | "sample_rate" | "add_tags";
 
 export interface LogProcessorConfig {
   sourceField?: string;
@@ -143,10 +138,7 @@ export async function updateLogPipelineRule(
   return res.data.data.rule;
 }
 
-export async function deleteLogPipelineRule(
-  projectId: string,
-  ruleId: string,
-): Promise<boolean> {
+export async function deleteLogPipelineRule(projectId: string, ruleId: string): Promise<boolean> {
   const res = await apiClient.delete<ApiResponse<{ deleted: boolean }>>(
     `/log-pipelines/${encodeURIComponent(ruleId)}?projectId=${encodeURIComponent(projectId)}`,
   );
@@ -189,10 +181,7 @@ export async function createSavedLogSearch(
   return res.data.data.savedSearch;
 }
 
-export async function deleteSavedLogSearch(
-  projectId: string,
-  searchId: string,
-): Promise<boolean> {
+export async function deleteSavedLogSearch(projectId: string, searchId: string): Promise<boolean> {
   const res = await apiClient.delete<ApiResponse<{ deleted: boolean }>>(
     `/logs/saved-searches/${encodeURIComponent(searchId)}?projectId=${encodeURIComponent(projectId)}`,
   );

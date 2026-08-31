@@ -34,6 +34,7 @@ PulseOps monitors evaluate multiple assertions per check cycle:
 ```
 
 ### Supported Assertion Types & Operators
+
 - **`status_code`**: `equals`, `less_than`, `greater_than`
 - **`response_time`**: `less_than` (SLA latency guardrails)
 - **`body_contains`**: `contains`, `regex`
@@ -51,7 +52,9 @@ PulseOps captures client-side Google Web Vitals metrics via the `@pulseops/rum` 
 - **Time to First Byte (TTFB)**: Target &lt; 800ms (Server response speed)
 
 ### Ingesting Web Vitals
+
 `POST /rum/vitals`
+
 ```json
 {
   "sessionId": "sess_891823a",

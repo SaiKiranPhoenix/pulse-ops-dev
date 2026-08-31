@@ -38,8 +38,12 @@ describe("W3C TraceContext & Distributed Tracing Helpers", () => {
   it("rejects invalid or malformed traceparent headers", () => {
     expect(parseW3CTraceParent("")).toBeNull();
     expect(parseW3CTraceParent("invalid-header")).toBeNull();
-    expect(parseW3CTraceParent("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")).toBeNull();
-    expect(parseW3CTraceParent("00-00000000000000000000000000000000-00f067aa0ba902b7-01")).toBeNull();
+    expect(
+      parseW3CTraceParent("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
+    ).toBeNull();
+    expect(
+      parseW3CTraceParent("00-00000000000000000000000000000000-00f067aa0ba902b7-01"),
+    ).toBeNull();
   });
 
   it("creates active spans and records status, errors, and timing", () => {

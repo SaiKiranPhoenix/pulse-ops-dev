@@ -1,13 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
 export type DashboardWidgetType =
-  | "timeseries"
-  | "toplist"
-  | "table"
-  | "query_value"
-  | "incident_list"
-  | "log_stream"
-  | "markdown";
+  "timeseries" | "toplist" | "table" | "query_value" | "incident_list" | "log_stream" | "markdown";
 
 export interface DashboardGridPos {
   x: number;
@@ -134,10 +128,7 @@ export async function updateCustomDashboard(
   return response.data.dashboard;
 }
 
-export async function deleteCustomDashboard(
-  projectId: string,
-  dashboardId: string,
-): Promise<void> {
+export async function deleteCustomDashboard(projectId: string, dashboardId: string): Promise<void> {
   await apiClient.delete(`/custom-dashboards/${dashboardId}`, {
     headers: { "x-project-id": projectId },
     params: { projectId },

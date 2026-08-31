@@ -3,14 +3,7 @@ import { apiClient } from "@/lib/api-client";
 export type MetricType = "counter" | "gauge" | "histogram" | "summary";
 
 export type MetricRollupAggregation =
-  | "count"
-  | "avg"
-  | "sum"
-  | "min"
-  | "max"
-  | "p50"
-  | "p95"
-  | "p99";
+  "count" | "avg" | "sum" | "min" | "max" | "p50" | "p95" | "p99";
 
 export type MetricTimeBucket = "10s" | "1m" | "5m" | "15m" | "1h" | "1d";
 
@@ -129,10 +122,7 @@ export async function updateMetricDefinition(
   return res.data.data.metric;
 }
 
-export async function deleteMetricDefinition(
-  projectId: string,
-  id: string,
-): Promise<boolean> {
+export async function deleteMetricDefinition(projectId: string, id: string): Promise<boolean> {
   const res = await apiClient.delete<ApiResponse<{ deleted: boolean }>>(
     `/metrics/catalog/${encodeURIComponent(id)}?projectId=${encodeURIComponent(projectId)}`,
   );

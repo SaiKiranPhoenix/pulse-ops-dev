@@ -231,7 +231,8 @@ export function SloPage() {
                 Service Level Objectives (SLOs)
               </h1>
               <p className="text-sm text-zinc-400">
-                Track availability, latency, error budgets, and multi-window burn rates across your microservices.
+                Track availability, latency, error budgets, and multi-window burn rates across your
+                microservices.
               </p>
             </div>
           </div>
@@ -268,7 +269,9 @@ export function SloPage() {
         {/* Reliability Score */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-2">
           <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">Reliability Score</span>
+            <span className="font-semibold uppercase tracking-wider text-[11px]">
+              Reliability Score
+            </span>
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="flex items-baseline gap-2">
@@ -280,7 +283,9 @@ export function SloPage() {
               Healthy
             </span>
           </div>
-          <p className="text-[11px] text-zinc-500">Across {report?.totalSlos ?? 0} active objectives</p>
+          <p className="text-[11px] text-zinc-500">
+            Across {report?.totalSlos ?? 0} active objectives
+          </p>
         </div>
 
         {/* Compliant Objectives */}
@@ -315,7 +320,9 @@ export function SloPage() {
         {/* Average Budget Remaining */}
         <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-5 shadow-lg backdrop-blur-md space-y-2">
           <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span className="font-semibold uppercase tracking-wider text-[11px]">Avg Error Budget</span>
+            <span className="font-semibold uppercase tracking-wider text-[11px]">
+              Avg Error Budget
+            </span>
             <Gauge className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="text-3xl font-extrabold text-cyan-300">
@@ -383,7 +390,8 @@ export function SloPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredSlos.length === 0 ? (
           <div className="col-span-full rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center text-zinc-500 text-xs">
-            No SLOs found. Click &quot;Seed Demo SLOs&quot; or &quot;Create Objective&quot; to configure your first service level objective.
+            No SLOs found. Click &quot;Seed Demo SLOs&quot; or &quot;Create Objective&quot; to
+            configure your first service level objective.
           </div>
         ) : (
           filteredSlos.map((slo) => {
@@ -417,7 +425,9 @@ export function SloPage() {
                           {slo.sli.type}
                         </span>
                       </div>
-                      <h3 className="text-base font-bold text-white mt-1.5 line-clamp-1">{slo.name}</h3>
+                      <h3 className="text-base font-bold text-white mt-1.5 line-clamp-1">
+                        {slo.name}
+                      </h3>
                       {slo.sli.serviceName && (
                         <div className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
                           <span className="font-mono text-cyan-400">{slo.sli.serviceName}</span>
@@ -587,7 +597,9 @@ export function SloPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Description (Optional)</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  Description (Optional)
+                </label>
                 <Input
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
@@ -623,7 +635,9 @@ export function SloPage() {
 
               {formSliType === "latency" && (
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-300">Latency Threshold (ms)</label>
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Latency Threshold (ms)
+                  </label>
                   <Input
                     type="number"
                     value={formLatencyThreshold}
@@ -637,7 +651,9 @@ export function SloPage() {
               {/* Target & Rolling Window */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-300">Target Objective (%)</label>
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Target Objective (%)
+                  </label>
                   <Input
                     type="number"
                     step="0.01"
@@ -651,7 +667,9 @@ export function SloPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-300">Warning Threshold (%)</label>
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Warning Threshold (%)
+                  </label>
                   <Input
                     type="number"
                     step="0.01"

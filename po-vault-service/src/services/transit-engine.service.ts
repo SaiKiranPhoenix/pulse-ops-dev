@@ -32,7 +32,11 @@ export class TransitEngineService {
     return ring;
   }
 
-  public async encrypt(projectId: string, keyName: string, plaintext: string): Promise<TransitEncryptionResult> {
+  public async encrypt(
+    projectId: string,
+    keyName: string,
+    plaintext: string,
+  ): Promise<TransitEncryptionResult> {
     const ring = this.getKeyRing(projectId, keyName);
     const activeKey = ring.keys.find((k) => k.version === ring.currentVersion);
     if (!activeKey) {
@@ -54,7 +58,11 @@ export class TransitEngineService {
     };
   }
 
-  public async decrypt(projectId: string, keyName: string, ciphertext: string): Promise<TransitDecryptionResult> {
+  public async decrypt(
+    projectId: string,
+    keyName: string,
+    ciphertext: string,
+  ): Promise<TransitDecryptionResult> {
     const ring = this.getKeyRing(projectId, keyName);
     const match = ciphertext.match(/^vault:v(\d+):(.+)$/);
     if (!match || !match[1] || !match[2]) {
@@ -87,7 +95,10 @@ export class TransitEngineService {
     };
   }
 
-  public async rotateKey(projectId: string, keyName: string): Promise<{ keyName: string; newVersion: number }> {
+  public async rotateKey(
+    projectId: string,
+    keyName: string,
+  ): Promise<{ keyName: string; newVersion: number }> {
     const ring = this.getKeyRing(projectId, keyName);
     const newVersion = ring.currentVersion + 1;
     ring.keys.push({

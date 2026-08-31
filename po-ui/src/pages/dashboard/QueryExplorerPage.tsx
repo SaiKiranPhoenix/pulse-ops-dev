@@ -78,7 +78,11 @@ export function QueryExplorerPage() {
     void navigator.clipboard.writeText(shareUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
-    notify({ title: "Link Copied", description: "Query state link copied to clipboard.", variant: "info" });
+    notify({
+      title: "Link Copied",
+      description: "Query state link copied to clipboard.",
+      variant: "info",
+    });
   };
 
   const handleExport = (format: "csv" | "json") => {
@@ -115,7 +119,11 @@ export function QueryExplorerPage() {
     a.download = `query_export_${queryType}_${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    notify({ title: "Export Started", description: `Downloaded ${response.records.length} records as ${ext.toUpperCase()}`, variant: "success" });
+    notify({
+      title: "Export Started",
+      description: `Downloaded ${response.records.length} records as ${ext.toUpperCase()}`,
+      variant: "success",
+    });
   };
 
   if (!selectedProject) {
@@ -145,7 +153,8 @@ export function QueryExplorerPage() {
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Perform multi-source telemetry investigations across logs, metrics, and errors for {selectedProject.name}.
+            Perform multi-source telemetry investigations across logs, metrics, and errors for{" "}
+            {selectedProject.name}.
           </p>
         </div>
 
@@ -155,7 +164,11 @@ export function QueryExplorerPage() {
             variant="outline"
             className="border-zinc-700 text-xs text-zinc-300 hover:text-white gap-1.5"
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            {copiedLink ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Share2 className="w-3.5 h-3.5" />
+            )}
             {copiedLink ? "Copied" : "Share Query"}
           </Button>
 
@@ -163,7 +176,11 @@ export function QueryExplorerPage() {
             onClick={() => void runQuery()}
             className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium gap-1.5 shadow-lg shadow-emerald-950/40"
           >
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            {isLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
             Run Query
           </Button>
         </div>
@@ -298,7 +315,9 @@ export function QueryExplorerPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-4 backdrop-blur-md">
-              <span className="text-[11px] text-zinc-400 font-medium uppercase">Queried Source</span>
+              <span className="text-[11px] text-zinc-400 font-medium uppercase">
+                Queried Source
+              </span>
               <div className="text-2xl font-extrabold text-emerald-400 mt-1 capitalize">
                 {queryType}
               </div>
@@ -306,7 +325,9 @@ export function QueryExplorerPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-4 backdrop-blur-md flex flex-col justify-between">
-              <span className="text-[11px] text-zinc-400 font-medium uppercase">Export Dataset</span>
+              <span className="text-[11px] text-zinc-400 font-medium uppercase">
+                Export Dataset
+              </span>
               <div className="flex items-center gap-2 mt-2">
                 <Button
                   onClick={() => handleExport("csv")}
@@ -393,11 +414,16 @@ export function QueryExplorerPage() {
                           {srv}
                         </td>
                         <td className="py-2.5 pr-4 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${badgeClass}`}>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${badgeClass}`}
+                          >
                             {lvl}
                           </span>
                         </td>
-                        <td className="py-2.5 text-zinc-300 text-[11px] truncate max-w-md" title={msg}>
+                        <td
+                          className="py-2.5 text-zinc-300 text-[11px] truncate max-w-md"
+                          title={msg}
+                        >
                           {msg}
                         </td>
                       </tr>

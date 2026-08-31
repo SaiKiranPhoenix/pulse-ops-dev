@@ -16,6 +16,17 @@ import type {
   VaultTokenRepository,
   VaultTokenWithHashRecord,
 } from "../../src/repositories/vault-token.repository.js";
+import type {
+  CreateVaultAuthMethodInput,
+  SafeVaultAuthMethodRecord,
+  VaultAuthMethodRepository,
+  VaultAuthMethodWithSecretRecord,
+} from "../../src/repositories/vault-auth-method.repository.js";
+import type {
+  SafeVaultIdentityRecord,
+  UpsertVaultIdentityInput,
+  VaultIdentityRepository,
+} from "../../src/repositories/vault-identity.repository.js";
 import type { SecretCryptoService } from "../../src/services/secret-crypto.service.js";
 import { VaultService } from "../../src/services/vault.service.js";
 import { VaultTokenHasher } from "../../src/services/vault-token-hasher.service.js";
@@ -155,6 +166,14 @@ class InMemoryTokenRepository implements VaultTokenRepository {
       tokenHash: input.tokenHash,
       scopes: input.scopes,
       environments: input.environments,
+      authMethod: input.authMethod,
+      identityAlias: input.identityAlias,
+      parentTokenId: input.parentTokenId,
+      ttlSeconds: input.ttlSeconds,
+      maxTtlSeconds: input.maxTtlSeconds,
+      renewable: input.renewable,
+      issuedAt: input.issuedAt,
+      renewedAt: input.renewedAt,
       status: "active",
       lastUsedAt: null,
       expiresAt: input.expiresAt,
@@ -187,12 +206,140 @@ class InMemoryTokenRepository implements VaultTokenRepository {
     return withoutHash(token);
   }
 
+  async revokeByHash(tokenHash: string): Promise<SafeVaultTokenRecord | null> {
+    const token = this.tokens.find(
+      (item) => item.tokenHash === tokenHash && item.status === "active",
+    );
+
+    if (token === undefined) {
+      return null;
+    }
+
+    token.status = "revoked";
+    return withoutHash(token);
+  }
+
+  async renew(
+    tokenId: string,
+    expiresAt: Date,
+    ttlSeconds: number,
+    renewedAt: Date,
+  ): Promise<SafeVaultTokenRecord | null> {
+    const token = this.tokens.find((item) => item.id === tokenId && item.status === "active");
+
+    if (token === undefined) {
+      return null;
+    }
+
+    token.expiresAt = expiresAt;
+    token.ttlSeconds = ttlSeconds;
+    token.renewedAt = renewedAt;
+    return withoutHash(token);
+  }
+
   async markUsed(tokenId: string, lastUsedAt: Date): Promise<void> {
     const token = this.tokens.find((item) => item.id === tokenId);
 
     if (token !== undefined) {
       token.lastUsedAt = lastUsedAt;
     }
+  }
+}
+
+class InMemoryAuthMethodRepository implements VaultAuthMethodRepository {
+  readonly authMethods: VaultAuthMethodWithSecretRecord[] = [];
+
+  async create(input: CreateVaultAuthMethodInput): Promise<SafeVaultAuthMethodRecord> {
+    const authMethod: VaultAuthMethodWithSecretRecord = {
+      id: `auth_method_${this.authMethods.length + 1}`,
+      projectId: input.projectId,
+      type: input.type,
+      name: input.name,
+      identityAlias: input.identityAlias,
+      roleId: input.roleId,
+      secretIdHash: input.secretIdHash,
+      tokenScopes: input.tokenScopes,
+      tokenEnvironments: input.tokenEnvironments,
+      tokenTtlSeconds: input.tokenTtlSeconds,
+      tokenMaxTtlSeconds: input.tokenMaxTtlSeconds,
+      renewable: input.renewable,
+      status: "active",
+      lastUsedAt: null,
+      createdAt: new Date("2026-08-18T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-18T00:00:00.000Z"),
+    };
+    this.authMethods.push(authMethod);
+    return withoutSecretIdHash(authMethod);
+  }
+
+  async list(projectId: string): Promise<SafeVaultAuthMethodRecord[]> {
+    return this.authMethods
+      .filter((authMethod) => authMethod.projectId === projectId)
+      .map(withoutSecretIdHash);
+  }
+
+  async findActiveAppRole(
+    projectId: string,
+    roleId: string,
+  ): Promise<VaultAuthMethodWithSecretRecord | null> {
+    return (
+      this.authMethods.find(
+        (authMethod) =>
+          authMethod.projectId === projectId &&
+          authMethod.roleId === roleId &&
+          authMethod.type === "approle" &&
+          authMethod.status === "active",
+      ) ?? null
+    );
+  }
+
+  async markUsed(authMethodId: string, lastUsedAt: Date): Promise<void> {
+    const authMethod = this.authMethods.find((item) => item.id === authMethodId);
+
+    if (authMethod !== undefined) {
+      authMethod.lastUsedAt = lastUsedAt;
+    }
+  }
+
+  async disable(
+    projectId: string,
+    authMethodId: string,
+  ): Promise<SafeVaultAuthMethodRecord | null> {
+    const authMethod = this.authMethods.find(
+      (item) => item.projectId === projectId && item.id === authMethodId,
+    );
+
+    if (authMethod === undefined) {
+      return null;
+    }
+
+    authMethod.status = "disabled";
+    return withoutSecretIdHash(authMethod);
+  }
+}
+
+class InMemoryIdentityRepository implements VaultIdentityRepository {
+  readonly identities = new Map<string, SafeVaultIdentityRecord>();
+
+  async upsert(input: UpsertVaultIdentityInput): Promise<SafeVaultIdentityRecord> {
+    const key = `${input.projectId}:${input.alias}`;
+    const existing = this.identities.get(key);
+    const identity: SafeVaultIdentityRecord = {
+      id: existing?.id ?? `identity_${this.identities.size + 1}`,
+      projectId: input.projectId,
+      alias: input.alias,
+      type: input.type,
+      displayName: input.displayName,
+      metadata: input.metadata ?? {},
+      createdAt: existing?.createdAt ?? new Date("2026-08-18T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-18T00:00:00.000Z"),
+    };
+    this.identities.set(key, identity);
+    return identity;
+  }
+
+  async list(projectId: string): Promise<SafeVaultIdentityRecord[]> {
+    return [...this.identities.values()].filter((identity) => identity.projectId === projectId);
   }
 }
 
@@ -410,6 +557,153 @@ describe("VaultService", () => {
     });
   });
 
+  it("creates AppRole auth methods without exposing the stored secret hash", async () => {
+    const authMethods = new InMemoryAuthMethodRepository();
+    const identities = new InMemoryIdentityRepository();
+    const service = createService(undefined, undefined, authMethods, identities);
+
+    const created = await service.createAuthMethod({
+      projectId: "project_1",
+      type: "approle",
+      name: "render-api",
+      environments: ["production"],
+      ttlSeconds: 300,
+      maxTtlSeconds: 900,
+    });
+
+    expect(created.authMethod).toMatchObject({
+      type: "approle",
+      name: "render-api",
+      identityAlias: "approle:render-api",
+      tokenTtlSeconds: 300,
+      tokenMaxTtlSeconds: 900,
+      renewable: true,
+    });
+    expect(created.authMethod.roleId).toMatch(/^role_/);
+    expect(created.secretId).toMatch(/^secret_/);
+    expect(JSON.stringify(created)).not.toContain("secretIdHash");
+    expect(authMethods.authMethods[0]?.secretIdHash).toBeDefined();
+    expect(JSON.stringify(await service.listIdentities("project_1"))).toContain(
+      "approle:render-api",
+    );
+  });
+
+  it("creates service account auth methods with a one-time bootstrap token", async () => {
+    const tokens = new InMemoryTokenRepository();
+    const service = createServiceWithRepositories(
+      new InMemorySecretRepository(),
+      tokens,
+      undefined,
+      new InMemoryAuthMethodRepository(),
+      new InMemoryIdentityRepository(),
+    );
+
+    const created = await service.createAuthMethod({
+      projectId: "project_1",
+      type: "service-account",
+      name: "deploy-bot",
+      environments: ["staging"],
+    });
+
+    expect(created.secretId).toBeNull();
+    expect(created.rawToken).toMatch(/^povt_/);
+    expect(tokens.tokens[0]).toMatchObject({
+      authMethod: "service-account",
+      identityAlias: "service-account:deploy-bot",
+    });
+  });
+
+  it("logs in with AppRole credentials and issues a renewable child token", async () => {
+    const authMethods = new InMemoryAuthMethodRepository();
+    const identities = new InMemoryIdentityRepository();
+    const tokens = new InMemoryTokenRepository();
+    const service = createServiceWithRepositories(
+      new InMemorySecretRepository(),
+      tokens,
+      undefined,
+      authMethods,
+      identities,
+    );
+    const authMethod = await service.createAuthMethod({
+      projectId: "project_1",
+      type: "approle",
+      name: "worker",
+      environments: ["production"],
+    });
+
+    const createdToken = await service.loginAppRole({
+      projectId: "project_1",
+      roleId: String(authMethod.authMethod.roleId),
+      secretId: String(authMethod.secretId),
+    });
+
+    expect(createdToken.rawToken).toMatch(/^povt_/);
+    expect(createdToken.token).toMatchObject({
+      projectId: "project_1",
+      authMethod: "approle",
+      identityAlias: "approle:worker",
+      renewable: true,
+      status: "active",
+    });
+    expect(tokens.tokens[0]?.tokenHash).toBeDefined();
+    expect(JSON.stringify(createdToken)).not.toContain(tokens.tokens[0]?.tokenHash ?? "missing");
+  });
+
+  it("rejects invalid AppRole secret IDs", async () => {
+    const authMethods = new InMemoryAuthMethodRepository();
+    const service = createService(
+      undefined,
+      undefined,
+      authMethods,
+      new InMemoryIdentityRepository(),
+    );
+    const authMethod = await service.createAuthMethod({
+      projectId: "project_1",
+      type: "approle",
+      name: "bad-login",
+    });
+
+    await expect(
+      service.loginAppRole({
+        projectId: "project_1",
+        roleId: String(authMethod.authMethod.roleId),
+        secretId: "wrong-secret",
+      }),
+    ).rejects.toThrow("Invalid AppRole credentials");
+  });
+
+  it("looks up, renews, and self-revokes vault tokens", async () => {
+    const service = createService();
+    const created = await service.createToken({
+      projectId: "project_1",
+      name: "automation",
+      ttlSeconds: 60,
+      maxTtlSeconds: 600,
+    });
+
+    const lookedUp = await service.lookupToken(created.rawToken);
+    const renewed = await service.renewToken(created.rawToken);
+    const revoked = await service.revokeSelf(created.rawToken);
+
+    expect(lookedUp).toMatchObject({ name: "automation", status: "active" });
+    expect(renewed.renewedAt).not.toBeNull();
+    expect(revoked.status).toBe("revoked");
+    await expect(service.lookupToken(created.rawToken)).rejects.toThrow("Invalid vault token");
+  });
+
+  it("does not renew non-renewable tokens", async () => {
+    const service = createService();
+    const created = await service.createToken({
+      projectId: "project_1",
+      name: "short-lived",
+      renewable: false,
+    });
+
+    await expect(service.renewToken(created.rawToken)).rejects.toThrow(
+      "Vault token is not renewable",
+    );
+  });
+
   it("publishes sanitized audit events for failed reveals and token fetches", async () => {
     const audits = new CapturingAuditPublisher();
     const service = createService(undefined, audits);
@@ -465,6 +759,8 @@ function createServiceWithRepositories(
   secrets: InMemorySecretRepository,
   tokens: InMemoryTokenRepository,
   audits?: VaultAuditPublisher,
+  authMethods = new InMemoryAuthMethodRepository(),
+  identities = new InMemoryIdentityRepository(),
 ): VaultService {
   return new VaultService(
     secrets,
@@ -472,14 +768,24 @@ function createServiceWithRepositories(
     new PlainTextCryptoService(),
     new VaultTokenHasher("pepper-value"),
     audits,
+    authMethods,
+    identities,
   );
 }
 
 function createService(
   secrets = new InMemorySecretRepository(),
   audits?: VaultAuditPublisher,
+  authMethods = new InMemoryAuthMethodRepository(),
+  identities = new InMemoryIdentityRepository(),
 ): VaultService {
-  return createServiceWithRepositories(secrets, new InMemoryTokenRepository(), audits);
+  return createServiceWithRepositories(
+    secrets,
+    new InMemoryTokenRepository(),
+    audits,
+    authMethods,
+    identities,
+  );
 }
 
 function withoutValue(secret: VaultSecretWithEncryptedValueRecord): SafeVaultSecretRecord {
@@ -490,4 +796,11 @@ function withoutValue(secret: VaultSecretWithEncryptedValueRecord): SafeVaultSec
 function withoutHash(token: VaultTokenWithHashRecord): SafeVaultTokenRecord {
   const { tokenHash: _tokenHash, ...safeToken } = token;
   return safeToken;
+}
+
+function withoutSecretIdHash(
+  authMethod: VaultAuthMethodWithSecretRecord,
+): SafeVaultAuthMethodRecord {
+  const { secretIdHash: _secretIdHash, ...safeAuthMethod } = authMethod;
+  return safeAuthMethod;
 }

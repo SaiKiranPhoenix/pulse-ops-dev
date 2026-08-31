@@ -101,7 +101,10 @@ export function CustomDashboardsPage() {
       const created = await createCustomDashboard(selectedProject.id, {
         name: newDashboardName.trim(),
         description: newDashboardDesc.trim() || undefined,
-        tags: newDashboardTags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: newDashboardTags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         refreshIntervalSeconds: 30,
         widgets: [],
       });
@@ -110,7 +113,11 @@ export function CustomDashboardsPage() {
       setIsCreatingDashboard(false);
       setNewDashboardName("");
       setNewDashboardDesc("");
-      notify({ title: "Dashboard Created", description: `"${created.name}" is ready.`, variant: "success" });
+      notify({
+        title: "Dashboard Created",
+        description: `"${created.name}" is ready.`,
+        variant: "success",
+      });
     } catch (err) {
       notify({
         title: "Creation failed",
@@ -130,7 +137,8 @@ export function CustomDashboardsPage() {
       title: widgetTitle.trim(),
       gridPos: { x: 0, y: 0, w: widgetWidth, h: 4 },
       config: {
-        metricName: widgetType === "timeseries" || widgetType === "query_value" ? widgetMetric : undefined,
+        metricName:
+          widgetType === "timeseries" || widgetType === "query_value" ? widgetMetric : undefined,
         unit: widgetType === "query_value" ? widgetUnit : undefined,
         queryFilter: widgetFilter.trim() || undefined,
         markdownContent: widgetType === "markdown" ? widgetMarkdown : undefined,
@@ -146,7 +154,11 @@ export function CustomDashboardsPage() {
       setDashboards((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
       setIsAddingWidget(false);
       setWidgetTitle("");
-      notify({ title: "Widget Added", description: `Added "${newWidget.title}" to dashboard.`, variant: "success" });
+      notify({
+        title: "Widget Added",
+        description: `Added "${newWidget.title}" to dashboard.`,
+        variant: "success",
+      });
     } catch (err) {
       notify({
         title: "Failed to add widget",
@@ -180,7 +192,11 @@ export function CustomDashboardsPage() {
       const cloned = await cloneCustomDashboard(selectedProject.id, activeDashboard.id);
       setDashboards((prev) => [cloned, ...prev]);
       setActiveDashboardId(cloned.id);
-      notify({ title: "Dashboard Cloned", description: `Created copy "${cloned.name}".`, variant: "success" });
+      notify({
+        title: "Dashboard Cloned",
+        description: `Created copy "${cloned.name}".`,
+        variant: "success",
+      });
     } catch (err) {
       notify({
         title: "Clone failed",
@@ -233,7 +249,13 @@ export function CustomDashboardsPage() {
   const exportTableData = (format: "csv" | "json", title: string) => {
     const sampleData = [
       { route: "/v1/auth/login", method: "POST", status: 200, count: 1420, p95_latency: "34ms" },
-      { route: "/v1/ingest/events", method: "POST", status: 202, count: 18450, p95_latency: "12ms" },
+      {
+        route: "/v1/ingest/events",
+        method: "POST",
+        status: 202,
+        count: 18450,
+        p95_latency: "12ms",
+      },
       { route: "/v1/vault/secrets", method: "GET", status: 200, count: 520, p95_latency: "18ms" },
       { route: "/v1/checkout/pay", method: "POST", status: 500, count: 24, p95_latency: "450ms" },
     ];
@@ -261,7 +283,11 @@ export function CustomDashboardsPage() {
     a.download = `${title.toLowerCase().replace(/\s+/g, "_")}_export.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
-    notify({ title: "Export Started", description: `Downloaded ${title} as ${ext.toUpperCase()}`, variant: "success" });
+    notify({
+      title: "Export Started",
+      description: `Downloaded ${title} as ${ext.toUpperCase()}`,
+      variant: "success",
+    });
   };
 
   if (!selectedProject) {
@@ -291,7 +317,8 @@ export function CustomDashboardsPage() {
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Build, organize, and monitor custom multi-widget operational views for {selectedProject.name}.
+            Build, organize, and monitor custom multi-widget operational views for{" "}
+            {selectedProject.name}.
           </p>
         </div>
 
@@ -327,7 +354,8 @@ export function CustomDashboardsPage() {
           <div className="space-y-1">
             <h3 className="text-base font-medium text-zinc-200">No Custom Dashboards Yet</h3>
             <p className="text-xs text-zinc-500 max-w-md mx-auto">
-              Create your first customized operational board or seed pre-built templates for API Health, Queue Pipeline, and Incident Response.
+              Create your first customized operational board or seed pre-built templates for API
+              Health, Queue Pipeline, and Incident Response.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -436,7 +464,8 @@ export function CustomDashboardsPage() {
               <Plus className="w-8 h-8 text-zinc-600 mx-auto" />
               <h4 className="text-sm font-medium text-zinc-300">Empty Dashboard</h4>
               <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                Add metrics, timeseries charts, incident feeds, or runbook documentation widgets to this board.
+                Add metrics, timeseries charts, incident feeds, or runbook documentation widgets to
+                this board.
               </p>
               <Button
                 onClick={() => setIsAddingWidget(true)}
@@ -734,7 +763,9 @@ export function CustomDashboardsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300">Description (Optional)</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  Description (Optional)
+                </label>
                 <Input
                   placeholder="High-level description of this board"
                   value={newDashboardDesc}
@@ -744,7 +775,9 @@ export function CustomDashboardsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300">Tags (Comma-separated)</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  Tags (Comma-separated)
+                </label>
                 <Input
                   placeholder="api, edge, production"
                   value={newDashboardTags}
@@ -883,9 +916,13 @@ export function CustomDashboardsPage() {
                 </div>
               )}
 
-              {(widgetType === "log_stream" || widgetType === "incident_list" || widgetType === "toplist") && (
+              {(widgetType === "log_stream" ||
+                widgetType === "incident_list" ||
+                widgetType === "toplist") && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300">Filter Query (Optional)</label>
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Filter Query (Optional)
+                  </label>
                   <Input
                     placeholder="status:open, service:po-event-workers"
                     value={widgetFilter}

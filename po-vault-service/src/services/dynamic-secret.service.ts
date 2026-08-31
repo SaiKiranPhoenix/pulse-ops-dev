@@ -2,7 +2,10 @@ import crypto from "node:crypto";
 import type { DynamicDatabaseCredential } from "@pulseops/shared/types";
 
 export class DynamicSecretService {
-  private readonly leases: Map<string, DynamicDatabaseCredential & { status: "active" | "revoked" | "expired" }> = new Map();
+  private readonly leases: Map<
+    string,
+    DynamicDatabaseCredential & { status: "active" | "revoked" | "expired" }
+  > = new Map();
 
   public async generateDbCredential(
     projectId: string,
@@ -48,14 +51,20 @@ export class DynamicSecretService {
       }));
   }
 
-  public async renewLease(projectId: string, leaseId: string, incrementSeconds = 3600): Promise<DynamicDatabaseCredential | null> {
+  public async renewLease(
+    projectId: string,
+    leaseId: string,
+    incrementSeconds = 3600,
+  ): Promise<DynamicDatabaseCredential | null> {
     const cred = this.leases.get(leaseId);
     if (!cred || cred.projectId !== projectId || cred.status !== "active") {
       return null;
     }
 
     const currentExp = new Date(cred.expiresAt).getTime();
-    const nextExp = new Date(Math.max(Date.now(), currentExp) + incrementSeconds * 1000).toISOString();
+    const nextExp = new Date(
+      Math.max(Date.now(), currentExp) + incrementSeconds * 1000,
+    ).toISOString();
     cred.expiresAt = nextExp;
     this.leases.set(leaseId, cred);
     return cred;

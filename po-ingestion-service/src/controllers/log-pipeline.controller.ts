@@ -130,14 +130,26 @@ export class LogPipelineController {
 
     if (format === "csv") {
       const headers = Object.keys(sampleLogs[0]!).join(",");
-      const rows = sampleLogs.map((l) => Object.values(l).map((v) => `"${v}"`).join(",")).join("\n");
+      const rows = sampleLogs
+        .map((l) =>
+          Object.values(l)
+            .map((v) => `"${v}"`)
+            .join(","),
+        )
+        .join("\n");
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename="logs_${projectId}_${Date.now()}.csv"`);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="logs_${projectId}_${Date.now()}.csv"`,
+      );
       res.status(200).send(`${headers}\n${rows}`);
     } else {
       const ndjson = sampleLogs.map((l) => JSON.stringify(l)).join("\n");
       res.setHeader("Content-Type", "application/x-ndjson");
-      res.setHeader("Content-Disposition", `attachment; filename="logs_${projectId}_${Date.now()}.ndjson"`);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="logs_${projectId}_${Date.now()}.ndjson"`,
+      );
       res.status(200).send(ndjson);
     }
   };

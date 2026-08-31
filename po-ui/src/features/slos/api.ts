@@ -157,9 +157,10 @@ export async function evaluateSlo(
 }
 
 export async function getReliabilityReport(projectId: string): Promise<ReliabilityReport> {
-  const response = await apiClient.get<
-    ApiSuccessResponse<{ readonly report: ReliabilityReport }>
-  >("/slos/report", { params: { projectId } });
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly report: ReliabilityReport }>>(
+    "/slos/report",
+    { params: { projectId } },
+  );
   return response.data.data.report;
 }
 

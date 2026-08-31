@@ -78,8 +78,16 @@ export interface RumOverview {
   readonly lcpGrade: WebVitalGrade;
   readonly fidGrade: WebVitalGrade;
   readonly clsGrade: WebVitalGrade;
-  readonly browserBreakdown: Array<{ readonly browser: string; readonly count: number; readonly percentage: number }>;
-  readonly deviceBreakdown: Array<{ readonly device: string; readonly count: number; readonly percentage: number }>;
+  readonly browserBreakdown: Array<{
+    readonly browser: string;
+    readonly count: number;
+    readonly percentage: number;
+  }>;
+  readonly deviceBreakdown: Array<{
+    readonly device: string;
+    readonly count: number;
+    readonly percentage: number;
+  }>;
 }
 
 export interface CreateUptimeCheckInput {

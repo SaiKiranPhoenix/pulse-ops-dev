@@ -252,16 +252,13 @@ export function UptimeRumPage() {
             Uptime, Synthetics & Real User Monitoring (RUM)
           </h1>
           <p className="mt-1 max-w-3xl text-xs text-zinc-400">
-            Automated synthetic SLA assertions, global endpoint availability tracking, and Google Core Web Vitals performance analytics.
+            Automated synthetic SLA assertions, global endpoint availability tracking, and Google
+            Core Web Vitals performance analytics.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => void loadData()}
-            variant="outline"
-            className="text-xs gap-1.5 h-9"
-          >
+          <Button onClick={() => void loadData()} variant="outline" className="text-xs gap-1.5 h-9">
             <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
             Refresh
           </Button>
@@ -280,7 +277,9 @@ export function UptimeRumPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-md">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Global Availability</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Global Availability
+            </span>
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-white font-mono mt-2">{globalUptime}%</p>
@@ -289,7 +288,9 @@ export function UptimeRumPage() {
 
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-md">
           <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">Monitored Endpoints</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              Monitored Endpoints
+            </span>
             <Globe className="w-4 h-4 text-cyan-400" />
           </div>
           <p className="text-2xl font-bold text-white font-mono mt-2">
@@ -315,7 +316,9 @@ export function UptimeRumPage() {
           <p className="text-2xl font-bold text-white font-mono mt-2">
             {rumOverview?.lcpGrade === "good" ? "Fast & Healthy" : "Needs Review"}
           </p>
-          <p className="text-[11px] text-zinc-500 mt-1">LCP: {rumOverview?.avgLcpMs}ms (Good &lt; 2.5s)</p>
+          <p className="text-[11px] text-zinc-500 mt-1">
+            LCP: {rumOverview?.avgLcpMs}ms (Good &lt; 2.5s)
+          </p>
         </div>
       </div>
 
@@ -421,7 +424,9 @@ export function UptimeRumPage() {
                         disabled={isRunningTest === chk.id}
                         className="text-xs h-8 px-3 bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5"
                       >
-                        <Play className={cn("w-3.5 h-3.5", isRunningTest === chk.id && "animate-spin")} />
+                        <Play
+                          className={cn("w-3.5 h-3.5", isRunningTest === chk.id && "animate-spin")}
+                        />
                         Run Test
                       </Button>
 
@@ -524,10 +529,15 @@ export function UptimeRumPage() {
                   <div key={b.browser} className="space-y-1">
                     <div className="flex justify-between text-xs font-mono text-zinc-300">
                       <span>{b.browser}</span>
-                      <span>{b.count} views ({b.percentage}%)</span>
+                      <span>
+                        {b.count} views ({b.percentage}%)
+                      </span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-cyan-400" style={{ width: `${b.percentage}%` }} />
+                      <div
+                        className="h-full rounded-full bg-cyan-400"
+                        style={{ width: `${b.percentage}%` }}
+                      />
                     </div>
                   </div>
                 ))}
@@ -541,10 +551,15 @@ export function UptimeRumPage() {
                   <div key={d.device} className="space-y-1">
                     <div className="flex justify-between text-xs font-mono text-zinc-300">
                       <span className="capitalize">{d.device}</span>
-                      <span>{d.count} views ({d.percentage}%)</span>
+                      <span>
+                        {d.count} views ({d.percentage}%)
+                      </span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-purple-500" style={{ width: `${d.percentage}%` }} />
+                      <div
+                        className="h-full rounded-full bg-purple-500"
+                        style={{ width: `${d.percentage}%` }}
+                      />
                     </div>
                   </div>
                 ))}
@@ -563,7 +578,10 @@ export function UptimeRumPage() {
                 <Activity className="w-4 h-4 text-emerald-400" />
                 Synthetic Test Execution Results
               </h3>
-              <button onClick={() => setTestResultModal(null)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setTestResultModal(null)}
+                className="text-zinc-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -572,21 +590,32 @@ export function UptimeRumPage() {
               <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs">
                 <div>
                   <span className="text-zinc-500">Status:</span>{" "}
-                  <span className={cn("font-bold uppercase", testResultModal.status === "up" ? "text-emerald-400" : "text-rose-400")}>
+                  <span
+                    className={cn(
+                      "font-bold uppercase",
+                      testResultModal.status === "up" ? "text-emerald-400" : "text-rose-400",
+                    )}
+                  >
                     {testResultModal.status}
                   </span>
                 </div>
                 <div>
                   <span className="text-zinc-500">HTTP Status:</span>{" "}
-                  <span className="font-mono font-bold text-white">{testResultModal.statusCode}</span>
+                  <span className="font-mono font-bold text-white">
+                    {testResultModal.statusCode}
+                  </span>
                 </div>
                 <div>
                   <span className="text-zinc-500">Duration:</span>{" "}
-                  <span className="font-mono font-bold text-white">{testResultModal.responseTimeMs} ms</span>
+                  <span className="font-mono font-bold text-white">
+                    {testResultModal.responseTimeMs} ms
+                  </span>
                 </div>
                 <div>
                   <span className="text-zinc-500">Timestamp:</span>{" "}
-                  <span className="font-mono text-zinc-400 text-[10px]">{testResultModal.timestamp}</span>
+                  <span className="font-mono text-zinc-400 text-[10px]">
+                    {testResultModal.timestamp}
+                  </span>
                 </div>
               </div>
 
@@ -596,7 +625,14 @@ export function UptimeRumPage() {
                   {testResultModal.assertionResults.map((a, idx) => (
                     <div key={idx} className="p-2.5 flex items-center justify-between text-xs">
                       <span className="font-mono text-zinc-300">{a.name}</span>
-                      <span className={cn("font-bold text-[10px] px-2 py-0.5 rounded uppercase", a.passed ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                      <span
+                        className={cn(
+                          "font-bold text-[10px] px-2 py-0.5 rounded uppercase",
+                          a.passed
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-rose-500/10 text-rose-400",
+                        )}
+                      >
                         {a.passed ? "PASSED" : "FAILED"}
                       </span>
                     </div>
@@ -606,7 +642,10 @@ export function UptimeRumPage() {
             </div>
 
             <div className="flex justify-end pt-3 border-t border-zinc-800">
-              <Button onClick={() => setTestResultModal(null)} className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white">
+              <Button
+                onClick={() => setTestResultModal(null)}
+                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white"
+              >
                 Close
               </Button>
             </div>
@@ -623,7 +662,10 @@ export function UptimeRumPage() {
                 <Plus className="w-4 h-4 text-emerald-400" />
                 Configure Synthetic Uptime Monitor
               </h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-zinc-400 hover:text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -702,7 +744,9 @@ export function UptimeRumPage() {
               {/* Synthetic Assertions Builder */}
               <div className="space-y-2 pt-2 border-t border-zinc-800">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase text-zinc-400">Synthetic Assertions</label>
+                  <label className="text-xs font-bold uppercase text-zinc-400">
+                    Synthetic Assertions
+                  </label>
                   <Button
                     type="button"
                     onClick={addAssertion}
@@ -715,10 +759,17 @@ export function UptimeRumPage() {
 
                 <div className="space-y-2">
                   {newAssertions.map((a, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-                      <span className="text-xs font-mono text-cyan-400 w-28 truncate">{a.type}</span>
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800"
+                    >
+                      <span className="text-xs font-mono text-cyan-400 w-28 truncate">
+                        {a.type}
+                      </span>
                       <span className="text-xs text-zinc-500 font-mono">{a.operator}</span>
-                      <span className="text-xs font-mono text-white flex-1 truncate">{String(a.expectedValue)}</span>
+                      <span className="text-xs font-mono text-white flex-1 truncate">
+                        {String(a.expectedValue)}
+                      </span>
                       <button
                         type="button"
                         onClick={() => removeAssertion(idx)}
@@ -732,10 +783,18 @@ export function UptimeRumPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
-                <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-xs text-zinc-400">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-xs text-zinc-400"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium">
+                <Button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
+                >
                   Create Probe
                 </Button>
               </div>

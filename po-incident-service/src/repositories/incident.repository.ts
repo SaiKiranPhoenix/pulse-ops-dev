@@ -49,7 +49,11 @@ export interface IncidentRepository {
   triage(
     projectId: string,
     incidentId: string,
-    input: { severity?: IncidentRecord["severity"]; assignee?: string | null; runbookUrl?: string | null },
+    input: {
+      severity?: IncidentRecord["severity"];
+      assignee?: string | null;
+      runbookUrl?: string | null;
+    },
   ): Promise<SafeIncidentRecord | null>;
   addComment(
     projectId: string,
@@ -188,7 +192,9 @@ export class MongoIncidentRepository implements IncidentRepository {
             timestamp: resolvedAt.toISOString(),
             type: "resolved",
             actor: "Responder",
-            description: resolutionNote ? `Incident resolved: ${resolutionNote}` : "Incident resolved",
+            description: resolutionNote
+              ? `Incident resolved: ${resolutionNote}`
+              : "Incident resolved",
           },
         },
       },
@@ -249,7 +255,11 @@ export class MongoIncidentRepository implements IncidentRepository {
   async triage(
     projectId: string,
     incidentId: string,
-    input: { severity?: IncidentRecord["severity"]; assignee?: string | null; runbookUrl?: string | null },
+    input: {
+      severity?: IncidentRecord["severity"];
+      assignee?: string | null;
+      runbookUrl?: string | null;
+    },
   ): Promise<SafeIncidentRecord | null> {
     const updateObj: Record<string, unknown> = {};
     const timelineEntries: Array<IncidentRecord["timeline"][number]> = [];

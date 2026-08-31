@@ -9,6 +9,14 @@ export type VaultTokenRecord = {
   tokenHash: string;
   scopes: string[];
   environments: string[];
+  authMethod: "integration-token" | "service-account" | "approle";
+  identityAlias: string;
+  parentTokenId: string | null;
+  ttlSeconds: number;
+  maxTtlSeconds: number;
+  renewable: boolean;
+  issuedAt: Date;
+  renewedAt: Date | null;
   status: VaultTokenStatus;
   lastUsedAt: Date | null;
   expiresAt: Date | null;
@@ -26,6 +34,20 @@ const vaultTokenSchema = new Schema<VaultTokenRecord>(
     tokenHash: { type: String, required: true, unique: true, select: false },
     scopes: { type: [String], required: true, default: [] },
     environments: { type: [String], required: true, default: [] },
+    authMethod: {
+      type: String,
+      enum: ["integration-token", "service-account", "approle"],
+      required: true,
+      default: "integration-token",
+      index: true,
+    },
+    identityAlias: { type: String, required: true, default: "integration:unknown", index: true },
+    parentTokenId: { type: String, default: null, index: true },
+    ttlSeconds: { type: Number, required: true, default: 3600 },
+    maxTtlSeconds: { type: Number, required: true, default: 86400 },
+    renewable: { type: Boolean, required: true, default: true, index: true },
+    issuedAt: { type: Date, required: true, default: Date.now },
+    renewedAt: { type: Date, default: null },
     status: {
       type: String,
       enum: ["active", "revoked"],
@@ -46,6 +68,10 @@ const vaultTokenSchema = new Schema<VaultTokenRecord>(
 vaultTokenSchema.index(
   { projectId: 1, status: 1, createdAt: -1 },
   { name: "idx_vault_tokens_project_status_created" },
+);
+vaultTokenSchema.index(
+  { projectId: 1, identityAlias: 1, status: 1 },
+  { name: "idx_vault_tokens_project_identity_status" },
 );
 
 export const VaultTokenModel: Model<VaultTokenRecord> =

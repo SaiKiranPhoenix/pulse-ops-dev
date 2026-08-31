@@ -1,10 +1,5 @@
 export type LogProcessorType =
-  | "parse_json"
-  | "remap_fields"
-  | "redact_regex"
-  | "drop_filter"
-  | "sample_rate"
-  | "add_tags";
+  "parse_json" | "remap_fields" | "redact_regex" | "drop_filter" | "sample_rate" | "add_tags";
 
 export interface LogProcessorConfig {
   readonly sourceField?: string | undefined;

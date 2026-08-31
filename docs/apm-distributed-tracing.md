@@ -18,6 +18,7 @@ traceparent = version "-" trace-id "-" parent-id "-" trace-flags
 - **`trace-flags`**: 8-bit field (e.g. `01` for sampled, `00` for unsampled).
 
 ### Example Header
+
 ```http
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
@@ -29,6 +30,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 PulseOps API Gateway and Ingestion Service expose dedicated APM ingestion routes:
 
 ### `POST /ingest/spans`
+
 ```json
 {
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
@@ -50,6 +52,7 @@ PulseOps API Gateway and Ingestion Service expose dedicated APM ingestion routes
 ```
 
 ### `POST /ingest/traces`
+
 Accepts a full trace payload with an array of spans for batch or offline processing.
 
 ---
@@ -57,6 +60,7 @@ Accepts a full trace payload with an array of spans for batch or offline process
 ## 3. Node.js SDK Usage (`@pulseops/node-sdk`)
 
 ### Manual Span Instrumentation
+
 ```typescript
 import { withSpan, formatW3CTraceParent } from "@pulseops/node-sdk";
 
@@ -68,18 +72,19 @@ const { result, span } = await withSpan(
     activeSpan.setAttribute("db.table", "users");
     const user = await db.users.findById(id);
     return user;
-  }
+  },
 );
 ```
 
 ### Propagating Downstream
+
 ```typescript
 const traceparent = activeSpan.getTraceParent();
 
 // Pass down in outgoing HTTP requests:
 await fetch("https://inventory.internal/items", {
   headers: {
-    "traceparent": traceparent,
+    traceparent: traceparent,
   },
 });
 ```
@@ -90,24 +95,26 @@ await fetch("https://inventory.internal/items", {
 
 PulseOps trace identifiers, span models, and attributes map 1:1 to OpenTelemetry SemConv specifications:
 
-| OpenTelemetry Attribute | PulseOps Equivalent |
-|---|---|
-| `trace_id` | `traceId` |
-| `span_id` | `spanId` |
-| `parent_span_id` | `parentSpanId` |
-| `service.name` | `serviceName` |
-| `http.status_code` | `attributes["http.status_code"]` |
-| `db.system` | `attributes["db.system"]` |
-| `error.type` | `attributes["error.type"]` |
+| OpenTelemetry Attribute | PulseOps Equivalent              |
+| ----------------------- | -------------------------------- |
+| `trace_id`              | `traceId`                        |
+| `span_id`               | `spanId`                         |
+| `parent_span_id`        | `parentSpanId`                   |
+| `service.name`          | `serviceName`                    |
+| `http.status_code`      | `attributes["http.status_code"]` |
+| `db.system`             | `attributes["db.system"]`        |
+| `error.type`            | `attributes["error.type"]`       |
 
 ### OpenTelemetry Collector Configuration
+
 To route OTel Collector traces to PulseOps:
+
 ```yaml
 exporters:
   otlphttp/pulseops:
     endpoint: "https://api.pulseops.dev/ingest"
     headers:
-      x-api-key: "${PULSEOPS_API_KEY}"
+      x-api-key: "<PULSEOPS_API_KEY>"
 
 service:
   pipelines:

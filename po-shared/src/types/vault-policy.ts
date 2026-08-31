@@ -1,11 +1,4 @@
-export type VaultCapability =
-  | "create"
-  | "read"
-  | "update"
-  | "delete"
-  | "list"
-  | "deny"
-  | "sudo";
+export type VaultCapability = "create" | "read" | "update" | "delete" | "list" | "deny" | "sudo";
 
 export interface VaultPolicyRule {
   path: string;

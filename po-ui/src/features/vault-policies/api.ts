@@ -1,13 +1,6 @@
 import { apiClient } from "@/lib/api-client";
 
-export type VaultCapability =
-  | "create"
-  | "read"
-  | "update"
-  | "delete"
-  | "list"
-  | "deny"
-  | "sudo";
+export type VaultCapability = "create" | "read" | "update" | "delete" | "list" | "deny" | "sudo";
 
 export interface VaultPolicyRule {
   path: string;
@@ -154,7 +147,9 @@ export async function generateDynamicDbCredential(
   return res.data.data.credential;
 }
 
-export async function listDynamicDbCredentials(projectId: string): Promise<DynamicDatabaseCredential[]> {
+export async function listDynamicDbCredentials(
+  projectId: string,
+): Promise<DynamicDatabaseCredential[]> {
   const res = await apiClient.get<ApiResponse<{ leases: DynamicDatabaseCredential[] }>>(
     `/vault/dynamic/database/creds?projectId=${encodeURIComponent(projectId)}`,
   );

@@ -42,7 +42,11 @@ export class VaultEngineController {
       res.status(400).json({ status: "error", message: "Lease ID is required" });
       return;
     }
-    const renewed = await this.dynamicSecretService.renewLease(projectId, leaseId, incrementSeconds);
+    const renewed = await this.dynamicSecretService.renewLease(
+      projectId,
+      leaseId,
+      incrementSeconds,
+    );
     if (!renewed) {
       res.status(404).json({ status: "error", message: "Active lease not found" });
       return;
@@ -116,7 +120,9 @@ export class VaultEngineController {
     const version = typeof req.params.version === "string" ? req.params.version : "";
     const verNum = Number(version);
 
-    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select("+versions");
+    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select(
+      "+versions",
+    );
     if (!secret) {
       res.status(404).json({ status: "error", message: "Secret not found" });
       return;
@@ -143,7 +149,9 @@ export class VaultEngineController {
     const version = typeof req.params.version === "string" ? req.params.version : "";
     const verNum = Number(version);
 
-    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select("+versions");
+    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select(
+      "+versions",
+    );
     if (!secret) {
       res.status(404).json({ status: "error", message: "Secret not found" });
       return;
@@ -170,7 +178,9 @@ export class VaultEngineController {
     const version = typeof req.params.version === "string" ? req.params.version : "";
     const verNum = Number(version);
 
-    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select("+versions");
+    const secret = await VaultSecretModel.findOne({ projectId, environment, key }).select(
+      "+versions",
+    );
     if (!secret) {
       res.status(404).json({ status: "error", message: "Secret not found" });
       return;

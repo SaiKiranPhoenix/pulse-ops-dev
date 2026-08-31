@@ -85,7 +85,9 @@ export class IngestionController {
       timestamp: body.startTime ? new Date(String(body.startTime)) : undefined,
     });
 
-    response.status(202).json(successResponse({ event, spanId: body.spanId }, String(response.locals.requestId)));
+    response
+      .status(202)
+      .json(successResponse({ event, spanId: body.spanId }, String(response.locals.requestId)));
   };
 
   ingestTrace = async (request: Request, response: Response): Promise<void> => {
@@ -109,9 +111,14 @@ export class IngestionController {
       timestamp: body.startTime ? new Date(String(body.startTime)) : undefined,
     });
 
-    response.status(202).json(
-      successResponse({ event, traceId: body.traceId, spanCount: spans.length }, String(response.locals.requestId)),
-    );
+    response
+      .status(202)
+      .json(
+        successResponse(
+          { event, traceId: body.traceId, spanCount: spans.length },
+          String(response.locals.requestId),
+        ),
+      );
   };
 }
 

@@ -149,16 +149,13 @@ export function InfrastructurePage() {
             Infrastructure & Container Fleet
           </h1>
           <p className="mt-1 max-w-3xl text-xs text-zinc-400">
-            Real-time host node vitals, Docker container metrics, and core dependency health monitoring (RabbitMQ, Redis, MongoDB, Vault).
+            Real-time host node vitals, Docker container metrics, and core dependency health
+            monitoring (RabbitMQ, Redis, MongoDB, Vault).
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => void loadData()}
-            variant="outline"
-            className="text-xs gap-1.5 h-9"
-          >
+          <Button onClick={() => void loadData()} variant="outline" className="text-xs gap-1.5 h-9">
             <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
             Refresh Fleet
           </Button>
@@ -195,7 +192,9 @@ export function InfrastructurePage() {
               <span className="text-xs font-semibold uppercase tracking-wider">Avg CPU Fleet</span>
               <Cpu className="w-4 h-4 text-purple-400" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono mt-2">{overview.avgCpuPercent}%</p>
+            <p className="text-2xl font-bold text-white font-mono mt-2">
+              {overview.avgCpuPercent}%
+            </p>
             <div className="w-full h-1.5 rounded-full bg-zinc-800 mt-2 overflow-hidden">
               <div
                 className="h-full rounded-full bg-purple-500"
@@ -206,10 +205,14 @@ export function InfrastructurePage() {
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-md">
             <div className="flex items-center justify-between text-zinc-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">Avg Memory Fleet</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">
+                Avg Memory Fleet
+              </span>
               <HardDrive className="w-4 h-4 text-amber-400" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono mt-2">{overview.avgMemoryPercent}%</p>
+            <p className="text-2xl font-bold text-white font-mono mt-2">
+              {overview.avgMemoryPercent}%
+            </p>
             <div className="w-full h-1.5 rounded-full bg-zinc-800 mt-2 overflow-hidden">
               <div
                 className="h-full rounded-full bg-amber-500"
@@ -309,9 +312,7 @@ export function InfrastructurePage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-3.5 font-mono text-zinc-400 text-[11px]">
-                    {c.hostId}
-                  </td>
+                  <td className="px-4 py-3.5 font-mono text-zinc-400 text-[11px]">{c.hostId}</td>
 
                   <td className="px-4 py-3.5">
                     <span
@@ -405,7 +406,10 @@ export function InfrastructurePage() {
                     <span>{h.cpuPercent.toFixed(1)}%</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                    <div className="h-full rounded-full bg-purple-500" style={{ width: `${h.cpuPercent}%` }} />
+                    <div
+                      className="h-full rounded-full bg-purple-500"
+                      style={{ width: `${h.cpuPercent}%` }}
+                    />
                   </div>
                 </div>
 
@@ -415,7 +419,10 @@ export function InfrastructurePage() {
                     <span>{h.memoryPercent.toFixed(1)}%</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                    <div className="h-full rounded-full bg-amber-500" style={{ width: `${h.memoryPercent}%` }} />
+                    <div
+                      className="h-full rounded-full bg-amber-500"
+                      style={{ width: `${h.memoryPercent}%` }}
+                    />
                   </div>
                 </div>
 
@@ -425,7 +432,10 @@ export function InfrastructurePage() {
                     <span>{h.diskPercent.toFixed(1)}%</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${h.diskPercent}%` }} />
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{ width: `${h.diskPercent}%` }}
+                    />
                   </div>
                 </div>
               </div>
@@ -435,7 +445,10 @@ export function InfrastructurePage() {
                 <p className="truncate">OS: {h.os}</p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {Object.entries(h.tags).map(([k, v]) => (
-                    <span key={k} className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-mono">
+                    <span
+                      key={k}
+                      className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-mono"
+                    >
                       {k}:{v}
                     </span>
                   ))}
@@ -462,7 +475,8 @@ export function InfrastructurePage() {
                   <div>
                     <h4 className="text-base font-bold text-white">{dep.name}</h4>
                     <p className="text-xs text-zinc-400">
-                      Ping latency: <span className="text-white font-mono font-semibold">{dep.latencyMs}ms</span>
+                      Ping latency:{" "}
+                      <span className="text-white font-mono font-semibold">{dep.latencyMs}ms</span>
                     </p>
                   </div>
                 </div>

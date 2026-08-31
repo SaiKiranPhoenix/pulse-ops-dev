@@ -35,7 +35,9 @@ describe("PolicyEvaluationEngine", () => {
   ];
 
   it("grants access when path and capability match", () => {
-    const result = engine.evaluate("secret/data/development/db_password", "read", [mockPolicies[0]!]);
+    const result = engine.evaluate("secret/data/development/db_password", "read", [
+      mockPolicies[0]!,
+    ]);
     expect(result.allowed).toBe(true);
     expect(result.matchedPolicyName).toBe("developer-policy");
   });

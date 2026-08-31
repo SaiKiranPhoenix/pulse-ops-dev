@@ -95,7 +95,10 @@ export class LogPipelineRepository {
       ...existing,
       retentionDays: input.retentionDays,
       coldArchiveEnabled: input.coldArchiveEnabled ?? existing.coldArchiveEnabled,
-      coldArchiveBucket: input.coldArchiveBucket !== undefined ? input.coldArchiveBucket : existing.coldArchiveBucket,
+      coldArchiveBucket:
+        input.coldArchiveBucket !== undefined
+          ? input.coldArchiveBucket
+          : existing.coldArchiveBucket,
       updatedAt: new Date().toISOString(),
     };
     this.retentionStore.set(projectId, updated);
@@ -104,11 +107,16 @@ export class LogPipelineRepository {
 
   // Saved Searches
   async listSavedSearches(projectId: string): Promise<SavedLogSearch[]> {
-    const list = Array.from(this.savedSearchesStore.values()).filter((s) => s.projectId === projectId);
+    const list = Array.from(this.savedSearchesStore.values()).filter(
+      (s) => s.projectId === projectId,
+    );
     return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  async createSavedSearch(projectId: string, input: CreateSavedLogSearchInput): Promise<SavedLogSearch> {
+  async createSavedSearch(
+    projectId: string,
+    input: CreateSavedLogSearchInput,
+  ): Promise<SavedLogSearch> {
     const id = `lss_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const saved: SavedLogSearch = {
       id,
@@ -134,7 +142,12 @@ export class LogPipelineRepository {
   // Log Context Window Retrieval (+- 25 surrounding events)
   async getLogContext(projectId: string, eventId: string): Promise<LogContextResponse> {
     const baseTime = Date.now();
-    const services = ["po-api-gateway", "po-event-workers", "po-auth-project-service", "po-vault-service"];
+    const services = [
+      "po-api-gateway",
+      "po-event-workers",
+      "po-auth-project-service",
+      "po-vault-service",
+    ];
 
     const before: Array<Record<string, unknown>> = [];
     for (let i = 25; i >= 1; i--) {
@@ -159,7 +172,8 @@ export class LogPipelineRepository {
       message: `Target investigation event [${eventId}]: Downstream connection pool exhausted during burst ingestion`,
       timestamp: new Date(baseTime).toISOString(),
       traceId: `trc_${projectId}_target`,
-      stack: "Error: Connection pool exhausted\n    at Pool.acquire (db.ts:42)\n    at RequestHandler (server.ts:18)",
+      stack:
+        "Error: Connection pool exhausted\n    at Pool.acquire (db.ts:42)\n    at RequestHandler (server.ts:18)",
     };
 
     const after: Array<Record<string, unknown>> = [];
