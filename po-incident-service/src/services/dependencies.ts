@@ -1,5 +1,6 @@
 import { IncidentController } from "../controllers/incident.controller.js";
 import { MonitorController } from "../controllers/monitor.controller.js";
+import { OnCallController } from "../controllers/on-call.controller.js";
 import { SloController } from "../controllers/slo.controller.js";
 import {
   noopIncidentUpdatePublisher,
@@ -13,6 +14,7 @@ import { SloRepository } from "../repositories/slo.repository.js";
 import { IncidentService } from "./incident.service.js";
 import { MonitorEvaluatorService } from "./monitor-evaluator.service.js";
 import { NotificationDispatcherService } from "./notification-dispatcher.service.js";
+import { OnCallService } from "./on-call.service.js";
 import { SloEvaluatorService } from "./slo-evaluator.service.js";
 
 export type IncidentServiceDependencies = {
@@ -27,6 +29,8 @@ export type IncidentServiceDependencies = {
   readonly sloController: SloController;
   readonly sloRepo: SloRepository;
   readonly sloEvaluator: SloEvaluatorService;
+  readonly onCallController: OnCallController;
+  readonly onCallService: OnCallService;
 };
 
 export type CreateIncidentServiceDependenciesOptions = {
@@ -58,6 +62,9 @@ export function createIncidentServiceDependencies(
   const sloEvaluator = new SloEvaluatorService(sloRepo, incidentService);
   const sloController = new SloController(sloRepo, sloEvaluator);
 
+  const onCallService = new OnCallService();
+  const onCallController = new OnCallController(onCallService);
+
   return {
     incidentController: new IncidentController(incidentService),
     incidentService,
@@ -70,5 +77,7 @@ export function createIncidentServiceDependencies(
     sloController,
     sloRepo,
     sloEvaluator,
+    onCallController,
+    onCallService,
   };
 }

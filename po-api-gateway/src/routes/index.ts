@@ -140,6 +140,12 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     requireProjectAccess,
     asyncHandler(dependencies.proxyController.ops),
   );
+  router.use(
+    "/on-call",
+    requireAuth,
+    requireProjectAccess,
+    asyncHandler(dependencies.proxyController.incident),
+  );
   router.use("/ops", requireAuth, asyncHandler(dependencies.proxyController.ops));
   router.use(
     "/vault",

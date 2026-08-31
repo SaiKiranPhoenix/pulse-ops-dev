@@ -22,6 +22,8 @@ export type IncidentDto = {
   readonly summary: string | null;
   readonly severity: SafeIncidentRecord["severity"];
   readonly status: SafeIncidentRecord["status"];
+  readonly assignee: string | null;
+  readonly runbookUrl: string | null;
   readonly eventCount: number;
   readonly creationReason: string;
   readonly acknowledgedAt: string | null;
@@ -35,6 +37,10 @@ export type IncidentDto = {
     readonly observedAt: string;
     readonly receivedAt: string;
   }>;
+  readonly timeline: SafeIncidentRecord["timeline"];
+  readonly comments: SafeIncidentRecord["comments"];
+  readonly relatedResources: SafeIncidentRecord["relatedResources"];
+  readonly postmortem: SafeIncidentRecord["postmortem"];
   readonly firstSeenAt: string;
   readonly lastSeenAt: string;
   readonly resolvedAt: string | null;
@@ -123,6 +129,90 @@ export class IncidentService {
     return toIncidentDto(incident);
   }
 
+  async triage(
+    projectId: string,
+    incidentId: string,
+    input: { severity?: SafeIncidentRecord["severity"]; assignee?: string | null; runbookUrl?: string | null },
+  ): Promise<IncidentDto> {
+    const incident = await this.incidents.triage(projectId, incidentId, input);
+    if (incident === null) throw notFound("Incident not found");
+    await this.publishIncidentUpdate("updated", incident);
+    return toIncidentDto(incident);
+  }
+
+  async addComment(
+    projectId: string,
+    incidentId: string,
+    input: { message: string; userId?: string; userName?: string },
+  ): Promise<IncidentDto> {
+    const comment = {
+      id: `comm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      incidentId,
+      userId: input.userId ?? "user_default",
+      userName: input.userName ?? "Responder",
+      message: input.message,
+      createdAt: new Date().toISOString(),
+    };
+
+    const incident = await this.incidents.addComment(projectId, incidentId, comment);
+    if (incident === null) throw notFound("Incident not found");
+    await this.publishIncidentUpdate("updated", incident);
+    return toIncidentDto(incident);
+  }
+
+  async savePostmortem(
+    projectId: string,
+    incidentId: string,
+    postmortem: NonNullable<SafeIncidentRecord["postmortem"]>,
+  ): Promise<IncidentDto> {
+    const incident = await this.incidents.savePostmortem(projectId, incidentId, postmortem);
+    if (incident === null) throw notFound("Incident not found");
+    return toIncidentDto(incident);
+  }
+
+  async exportSummary(projectId: string, incidentId: string): Promise<{ markdown: string }> {
+    const incident = await this.detail(projectId, incidentId);
+    const markdown = `# Incident Briefing: ${incident.title}
+
+- **Incident ID**: \`${incident.id}\`
+- **Project**: \`${incident.projectId}\`
+- **Status**: **${incident.status.toUpperCase()}**
+- **Severity**: **${incident.severity.toUpperCase()}**
+- **Assignee**: ${incident.assignee ?? "Unassigned"}
+- **Runbook**: ${incident.runbookUrl ? `[Runbook Guide](${incident.runbookUrl})` : "None"}
+- **Event Count**: ${incident.eventCount} occurrences
+- **First Seen**: ${incident.firstSeenAt}
+- **Last Seen**: ${incident.lastSeenAt}
+- **Resolved At**: ${incident.resolvedAt ?? "Ongoing"}
+- **Resolution Note**: ${incident.resolutionNote ?? "N/A"}
+
+---
+
+## Timeline
+${incident.timeline.map((t) => `- **${t.timestamp}** [${t.type.toUpperCase()}] (${t.actor}): ${t.description}`).join("\n")}
+
+---
+
+## Postmortem Root Cause Analysis
+${
+  incident.postmortem
+    ? `### Summary
+${incident.postmortem.summary}
+
+### Root Cause
+${incident.postmortem.rootCause}
+
+### Trigger
+${incident.postmortem.trigger}
+
+### Action Items
+${incident.postmortem.actionItems.map((a) => `- [${a.completed ? "x" : " "}] ${a.description} (${a.assignee ?? "unassigned"})`).join("\n")}`
+    : "_No postmortem report published yet._"
+}
+`;
+    return { markdown };
+  }
+
   private async publishIncidentUpdate(
     action: RealtimeIncidentUpdateAction,
     incident: SafeIncidentRecord,
@@ -207,6 +297,8 @@ function toIncidentDto(incident: SafeIncidentRecord): IncidentDto {
     summary: incident.summary,
     severity: incident.severity,
     status: incident.status,
+    assignee: incident.assignee ?? null,
+    runbookUrl: incident.runbookUrl ?? null,
     eventCount: incident.eventCount,
     creationReason: incident.creationReason,
     acknowledgedAt: incident.acknowledgedAt?.toISOString() ?? null,
@@ -216,6 +308,10 @@ function toIncidentDto(incident: SafeIncidentRecord): IncidentDto {
       observedAt: sample.observedAt.toISOString(),
       receivedAt: sample.receivedAt.toISOString(),
     })),
+    timeline: incident.timeline ?? [],
+    comments: incident.comments ?? [],
+    relatedResources: incident.relatedResources ?? [],
+    postmortem: incident.postmortem ?? null,
     firstSeenAt: incident.firstSeenAt.toISOString(),
     lastSeenAt: incident.lastSeenAt.toISOString(),
     resolvedAt: incident.resolvedAt?.toISOString() ?? null,

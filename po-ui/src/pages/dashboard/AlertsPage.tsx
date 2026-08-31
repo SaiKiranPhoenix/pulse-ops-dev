@@ -1,11 +1,16 @@
 import {
   AlertTriangle,
   Bell,
+  BookOpen,
+  Calendar,
   CheckCircle2,
   Clock,
   Download,
+  ExternalLink,
   Flame,
   Globe,
+  History,
+  Layers,
   Loader2,
   Mail,
   MessageSquare,
@@ -21,8 +26,10 @@ import {
   Trash2,
   Upload,
   UserCheck,
+  Users,
   VolumeX,
   X,
+  Zap,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -63,12 +70,25 @@ import {
   type NotificationChannelType,
   type SilenceWindow,
 } from "@/features/monitors/api";
+import {
+  addIncidentComment,
+  createEscalationPolicy,
+  createOnCallSchedule,
+  exportIncidentSummary,
+  listEscalationPolicies,
+  listOnCallSchedules,
+  savePostmortem,
+  triageIncident,
+  type EscalationPolicy,
+  type OnCallSchedule,
+  type PostmortemReport,
+} from "@/features/on-call/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
 import { formatRelativeTime } from "./dashboard-utils";
 import { useDashboardContext } from "./DashboardLayout";
 
-type TabMode = "incidents" | "monitors" | "silence" | "channels";
+type TabMode = "incidents" | "monitors" | "silence" | "channels" | "oncall";
 
 export function AlertsPage() {
   const { selectedEnvironment, selectedProject } = useDashboardContext();
@@ -131,6 +151,28 @@ export function AlertsPage() {
   const [importJsonText, setImportJsonText] = useState("");
   const [isImporting, setIsImporting] = useState(false);
 
+  // --- ON-CALL & ESCALATION STATE ---
+  const [schedules, setSchedules] = useState<OnCallSchedule[]>([]);
+  const [policies, setPolicies] = useState<EscalationPolicy[]>([]);
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+  const [isCreatingPolicy, setIsCreatingPolicy] = useState(false);
+  const [newScheduleName, setNewScheduleName] = useState("Primary SRE Rotation");
+  const [newScheduleTimezone, setNewScheduleTimezone] = useState("UTC");
+  const [newScheduleUser, setNewScheduleUser] = useState("alice@pulseops.dev");
+  const [newPolicyName, setNewPolicyName] = useState("Critical Incident Escalation");
+
+  // --- INCIDENT CONSOLE SUBTABS & TRIAGE ---
+  const [incidentConsoleTab, setIncidentConsoleTab] = useState<
+    "samples" | "timeline" | "comments" | "postmortem"
+  >("samples");
+  const [newCommentText, setNewCommentText] = useState("");
+  const [postmortemSummary, setPostmortemSummary] = useState("");
+  const [postmortemRootCause, setPostmortemRootCause] = useState("");
+  const [postmortemTrigger, setPostmortemTrigger] = useState("");
+  const [postmortemImpactMin, setPostmortemImpactMin] = useState(30);
+  const [postmortemDetectionMin, setPostmortemDetectionMin] = useState(5);
+  const [postmortemResolutionMin, setPostmortemResolutionMin] = useState(25);
+
   // ==========================================
   // LOADERS
   // ==========================================
@@ -154,6 +196,20 @@ export function AlertsPage() {
       // ignore
     } finally {
       setIsLoadingIncidents(false);
+    }
+  };
+
+  const loadOnCall = async () => {
+    if (!selectedProject) return;
+    try {
+      const [schedList, polList] = await Promise.all([
+        listOnCallSchedules(selectedProject.id),
+        listEscalationPolicies(selectedProject.id),
+      ]);
+      setSchedules(schedList);
+      setPolicies(polList);
+    } catch {
+      // ignore
     }
   };
 
@@ -196,6 +252,7 @@ export function AlertsPage() {
     void loadMonitors();
     void loadSilenceAndMaintenance();
     void loadChannels();
+    void loadOnCall();
   }, [selectedProject?.id, statusFilter]);
 
   // Real-time socket events for incidents
@@ -278,6 +335,132 @@ export function AlertsPage() {
         title: "Action Failed",
         description: getApiErrorMessage(err),
       });
+    }
+  };
+
+  const handleTriage = async (updates: {
+    severity?: "critical" | "high" | "medium" | "low";
+    assignee?: string;
+    runbookUrl?: string;
+  }) => {
+    if (!selectedProject || !selectedIncident) return;
+    try {
+      const updated = (await triageIncident(
+        selectedProject.id,
+        selectedIncident.id,
+        updates,
+      )) as Incident;
+      setSelectedIncident(updated);
+      await loadIncidents();
+      notify({ variant: "success", title: "Incident Triaged", description: "Updated response attributes." });
+    } catch (err) {
+      notify({ variant: "error", title: "Triage Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleAddComment = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !selectedIncident || !newCommentText.trim()) return;
+    try {
+      const updated = (await addIncidentComment(
+        selectedProject.id,
+        selectedIncident.id,
+        { message: newCommentText.trim() },
+      )) as Incident;
+      setSelectedIncident(updated);
+      setNewCommentText("");
+      notify({ variant: "success", title: "Comment Posted", description: "Added to incident timeline." });
+    } catch (err) {
+      notify({ variant: "error", title: "Comment Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleSavePostmortem = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !selectedIncident) return;
+    try {
+      const postmortemData: PostmortemReport = {
+        incidentId: selectedIncident.id,
+        summary: postmortemSummary || selectedIncident.summary || "Incident postmortem",
+        rootCause: postmortemRootCause || "Root cause under investigation",
+        trigger: postmortemTrigger || selectedIncident.creationReason,
+        impactDurationMinutes: Number(postmortemImpactMin),
+        detectionTimeMinutes: Number(postmortemDetectionMin),
+        resolutionTimeMinutes: Number(postmortemResolutionMin),
+        actionItems: [
+          {
+            id: `act_${Date.now()}`,
+            description: "Add automated regression test and monitor guardrail",
+            assignee: selectedIncident.assignee || "alice@pulseops.dev",
+            completed: false,
+          },
+        ],
+        status: "published",
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updated = (await savePostmortem(
+        selectedProject.id,
+        selectedIncident.id,
+        postmortemData,
+      )) as Incident;
+      setSelectedIncident(updated);
+      notify({ variant: "success", title: "Postmortem Published", description: "Root cause analysis saved." });
+    } catch (err) {
+      notify({ variant: "error", title: "Save Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleExportBriefing = async () => {
+    if (!selectedProject || !selectedIncident) return;
+    try {
+      const { markdown } = await exportIncidentSummary(selectedProject.id, selectedIncident.id);
+      const dataStr = "data:text/markdown;charset=utf-8," + encodeURIComponent(markdown);
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `incident-${selectedIncident.id}-briefing.md`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      notify({ variant: "success", title: "Briefing Exported", description: "Downloaded incident summary." });
+    } catch (err) {
+      notify({ variant: "error", title: "Export Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleCreateSchedule = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !newScheduleName.trim()) return;
+    try {
+      const created = await createOnCallSchedule(selectedProject.id, {
+        name: newScheduleName.trim(),
+        timezone: newScheduleTimezone,
+        activeOnCallUser: newScheduleUser.trim(),
+      });
+      setSchedules([...schedules, created]);
+      setIsCreatingSchedule(false);
+      notify({ variant: "success", title: "Schedule Created", description: `Added ${created.name}` });
+    } catch (err) {
+      notify({ variant: "error", title: "Schedule Creation Failed", description: getApiErrorMessage(err) });
+    }
+  };
+
+  const handleCreatePolicy = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !newPolicyName.trim()) return;
+    try {
+      const created = await createEscalationPolicy(selectedProject.id, {
+        name: newPolicyName.trim(),
+        steps: [
+          { stepNumber: 1, delayMinutes: 0, targetType: "schedule", targetId: "sched_primary_sre" },
+          { stepNumber: 2, delayMinutes: 5, targetType: "channel", targetId: "chan_slack_critical" },
+        ],
+      });
+      setPolicies([...policies, created]);
+      setIsCreatingPolicy(false);
+      notify({ variant: "success", title: "Escalation Policy Created", description: `Added ${created.name}` });
+    } catch (err) {
+      notify({ variant: "error", title: "Policy Creation Failed", description: getApiErrorMessage(err) });
     }
   };
 
@@ -645,6 +828,7 @@ export function AlertsPage() {
               icon: VolumeX,
             },
             { id: "channels", label: "Notification Channels", count: channels.length, icon: Bell },
+            { id: "oncall", label: "On-Call & Escalations", count: schedules.length, icon: Calendar },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -838,6 +1022,17 @@ export function AlertsPage() {
 
                     {/* Triage Action Buttons */}
                     <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleExportBriefing}
+                        variant="outline"
+                        className="text-xs h-8 px-2.5 border-zinc-700 text-zinc-300"
+                        title="Download Markdown Incident Briefing"
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" />
+                        Briefing
+                      </Button>
+
                       {selectedIncident.status === "open" && (
                         <Button
                           type="button"
@@ -871,62 +1066,264 @@ export function AlertsPage() {
                     </div>
                   </div>
 
-                  {/* Incident Summary & Timeline */}
+                  {/* Triage Quick Controls (Severity / Assignee / Runbook) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">Triage Severity</label>
+                      <select
+                        value={selectedIncident.severity}
+                        onChange={(e) =>
+                          void handleTriage({
+                            severity: e.target.value as "critical" | "high" | "medium" | "low",
+                          })
+                        }
+                        className="w-full h-8 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white px-2 font-semibold"
+                      >
+                        <option value="critical">CRITICAL (P1)</option>
+                        <option value="high">HIGH (P2)</option>
+                        <option value="medium">MEDIUM (P3)</option>
+                        <option value="low">LOW (P4)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">Assignee</label>
+                      <input
+                        type="text"
+                        defaultValue={selectedIncident.assignee || ""}
+                        onBlur={(e) => void handleTriage({ assignee: e.target.value.trim() || undefined })}
+                        placeholder="e.g. alice@pulseops.dev"
+                        className="w-full h-8 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white px-2.5 placeholder-zinc-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center justify-between">
+                        <span>Runbook URL</span>
+                        {selectedIncident.runbookUrl && (
+                          <a
+                            href={selectedIncident.runbookUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cyan-400 hover:underline flex items-center gap-0.5"
+                          >
+                            Open <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                          </a>
+                        )}
+                      </label>
+                      <input
+                        type="url"
+                        defaultValue={selectedIncident.runbookUrl || ""}
+                        onBlur={(e) => void handleTriage({ runbookUrl: e.target.value.trim() || undefined })}
+                        placeholder="https://wiki.domain/runbooks/api"
+                        className="w-full h-8 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white px-2.5 font-mono placeholder-zinc-600 truncate"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Incident Summary Stat Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
-                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
-                        Status
-                      </div>
-                      <div className="text-sm font-bold text-white capitalize mt-0.5">
-                        {selectedIncident.status}
-                      </div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">Status</div>
+                      <div className="text-sm font-bold text-white capitalize mt-0.5">{selectedIncident.status}</div>
                     </div>
                     <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
-                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
-                        Total Events
-                      </div>
-                      <div className="text-sm font-bold text-cyan-300 mt-0.5">
-                        {selectedIncident.eventCount}
-                      </div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">Total Events</div>
+                      <div className="text-sm font-bold text-cyan-300 mt-0.5">{selectedIncident.eventCount}</div>
                     </div>
                     <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
-                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
-                        First Seen
-                      </div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">First Seen</div>
                       <div className="text-xs font-semibold text-zinc-300 mt-1">
                         {formatRelativeTime(selectedIncident.firstSeenAt)}
                       </div>
                     </div>
                     <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80">
-                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">
-                        Last Seen
-                      </div>
+                      <div className="text-[10px] text-zinc-500 uppercase font-semibold">Last Seen</div>
                       <div className="text-xs font-semibold text-zinc-300 mt-1">
                         {formatRelativeTime(selectedIncident.lastSeenAt)}
                       </div>
                     </div>
                   </div>
 
-                  {/* Sample Traces / Errors */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                      Event Samples & Root Cause Logs ({selectedIncident.samples?.length ?? 0})
-                    </h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {(selectedIncident.samples ?? []).map((sample, idx) => (
-                        <div
-                          key={sample.eventId || idx}
-                          className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80 font-mono text-xs space-y-1"
+                  {/* Incident Workspace Subtabs */}
+                  <div className="flex items-center gap-1.5 border-b border-zinc-800 pb-2">
+                    {[
+                      { id: "samples", label: `Samples (${selectedIncident.samples?.length ?? 0})`, icon: Layers },
+                      { id: "timeline", label: `Timeline (${selectedIncident.timeline?.length ?? 1})`, icon: History },
+                      { id: "comments", label: `Comments (${selectedIncident.comments?.length ?? 0})`, icon: MessageSquare },
+                      { id: "postmortem", label: "Postmortem RCA", icon: BookOpen },
+                    ].map((st) => {
+                      const Icon = st.icon;
+                      const isSubActive = incidentConsoleTab === st.id;
+                      return (
+                        <button
+                          key={st.id}
+                          type="button"
+                          onClick={() => setIncidentConsoleTab(st.id as typeof incidentConsoleTab)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            isSubActive
+                              ? "bg-zinc-800 text-white border border-zinc-700 shadow-sm"
+                              : "text-zinc-400 hover:text-white hover:bg-zinc-850"
+                          }`}
                         >
-                          <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                            <span>Source: {sample.source}</span>
-                            <span>{new Date(sample.observedAt).toLocaleTimeString()}</span>
-                          </div>
-                          <p className="text-rose-300">{sample.message}</p>
-                        </div>
-                      ))}
-                    </div>
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{st.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {/* Subtab 1: Event Samples */}
+                  {incidentConsoleTab === "samples" && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Event Samples & Root Cause Logs ({selectedIncident.samples?.length ?? 0})
+                      </h4>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {(selectedIncident.samples ?? []).map((sample, idx) => (
+                          <div
+                            key={sample.eventId || idx}
+                            className="rounded-xl bg-zinc-950 p-3 border border-zinc-800/80 font-mono text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between text-zinc-500 text-[10px]">
+                              <span>Source: {sample.source}</span>
+                              <span>{new Date(sample.observedAt).toLocaleTimeString()}</span>
+                            </div>
+                            <p className="text-rose-300">{sample.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subtab 2: Timeline */}
+                  {incidentConsoleTab === "timeline" && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                        Incident Activity Stream
+                      </h4>
+                      <div className="space-y-2 max-h-64 overflow-y-auto divide-y divide-zinc-850">
+                        {(selectedIncident.timeline && selectedIncident.timeline.length > 0
+                          ? selectedIncident.timeline
+                          : [
+                              {
+                                id: "tl_init",
+                                timestamp: selectedIncident.createdAt,
+                                type: "created",
+                                actor: "PulseOps Incident Bot",
+                                description: `Triggered: ${selectedIncident.creationReason}`,
+                              },
+                            ]
+                        ).map((t) => (
+                          <div key={t.id} className="pt-2 flex items-start gap-2.5 text-xs">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 mt-1.5 shrink-0" />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                                <span className="font-bold text-white">{t.actor}</span>
+                                <span className="font-mono text-[10px] text-zinc-500">{t.timestamp}</span>
+                              </div>
+                              <p className="text-zinc-300 mt-0.5">{t.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subtab 3: Live Comments */}
+                  {incidentConsoleTab === "comments" && (
+                    <div className="space-y-3">
+                      <div className="space-y-2 max-h-48 overflow-y-auto divide-y divide-zinc-850">
+                        {(!selectedIncident.comments || selectedIncident.comments.length === 0) ? (
+                          <p className="text-xs text-zinc-500 italic py-2">No comments posted yet. Add incident notes below.</p>
+                        ) : (
+                          selectedIncident.comments.map((c) => (
+                            <div key={c.id} className="pt-2 text-xs space-y-0.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-indigo-400">{c.userName}</span>
+                                <span className="font-mono text-[10px] text-zinc-500">{c.createdAt}</span>
+                              </div>
+                              <p className="text-zinc-200">{c.message}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <form onSubmit={handleAddComment} className="flex gap-2 pt-2 border-t border-zinc-800">
+                        <Input
+                          placeholder="Write comment or investigation note..."
+                          value={newCommentText}
+                          onChange={(e) => setNewCommentText(e.target.value)}
+                          className="bg-zinc-950 border-zinc-800 text-xs text-white flex-1"
+                        />
+                        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-9 px-3">
+                          <Send className="w-3.5 h-3.5 mr-1" /> Post
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Subtab 4: Postmortem */}
+                  {incidentConsoleTab === "postmortem" && (
+                    <form onSubmit={handleSavePostmortem} className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-zinc-300">Executive Summary</label>
+                        <Input
+                          placeholder="What happened at a high level?"
+                          value={postmortemSummary}
+                          onChange={(e) => setPostmortemSummary(e.target.value)}
+                          className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-zinc-300">Root Cause Analysis</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Technical explanation of the defect, configuration, or trigger..."
+                          value={postmortemRootCause}
+                          onChange={(e) => setPostmortemRootCause(e.target.value)}
+                          className="w-full rounded-md border border-zinc-800 bg-zinc-950 p-2 text-xs text-white focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-zinc-400">Impact Duration (min)</label>
+                          <Input
+                            type="number"
+                            value={postmortemImpactMin}
+                            onChange={(e) => setPostmortemImpactMin(Number(e.target.value))}
+                            className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-zinc-400">Detection Time (min)</label>
+                          <Input
+                            type="number"
+                            value={postmortemDetectionMin}
+                            onChange={(e) => setPostmortemDetectionMin(Number(e.target.value))}
+                            className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-zinc-400">Resolution Time (min)</label>
+                          <Input
+                            type="number"
+                            value={postmortemResolutionMin}
+                            onChange={(e) => setPostmortemResolutionMin(Number(e.target.value))}
+                            className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium">
+                          Save & Publish Postmortem
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center text-zinc-500 text-xs">
@@ -1364,6 +1761,237 @@ export function AlertsPage() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: ON-CALL & ESCALATION POLICIES */}
+      {/* ========================================================================= */}
+      {activeTab === "oncall" && (
+        <div className="space-y-6">
+          {/* Top Action Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-md">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-400" />
+                On-Call Rotations & Tiered Escalation Policies
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Manage automated engineer shifts, paging escalation tiers, and active incident response ownership.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsCreatingSchedule(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold h-8 gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New Schedule
+              </Button>
+              <Button
+                onClick={() => setIsCreatingPolicy(true)}
+                variant="outline"
+                className="text-xs h-8 gap-1.5 border-zinc-700 text-zinc-300"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New Escalation Tier
+              </Button>
+            </div>
+          </div>
+
+          {/* Schedules Section */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+              <Users className="w-4 h-4 text-emerald-400" />
+              Active On-Call Schedules ({schedules.length})
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {schedules.map((sched) => (
+                <div
+                  key={sched.id}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md space-y-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h5 className="text-sm font-bold text-white">{sched.name}</h5>
+                      <span className="text-[10px] text-zinc-500 font-mono">TZ: {sched.timezone}</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      ACTIVE
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-850 space-y-1.5">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Currently On-Call Responder</span>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-sm font-bold text-white font-mono">{sched.activeOnCallUser}</span>
+                    </div>
+                  </div>
+
+                  {/* Rotations List */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Rotation Participants</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(sched.rotations?.[0]?.participants || [sched.activeOnCallUser]).map((u, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded-lg text-xs font-mono bg-zinc-950 border border-zinc-800 text-zinc-300"
+                        >
+                          {u}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Escalation Policies Section */}
+          <div className="space-y-3 pt-4 border-t border-zinc-800">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" />
+              Automated Escalation Chains ({policies.length})
+            </h4>
+
+            <div className="space-y-3">
+              {policies.map((pol) => (
+                <div
+                  key={pol.id}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h5 className="text-sm font-bold text-white">{pol.name}</h5>
+                      {pol.isDefault && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          DEFAULT
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-zinc-500 font-mono">{pol.steps.length} Tiered Steps</span>
+                  </div>
+
+                  {/* Steps Chain */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {pol.steps.map((step, sIdx) => (
+                      <div
+                        key={sIdx}
+                        className="rounded-xl bg-zinc-950 p-3.5 border border-zinc-850 space-y-1 relative"
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                          <span className="font-bold text-white">Tier {step.stepNumber}</span>
+                          <span className="font-mono text-amber-400">+{step.delayMinutes} min</span>
+                        </div>
+                        <p className="text-xs text-zinc-300 font-mono truncate">
+                          Target: {step.targetType.toUpperCase()} ({step.targetId})
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create On-Call Schedule */}
+      {isCreatingSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-400" />
+                Create On-Call Schedule
+              </h3>
+              <button onClick={() => setIsCreatingSchedule(false)} className="text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSchedule} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Schedule Name</label>
+                <Input
+                  value={newScheduleName}
+                  onChange={(e) => setNewScheduleName(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Timezone</label>
+                <Input
+                  value={newScheduleTimezone}
+                  onChange={(e) => setNewScheduleTimezone(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Primary Responder Email</label>
+                <Input
+                  value={newScheduleUser}
+                  onChange={(e) => setNewScheduleUser(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <Button type="button" onClick={() => setIsCreatingSchedule(false)} className="bg-zinc-800 text-xs">
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">
+                  Create Schedule
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create Escalation Policy */}
+      {isCreatingPolicy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                Create Escalation Policy
+              </h3>
+              <button onClick={() => setIsCreatingPolicy(false)} className="text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePolicy} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Policy Name</label>
+                <Input
+                  value={newPolicyName}
+                  onChange={(e) => setNewPolicyName(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <Button type="button" onClick={() => setIsCreatingPolicy(false)} className="bg-zinc-800 text-xs">
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">
+                  Create Policy
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

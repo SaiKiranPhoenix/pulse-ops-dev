@@ -9,11 +9,45 @@ export type Incident = {
   readonly summary: string | null;
   readonly severity: "low" | "medium" | "high" | "critical";
   readonly status: "open" | "acknowledged" | "resolved";
+  readonly assignee?: string | null;
+  readonly runbookUrl?: string | null;
   readonly eventCount: number;
   readonly creationReason: string;
   readonly acknowledgedAt: string | null;
   readonly resolutionNote: string | null;
   readonly samples: IncidentEventSample[];
+  readonly timeline?: Array<{
+    readonly id: string;
+    readonly timestamp: string;
+    readonly type: string;
+    readonly actor: string;
+    readonly description: string;
+  }>;
+  readonly comments?: Array<{
+    readonly id: string;
+    readonly userId: string;
+    readonly userName: string;
+    readonly message: string;
+    readonly createdAt: string;
+  }>;
+  readonly relatedResources?: Array<{
+    readonly id: string;
+    readonly type: string;
+    readonly title: string;
+    readonly url: string;
+  }>;
+  readonly postmortem?: {
+    readonly incidentId: string;
+    readonly summary: string;
+    readonly rootCause: string;
+    readonly trigger: string;
+    readonly impactDurationMinutes: number;
+    readonly detectionTimeMinutes: number;
+    readonly resolutionTimeMinutes: number;
+    readonly actionItems: Array<{ readonly id: string; readonly description: string; readonly assignee?: string; readonly completed: boolean }>;
+    readonly status: string;
+    readonly updatedAt: string;
+  } | null;
   readonly firstSeenAt: string;
   readonly lastSeenAt: string;
   readonly resolvedAt: string | null;

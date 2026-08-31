@@ -56,4 +56,48 @@ export class IncidentController {
 
     response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
   };
+
+  triage = async (request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as IncidentListQuery;
+    const params = response.locals.validatedParams as IncidentParams;
+    const incident = await this.incidents.triage(
+      query.projectId,
+      params.incidentId,
+      request.body,
+    );
+
+    response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
+  };
+
+  addComment = async (request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as IncidentListQuery;
+    const params = response.locals.validatedParams as IncidentParams;
+    const incident = await this.incidents.addComment(
+      query.projectId,
+      params.incidentId,
+      request.body,
+    );
+
+    response.status(201).json(successResponse({ incident }, String(response.locals.requestId)));
+  };
+
+  savePostmortem = async (request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as IncidentListQuery;
+    const params = response.locals.validatedParams as IncidentParams;
+    const incident = await this.incidents.savePostmortem(
+      query.projectId,
+      params.incidentId,
+      request.body,
+    );
+
+    response.status(200).json(successResponse({ incident }, String(response.locals.requestId)));
+  };
+
+  exportSummary = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as IncidentListQuery;
+    const params = response.locals.validatedParams as IncidentParams;
+    const summary = await this.incidents.exportSummary(query.projectId, params.incidentId);
+
+    response.status(200).json(successResponse(summary, String(response.locals.requestId)));
+  };
 }

@@ -20,11 +20,49 @@ export type IncidentRecord = {
   summary: string | null;
   severity: IncidentSeverity;
   status: IncidentStatus;
+  assignee: string | null;
+  runbookUrl: string | null;
   eventCount: number;
   creationReason: string;
   acknowledgedAt: Date | null;
   resolutionNote: string | null;
   samples: IncidentEventSample[];
+  timeline: Array<{
+    id: string;
+    incidentId: string;
+    timestamp: string;
+    type: string;
+    actor: string;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  comments: Array<{
+    id: string;
+    incidentId: string;
+    userId: string;
+    userName: string;
+    message: string;
+    createdAt: string;
+  }>;
+  relatedResources: Array<{
+    id: string;
+    type: string;
+    title: string;
+    url: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  postmortem: {
+    incidentId: string;
+    summary: string;
+    rootCause: string;
+    trigger: string;
+    impactDurationMinutes: number;
+    detectionTimeMinutes: number;
+    resolutionTimeMinutes: number;
+    actionItems: Array<{ id: string; description: string; assignee?: string; completed: boolean }>;
+    status: string;
+    updatedAt: string;
+  } | null;
   firstSeenAt: Date;
   lastSeenAt: Date;
   resolvedAt: Date | null;
@@ -54,6 +92,8 @@ const incidentSchema = new Schema<IncidentRecord>(
       default: "open",
       index: true,
     },
+    assignee: { type: String, default: null },
+    runbookUrl: { type: String, default: null },
     eventCount: { type: Number, required: true, min: 1, default: 1 },
     creationReason: {
       type: String,
@@ -80,6 +120,72 @@ const incidentSchema = new Schema<IncidentRecord>(
         ),
       ],
       default: [],
+    },
+    timeline: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            incidentId: { type: String, required: true },
+            timestamp: { type: String, required: true },
+            type: { type: String, required: true },
+            actor: { type: String, required: true },
+            description: { type: String, required: true },
+            metadata: { type: Schema.Types.Mixed, default: undefined },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    comments: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            incidentId: { type: String, required: true },
+            userId: { type: String, required: true },
+            userName: { type: String, required: true },
+            message: { type: String, required: true },
+            createdAt: { type: String, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    relatedResources: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            type: { type: String, required: true },
+            title: { type: String, required: true },
+            url: { type: String, required: true },
+            metadata: { type: Schema.Types.Mixed, default: undefined },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    postmortem: {
+      type: new Schema(
+        {
+          incidentId: { type: String, required: true },
+          summary: { type: String, required: true },
+          rootCause: { type: String, required: true },
+          trigger: { type: String, required: true },
+          impactDurationMinutes: { type: Number, required: true },
+          detectionTimeMinutes: { type: Number, required: true },
+          resolutionTimeMinutes: { type: Number, required: true },
+          actionItems: { type: [Schema.Types.Mixed], default: [] },
+          status: { type: String, required: true },
+          updatedAt: { type: String, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
     },
     firstSeenAt: { type: Date, required: true, index: true },
     lastSeenAt: { type: Date, required: true, index: true },

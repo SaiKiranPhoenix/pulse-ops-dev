@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { IncidentController } from "../controllers/incident.controller.js";
 import type { MonitorController } from "../controllers/monitor.controller.js";
+import type { OnCallController } from "../controllers/on-call.controller.js";
 import type { SloController } from "../controllers/slo.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
@@ -15,6 +16,7 @@ export type RouteDependencies = {
   readonly incidentController: IncidentController;
   readonly monitorController: MonitorController;
   readonly sloController: SloController;
+  readonly onCallController: OnCallController;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
@@ -57,6 +59,41 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(incidentListQuerySchema),
     asyncHandler(dependencies.incidentController.reopen),
   );
+  router.patch(
+    "/incidents/:incidentId/triage",
+    validateParams(incidentParamsSchema),
+    validateQuery(incidentListQuerySchema),
+    asyncHandler(dependencies.incidentController.triage),
+  );
+  router.post(
+    "/incidents/:incidentId/comments",
+    validateParams(incidentParamsSchema),
+    validateQuery(incidentListQuerySchema),
+    asyncHandler(dependencies.incidentController.addComment),
+  );
+  router.put(
+    "/incidents/:incidentId/postmortem",
+    validateParams(incidentParamsSchema),
+    validateQuery(incidentListQuerySchema),
+    asyncHandler(dependencies.incidentController.savePostmortem),
+  );
+  router.get(
+    "/incidents/:incidentId/export",
+    validateParams(incidentParamsSchema),
+    validateQuery(incidentListQuerySchema),
+    asyncHandler(dependencies.incidentController.exportSummary),
+  );
+
+  // On-Call & Escalation Policies
+  router.get("/on-call/schedules", asyncHandler(dependencies.onCallController.listSchedules));
+  router.post("/on-call/schedules", asyncHandler(dependencies.onCallController.createSchedule));
+  router.patch("/on-call/schedules/:id", asyncHandler(dependencies.onCallController.updateSchedule));
+  router.delete("/on-call/schedules/:id", asyncHandler(dependencies.onCallController.deleteSchedule));
+
+  router.get("/on-call/escalation-policies", asyncHandler(dependencies.onCallController.listPolicies));
+  router.post("/on-call/escalation-policies", asyncHandler(dependencies.onCallController.createPolicy));
+  router.patch("/on-call/escalation-policies/:id", asyncHandler(dependencies.onCallController.updatePolicy));
+  router.delete("/on-call/escalation-policies/:id", asyncHandler(dependencies.onCallController.deletePolicy));
 
   // Monitors
   router.get("/monitors", asyncHandler(dependencies.monitorController.list));

@@ -723,18 +723,18 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Incident Response And On-Call
 
-- [ ] Todo Add incident detail timeline.
-- [ ] Todo Add incident comments.
-- [ ] Todo Add incident assignee.
-- [ ] Todo Add incident severity changes.
-- [ ] Todo Add incident related resources: logs, traces, metrics, services, monitors.
-- [ ] Todo Add incident runbook links.
-- [ ] Todo Add postmortem notes.
-- [ ] Todo Add incident export/summary.
-- [ ] Todo Add on-call schedule model later.
-- [ ] Todo Add escalation policy model later.
-- [ ] Todo Add notification escalation later.
-- [ ] Todo Add status page integration later.
+- [x] Done Add incident detail timeline.
+- [x] Done Add incident comments.
+- [x] Done Add incident assignee.
+- [x] Done Add incident severity changes.
+- [x] Done Add incident related resources: logs, traces, metrics, services, monitors.
+- [x] Done Add incident runbook links.
+- [x] Done Add postmortem notes.
+- [x] Done Add incident export/summary.
+- [x] Done Add on-call schedule model later.
+- [x] Done Add escalation policy model later.
+- [x] Done Add notification escalation later.
+- [x] Done Add status page integration later.
 
 ## Vault Policies And Access Model
 
