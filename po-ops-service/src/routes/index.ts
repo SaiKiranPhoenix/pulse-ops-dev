@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { CustomDashboardController } from "../controllers/custom-dashboard.controller.js";
+import type { MetricsPlatformController } from "../controllers/metrics-platform.controller.js";
 import type { OpsController } from "../controllers/ops.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -7,6 +8,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 export type RouteDependencies = {
   readonly opsController: OpsController;
   readonly customDashboardController: CustomDashboardController;
+  readonly metricsPlatformController: MetricsPlatformController;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
@@ -64,6 +66,15 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   // Query Explorer
   router.get("/explorer/query", asyncHandler(dependencies.customDashboardController.queryExplorer));
   router.post("/explorer/query", asyncHandler(dependencies.customDashboardController.queryExplorer));
+
+  // Metrics Platform
+  router.get("/metrics/catalog", asyncHandler(dependencies.metricsPlatformController.listDefinitions));
+  router.post("/metrics/catalog", asyncHandler(dependencies.metricsPlatformController.createDefinition));
+  router.patch("/metrics/catalog/:id", asyncHandler(dependencies.metricsPlatformController.updateDefinition));
+  router.delete("/metrics/catalog/:id", asyncHandler(dependencies.metricsPlatformController.deleteDefinition));
+  router.get("/metrics/query", asyncHandler(dependencies.metricsPlatformController.queryMetric));
+  router.get("/metrics/services/summary", asyncHandler(dependencies.metricsPlatformController.getServiceMetricsSummary));
+  router.get("/metrics/cardinality/guardrails", asyncHandler(dependencies.metricsPlatformController.getCardinalityGuardrails));
 
   return router;
 }

@@ -1,9 +1,38 @@
-import { Activity, BarChart3, RefreshCw, Send, Timer } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
 import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Check,
+  Cpu,
+  Database,
+  Eye,
+  Filter,
+  Flame,
+  HardDrive,
+  Layers,
+  LineChart as LineChartIcon,
+  Loader2,
+  Plus,
+  Radio,
+  RefreshCw,
+  Search,
+  Send,
+  Server,
+  ShieldAlert,
+  SlidersHorizontal,
+  Table as TableIcon,
+  Trash2,
+  X,
+  Zap,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -13,396 +42,894 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
+import {
+  createMetricDefinition,
+  deleteMetricDefinition,
+  getCardinalityGuardrails,
+  getServiceMetricsSummaries,
+  listMetricDefinitions,
+  queryMetricSeries,
+  type CardinalityGuardrailStatus,
+  type MetricDefinition,
+  type MetricRollupAggregation,
+  type MetricTimeBucket,
+  type MetricTimeSeriesResult,
+  type MetricType,
+  type ServiceMetricSummary,
+} from "@/features/metrics-platform/api";
 import { getMetricSummary, type MetricSummary } from "@/features/dashboards/api";
 import { ingestMetric } from "@/features/ingestion/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import { createPulseOpsSocket, joinProjectRoom, leaveProjectRoom } from "@/lib/socket-client";
+import { cn } from "@/lib/utils";
 import { useDashboardContext } from "./DashboardLayout";
+
+const rollupOptions: Array<{ label: string; value: MetricRollupAggregation }> = [
+  { label: "Average (Avg)", value: "avg" },
+  { label: "Sum Total", value: "sum" },
+  { label: "P50 Median", value: "p50" },
+  { label: "P95 Tail Latency", value: "p95" },
+  { label: "P99 Critical Tail", value: "p99" },
+  { label: "Maximum", value: "max" },
+  { label: "Minimum", value: "min" },
+  { label: "Event Count", value: "count" },
+];
+
+const bucketOptions: Array<{ label: string; value: MetricTimeBucket }> = [
+  { label: "10 seconds", value: "10s" },
+  { label: "1 minute", value: "1m" },
+  { label: "5 minutes", value: "5m" },
+  { label: "15 minutes", value: "15m" },
+  { label: "1 hour", value: "1h" },
+];
+
+const groupByOptions = [
+  { label: "None (Overall)", value: "" },
+  { label: "Service", value: "service" },
+  { label: "Endpoint", value: "endpoint" },
+  { label: "HTTP Status Code", value: "statusCode" },
+  { label: "Host / Node", value: "host" },
+];
+
+const SERIES_COLORS = ["#10b981", "#06b6d4", "#f59e0b", "#8b5cf6", "#ec4899", "#3b82f6"];
 
 export function MetricsPage() {
   const { selectedEnvironment, selectedProject, selectedTimeRange } = useDashboardContext();
-  const [metrics, setMetrics] = useState<MetricSummary | null>(null);
+  const { notify } = useToast();
+
+  const [activeTab, setActiveTab] = useState<"explorer" | "services" | "catalog">("explorer");
+  const [metricDefs, setMetricDefs] = useState<MetricDefinition[]>([]);
+  const [serviceSummaries, setServiceSummaries] = useState<ServiceMetricSummary[]>([]);
+  const [guardrails, setGuardrails] = useState<CardinalityGuardrailStatus | null>(null);
+
+  // Explorer State
+  const [selectedMetric, setSelectedMetric] = useState<string>("http.server.requests");
+  const [aggregation, setAggregation] = useState<MetricRollupAggregation>("avg");
+  const [timeBucket, setTimeBucket] = useState<MetricTimeBucket>("1m");
+  const [groupBy, setGroupBy] = useState<string>("service");
+  const [seriesResults, setSeriesResults] = useState<MetricTimeSeriesResult[]>([]);
+  const [chartType, setChartType] = useState<"area" | "line" | "bar">("area");
+  const [isQuerying, setIsQuerying] = useState(false);
+
+  // New Metric Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newMetricName, setNewMetricName] = useState("");
+  const [newMetricType, setNewMetricType] = useState<MetricType>("counter");
+  const [newMetricUnit, setNewMetricUnit] = useState("req/s");
+  const [newMetricDesc, setNewMetricDesc] = useState("");
+  const [newMetricTags, setNewMetricTags] = useState("service, environment, host");
+
+  // Ingestion Test
   const [testApiKey, setTestApiKey] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadMetrics(): Promise<void> {
-    if (selectedProject === null) {
-      setMetrics(null);
-      return;
-    }
-
+  async function loadData(): Promise<void> {
+    if (!selectedProject) return;
     setIsLoading(true);
     setError(null);
-
     try {
-      setMetrics(
-        await getMetricSummary(selectedProject.id, {
-          environment: selectedEnvironment,
-          timeRange: selectedTimeRange,
-        }),
-      );
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      const [defs, summaries, guard] = await Promise.all([
+        listMetricDefinitions(selectedProject.id),
+        getServiceMetricsSummaries(selectedProject.id),
+        getCardinalityGuardrails(selectedProject.id),
+      ]);
+      setMetricDefs(defs);
+      setServiceSummaries(summaries);
+      setGuardrails(guard);
+      if (defs.length > 0 && !defs.some((d) => d.name === selectedMetric)) {
+        setSelectedMetric(defs[0]!.name);
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
   }
 
-  useEffect(() => {
-    void loadMetrics();
-  }, [selectedEnvironment, selectedProject?.id, selectedTimeRange]);
-
-  useEffect(() => {
-    if (selectedProject === null) {
-      return;
+  async function executeMetricQuery(): Promise<void> {
+    if (!selectedProject || !selectedMetric) return;
+    setIsQuerying(true);
+    try {
+      const series = await queryMetricSeries(selectedProject.id, {
+        metricName: selectedMetric,
+        aggregation,
+        timeBucket,
+        groupBy: groupBy || undefined,
+      });
+      setSeriesResults(series);
+    } catch (err) {
+      notify({
+        title: "Query failed",
+        description: getApiErrorMessage(err),
+        variant: "error",
+      });
+    } finally {
+      setIsQuerying(false);
     }
+  }
 
+  useEffect(() => {
+    void loadData();
+  }, [selectedProject?.id, selectedEnvironment]);
+
+  useEffect(() => {
+    void executeMetricQuery();
+  }, [selectedProject?.id, selectedMetric, aggregation, timeBucket, groupBy]);
+
+  // WebSocket Live Updates
+  useEffect(() => {
+    if (!selectedProject) return;
     const socket = createPulseOpsSocket();
+    if (!socket) return;
 
-    if (socket === null) {
-      return;
-    }
-
-    let refreshTimeout: number | null = null;
     socket.on("connect", () => {
       void joinProjectRoom(socket, selectedProject.id, selectedEnvironment);
-      void loadMetrics();
     });
     socket.on("event.created", (update) => {
-      if (update.event.type !== "metric" || refreshTimeout !== null) {
-        return;
+      if (update.event.type === "metric") {
+        void executeMetricQuery();
       }
-
-      refreshTimeout = window.setTimeout(() => {
-        refreshTimeout = null;
-        void loadMetrics();
-      }, 750);
     });
     socket.connect();
 
     return () => {
-      if (refreshTimeout !== null) {
-        window.clearTimeout(refreshTimeout);
-      }
       leaveProjectRoom(socket, selectedProject.id, selectedEnvironment);
       socket.disconnect();
     };
-  }, [selectedEnvironment, selectedProject, selectedTimeRange]);
+  }, [selectedProject?.id, selectedEnvironment, selectedMetric, aggregation, timeBucket, groupBy]);
 
-  async function sendHighLatencyTest(): Promise<void> {
-    if (testApiKey.trim().length === 0) {
-      setError("Paste an ingestion API key before sending a high-latency metric.");
+  const handleCreateMetric = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !newMetricName.trim()) return;
+
+    try {
+      const tags = newMetricTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const created = await createMetricDefinition(selectedProject.id, {
+        name: newMetricName.trim(),
+        type: newMetricType,
+        unit: newMetricUnit.trim() || undefined,
+        description: newMetricDesc.trim() || undefined,
+        tagKeys: tags,
+      });
+
+      setMetricDefs((prev) => [...prev, created]);
+      setSelectedMetric(created.name);
+      setIsCreateModalOpen(false);
+      setNewMetricName("");
+      setNewMetricDesc("");
+      notify({
+        title: "Metric Registered",
+        description: `Successfully added ${created.name} to the metric catalog.`,
+        variant: "success",
+      });
+    } catch (err) {
+      notify({
+        title: "Creation failed",
+        description: getApiErrorMessage(err),
+        variant: "error",
+      });
+    }
+  };
+
+  const handleDeleteMetric = async (id: string, name: string) => {
+    if (!selectedProject) return;
+    try {
+      await deleteMetricDefinition(selectedProject.id, id);
+      setMetricDefs((prev) => prev.filter((d) => d.id !== id));
+      notify({ title: "Metric Deleted", description: `Removed ${name}`, variant: "info" });
+    } catch (err) {
+      notify({ title: "Delete failed", description: getApiErrorMessage(err), variant: "error" });
+    }
+  };
+
+  const handleSendTestMetric = async () => {
+    if (!testApiKey.trim()) {
+      notify({ title: "API Key Required", description: "Paste an ingestion API key first.", variant: "error" });
       return;
     }
 
     setIsSendingTest(true);
-    setError(null);
-    setMessage(null);
-
     try {
       await ingestMetric(
+        { apiKey: testApiKey.trim() },
         {
-          apiKey: testApiKey.trim(),
-          idempotencyKey: `metrics-latency-demo-${crypto.randomUUID()}`,
-        },
-        {
-          source: "checkout-api",
-          name: "checkout.latency",
-          value: 1_250,
+          source: "po-api-gateway",
+          name: selectedMetric || "http.server.duration_ms",
+          value: Number((25 + Math.random() * 150).toFixed(2)),
           unit: "ms",
           attributes: {
             environment: selectedEnvironment,
-            route: "POST /checkout",
-            synthetic: true,
+            service: "po-api-gateway",
+            endpoint: "/v1/checkout",
+            statusCode: "200",
           },
         },
       );
-      setMessage("High-latency metric accepted. Refresh after the worker processes it.");
-      await loadMetrics();
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      notify({
+        title: "Test Ingested",
+        description: `Dispatched sample metric point for ${selectedMetric}.`,
+        variant: "success",
+      });
+      void executeMetricQuery();
+    } catch (err) {
+      notify({ title: "Ingestion failed", description: getApiErrorMessage(err), variant: "error" });
     } finally {
       setIsSendingTest(false);
     }
-  }
+  };
+
+  // Format chart data
+  const chartData = useMemo(() => {
+    if (seriesResults.length === 0) return [];
+    const timestampMap = new Map<string, Record<string, number | string>>();
+
+    seriesResults.forEach((series, idx) => {
+      const seriesKey = groupBy
+        ? `${series.tags[groupBy] || `Series ${idx + 1}`}`
+        : "value";
+
+      series.points.forEach((pt) => {
+        const timeLabel = new Date(pt.timestamp).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+
+        const current = timestampMap.get(pt.timestamp) || { timestamp: timeLabel, fullTime: pt.timestamp };
+        current[seriesKey] = pt.value;
+        timestampMap.set(pt.timestamp, current);
+      });
+    });
+
+    return Array.from(timestampMap.values()).sort((a, b) =>
+      String(a.fullTime).localeCompare(String(b.fullTime)),
+    );
+  }, [seriesResults, groupBy]);
+
+  const seriesKeys = useMemo(() => {
+    if (seriesResults.length === 0) return ["value"];
+    if (!groupBy) return ["value"];
+    return seriesResults.map(
+      (s, idx) => s.tags[groupBy] || `Series ${idx + 1}`,
+    );
+  }, [seriesResults, groupBy]);
+
+  const selectedMetricDef = useMemo(
+    () => metricDefs.find((d) => d.name === selectedMetric),
+    [metricDefs, selectedMetric],
+  );
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-5">
-      <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
+    <main className="mx-auto flex max-w-7xl flex-col gap-6">
+      <header className="flex flex-col gap-3 border-b border-zinc-800 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-cyan-700">
-            {selectedProject?.name ?? "No project selected"} / {selectedEnvironment} /{" "}
-            {selectedTimeRange}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-emerald-400">
+              {selectedProject?.name ?? "No project selected"} / {selectedEnvironment}
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Metrics Platform Active
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
+            Metrics & Time-Series Platform
+          </h1>
+          <p className="mt-1 max-w-3xl text-xs text-zinc-400">
+            Multi-dimensional time-bucket rollups (P50, P95, P99, Avg, Sum), cardinality guardrails, and service performance matrix.
           </p>
-          <h1 className="text-2xl font-semibold tracking-normal">Metrics explorer</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Track throughput, error rate, latency, and service-level metric samples from processed
-            telemetry.
-          </p>
         </div>
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => void loadMetrics()}
-          type="button"
-          variant="outline"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </header>
 
-      {message !== null ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {message}
-        </div>
-      ) : null}
-
-      {error !== null ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
-
-      <section className="grid gap-3 md:grid-cols-4">
-        <MetricCard
-          label="Events"
-          value={metrics?.totalEvents ?? 0}
-          icon={<Activity className="h-4 w-4" />}
-        />
-        <MetricCard
-          label="Error rate"
-          value={`${metrics?.errorRate ?? 0}%`}
-          icon={<BarChart3 className="h-4 w-4" />}
-        />
-        <MetricCard
-          label="Avg latency"
-          value={formatMs(metrics?.avgLatencyMs ?? null)}
-          icon={<Timer className="h-4 w-4" />}
-        />
-        <MetricCard
-          label="p95 latency"
-          value={formatMs(metrics?.p95LatencyMs ?? null)}
-          icon={<Timer className="h-4 w-4" />}
-        />
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        <ChartPanel
-          title="Event throughput"
-          empty={(metrics?.buckets.length ?? 0) === 0 && !isLoading}
-        >
-          <ResponsiveContainer height={280} width="100%">
-            <BarChart data={metrics?.buckets ?? []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tickLine={false} />
-              <YAxis allowDecimals={false} tickLine={false} />
-              <Tooltip />
-              <Bar dataKey="logs" fill="#0891b2" stackId="events" />
-              <Bar dataKey="errors" fill="#dc2626" stackId="events" />
-              <Bar dataKey="metrics" fill="#2563eb" stackId="events" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel
-          title="Latency avg and p95"
-          empty={(metrics?.buckets.length ?? 0) === 0 && !isLoading}
-        >
-          <ResponsiveContainer height={280} width="100%">
-            <LineChart data={metrics?.buckets ?? []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tickLine={false} />
-              <YAxis tickFormatter={(value) => `${value}ms`} tickLine={false} />
-              <Tooltip formatter={(value) => `${value}ms`} />
-              <Line
-                dataKey="avgLatencyMs"
-                dot={false}
-                name="Avg"
-                stroke="#0e7490"
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                dataKey="p95LatencyMs"
-                dot={false}
-                name="p95"
-                stroke="#b91c1c"
-                strokeWidth={2}
-                type="monotone"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <ChartPanel title="Error rate" empty={(metrics?.buckets.length ?? 0) === 0 && !isLoading}>
-          <ResponsiveContainer height={260} width="100%">
-            <LineChart data={metrics?.buckets ?? []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tickLine={false} />
-              <YAxis tickFormatter={(value) => `${value}%`} tickLine={false} />
-              <Tooltip formatter={(value) => `${value}%`} />
-              <Line
-                dataKey="errorRate"
-                dot={false}
-                name="Error rate"
-                stroke="#dc2626"
-                strokeWidth={2}
-                type="monotone"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartPanel>
-
-        <section className="rounded-md border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-            Send high-latency test
-          </h2>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className="flex items-center gap-2">
+          {/* Ingestion Test Pill */}
+          <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
             <Input
-              onChange={(event) => setTestApiKey(event.target.value)}
-              placeholder="Ingestion API key"
               type="password"
+              placeholder="Ingestion API key..."
               value={testApiKey}
+              onChange={(e) => setTestApiKey(e.target.value)}
+              className="h-7 w-36 bg-zinc-950 border-zinc-800 text-[11px]"
             />
             <Button
-              className="w-full sm:w-auto"
+              onClick={() => void handleSendTestMetric()}
               disabled={isSendingTest}
-              onClick={() => void sendHighLatencyTest()}
-              type="button"
+              className="text-xs h-7 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white gap-1"
             >
-              <Send className="h-4 w-4" />
-              Send
+              {isSendingTest ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              Send Metric
             </Button>
           </div>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Emits `checkout.latency=1250ms` for the selected environment so charts, service
-            breakdowns, and incident scripts have visible high-latency data.
-          </p>
-        </section>
-      </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-          <div className="grid min-w-[42rem] grid-cols-[1fr_5rem_5rem_5rem_6rem_7rem] gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-slate-500">
-            <span>Service</span>
-            <span>Events</span>
-            <span>Logs</span>
-            <span>Errors</span>
-            <span>Error %</span>
-            <span className="text-right">Avg latency</span>
-          </div>
-          {(metrics?.services.length ?? 0) === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">
-              {isLoading ? "Loading services" : "No service metrics yet"}
-            </p>
-          ) : (
-            <div className="min-w-[42rem] divide-y divide-slate-100">
-              {metrics?.services.map((service) => (
-                <article
-                  className="grid grid-cols-[1fr_5rem_5rem_5rem_6rem_7rem] items-center gap-3 px-4 py-3 text-sm"
-                  key={service.service}
-                >
-                  <span className="truncate font-semibold text-slate-900">{service.service}</span>
-                  <span className="font-mono text-slate-700">{service.events}</span>
-                  <span className="font-mono text-slate-700">{service.logs}</span>
-                  <span className="font-mono text-slate-700">{service.errors}</span>
-                  <span className="font-mono text-slate-700">{service.errorRate}%</span>
-                  <span className="text-right font-mono text-slate-700">
-                    {formatMs(service.avgLatencyMs)}
-                  </span>
-                </article>
-              ))}
-            </div>
-          )}
+          <Button
+            onClick={() => void loadData()}
+            variant="outline"
+            className="text-xs gap-1.5 h-9"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
+
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold gap-1.5 h-9 shadow-lg shadow-cyan-600/20"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Define Metric
+          </Button>
+        </div>
+      </header>
+
+      {/* Navigation Tabs */}
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("explorer")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all",
+              activeTab === "explorer"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60",
+            )}
+          >
+            <LineChartIcon className="w-4 h-4 text-emerald-400" />
+            Metric Explorer & Rollups
+          </button>
+
+          <button
+            onClick={() => setActiveTab("services")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all",
+              activeTab === "services"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60",
+            )}
+          >
+            <Server className="w-4 h-4 text-cyan-400" />
+            Service Performance Matrix
+          </button>
+
+          <button
+            onClick={() => setActiveTab("catalog")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all",
+              activeTab === "catalog"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60",
+            )}
+          >
+            <Database className="w-4 h-4 text-purple-400" />
+            Metric Catalog & Guardrails
+          </button>
         </div>
 
-        <div className="rounded-md border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-4 py-3">
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">
-              Metric samples
-            </h2>
+        {guardrails && guardrails.highCardinalityViolations.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>High Cardinality Warning on {guardrails.highCardinalityViolations[0]?.metricName}</span>
           </div>
-          {(metrics?.metricSamples.length ?? 0) === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">
-              {isLoading ? "Loading metrics" : "No metric samples yet"}
-            </p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {metrics?.metricSamples
-                .slice()
-                .reverse()
-                .map((sample) => (
-                  <article className="px-4 py-3" key={sample.id}>
-                    <p className="truncate text-sm font-semibold text-slate-900">{sample.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{sample.source}</p>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <span className="font-mono text-sm text-slate-700">
-                        {formatMetricValue(sample.value, sample.unit)}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {new Date(sample.observedAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function MetricCard({
-  icon,
-  label,
-  value,
-}: {
-  readonly icon: ReactNode;
-  readonly label: string;
-  readonly value: number | string;
-}) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <span className="text-cyan-700">{icon}</span>
-      </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-}
-
-function ChartPanel({
-  children,
-  empty,
-  title,
-}: {
-  readonly children: ReactNode;
-  readonly empty: boolean;
-  readonly title: string;
-}) {
-  return (
-    <section className="rounded-md border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-normal text-slate-500">{title}</h2>
-      <div className="mt-3">
-        {empty ? (
-          <p className="py-20 text-center text-sm text-slate-500">No chart data yet</p>
-        ) : (
-          children
         )}
       </div>
-    </section>
+
+      {/* Tab 1: Metric Explorer */}
+      {activeTab === "explorer" && (
+        <div className="space-y-5">
+          {/* Query Controls Toolbar */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/70 border border-zinc-800/80 p-3.5 rounded-2xl backdrop-blur-md shadow-xl">
+            {/* Metric Selector */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Metric Name</label>
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value)}
+                className="h-9 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {metricDefs.map((def) => (
+                  <option key={def.id} value={def.name}>
+                    {def.name} ({def.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Rollup Aggregation */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Rollup Aggregation</label>
+              <select
+                value={aggregation}
+                onChange={(e) => setAggregation(e.target.value as MetricRollupAggregation)}
+                className="h-9 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {rollupOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Time Bucket Granularity */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Time Bucket Window</label>
+              <select
+                value={timeBucket}
+                onChange={(e) => setTimeBucket(e.target.value as MetricTimeBucket)}
+                className="h-9 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {bucketOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Group By Tag */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Group By Dimension</label>
+              <select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value)}
+                className="h-9 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 text-xs text-white outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {groupByOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Chart Display Area */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  {selectedMetric} • {aggregation.toUpperCase()} rollup ({timeBucket} buckets)
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {selectedMetricDef?.description || "Inbound time-series telemetry"} • Unit: {selectedMetricDef?.unit || "val"}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 bg-zinc-950 border border-zinc-800 p-1 rounded-lg">
+                <button
+                  onClick={() => setChartType("area")}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-xs font-semibold transition-all",
+                    chartType === "area" ? "bg-zinc-800 text-emerald-400" : "text-zinc-500 hover:text-zinc-300",
+                  )}
+                >
+                  Area
+                </button>
+                <button
+                  onClick={() => setChartType("line")}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-xs font-semibold transition-all",
+                    chartType === "line" ? "bg-zinc-800 text-cyan-400" : "text-zinc-500 hover:text-zinc-300",
+                  )}
+                >
+                  Line
+                </button>
+                <button
+                  onClick={() => setChartType("bar")}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-xs font-semibold transition-all",
+                    chartType === "bar" ? "bg-zinc-800 text-purple-400" : "text-zinc-500 hover:text-zinc-300",
+                  )}
+                >
+                  Bar
+                </button>
+              </div>
+            </div>
+
+            <div className="h-80 w-full pt-4">
+              {isQuerying ? (
+                <div className="h-full flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-zinc-500">
+                  No time-series data available for the selected query parameters.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === "area" ? (
+                    <AreaChart data={chartData}>
+                      <defs>
+                        {seriesKeys.map((key, idx) => (
+                          <linearGradient
+                            key={key}
+                            id={`color_${key.replace(/[^a-zA-Z0-9]/g, "_")}`}
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={SERIES_COLORS[idx % SERIES_COLORS.length]}
+                              stopOpacity={0.4}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={SERIES_COLORS[idx % SERIES_COLORS.length]}
+                              stopOpacity={0.0}
+                            />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                      <XAxis dataKey="timestamp" stroke="#71717a" fontSize={10} />
+                      <YAxis stroke="#71717a" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#09090b",
+                          borderColor: "#27272a",
+                          borderRadius: "0.75rem",
+                          fontSize: "11px",
+                          color: "#fff",
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                      {seriesKeys.map((key, idx) => (
+                        <Area
+                          key={key}
+                          type="monotone"
+                          dataKey={key}
+                          stroke={SERIES_COLORS[idx % SERIES_COLORS.length]}
+                          fill={`url(#color_${key.replace(/[^a-zA-Z0-9]/g, "_")})`}
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </AreaChart>
+                  ) : chartType === "line" ? (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                      <XAxis dataKey="timestamp" stroke="#71717a" fontSize={10} />
+                      <YAxis stroke="#71717a" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#09090b",
+                          borderColor: "#27272a",
+                          borderRadius: "0.75rem",
+                          fontSize: "11px",
+                          color: "#fff",
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                      {seriesKeys.map((key, idx) => (
+                        <Line
+                          key={key}
+                          type="monotone"
+                          dataKey={key}
+                          stroke={SERIES_COLORS[idx % SERIES_COLORS.length]}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      ))}
+                    </LineChart>
+                  ) : (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                      <XAxis dataKey="timestamp" stroke="#71717a" fontSize={10} />
+                      <YAxis stroke="#71717a" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#09090b",
+                          borderColor: "#27272a",
+                          borderRadius: "0.75rem",
+                          fontSize: "11px",
+                          color: "#fff",
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                      {seriesKeys.map((key, idx) => (
+                        <Bar
+                          key={key}
+                          dataKey={key}
+                          fill={SERIES_COLORS[idx % SERIES_COLORS.length]}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      ))}
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Service Performance Matrix */}
+      {activeTab === "services" && (
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-md shadow-2xl">
+            <table className="w-full text-left text-xs text-zinc-300">
+              <thead className="border-b border-zinc-800 bg-zinc-950/60 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <th className="px-5 py-3.5">Service Name</th>
+                  <th className="px-4 py-3.5">Health Status</th>
+                  <th className="px-4 py-3.5">Throughput (RPS)</th>
+                  <th className="px-4 py-3.5">Error Rate</th>
+                  <th className="px-4 py-3.5">P95 Latency</th>
+                  <th className="px-4 py-3.5">CPU Usage</th>
+                  <th className="px-4 py-3.5">Memory</th>
+                  <th className="px-4 py-3.5 text-right">Infra Units</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-850">
+                {serviceSummaries.map((s) => (
+                  <tr key={s.serviceName} className="hover:bg-zinc-800/30 transition-colors">
+                    <td className="px-5 py-3.5 font-bold text-white font-mono flex items-center gap-2">
+                      <Server className="w-3.5 h-3.5 text-cyan-400" />
+                      {s.serviceName}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
+                          s.status === "healthy"
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                            : s.status === "degraded"
+                              ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                              : "bg-rose-500/10 border-rose-500/30 text-rose-400",
+                        )}
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 font-mono font-medium text-white">
+                      {s.throughputRps.toFixed(1)} req/s
+                    </td>
+                    <td className="px-4 py-3.5 font-mono">
+                      <span className={cn(s.errorRatePercent > 1.0 ? "text-rose-400 font-bold" : "text-zinc-300")}>
+                        {s.errorRatePercent.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 font-mono font-medium text-white">
+                      {s.p95LatencyMs.toFixed(1)} ms
+                    </td>
+                    <td className="px-4 py-3.5 font-mono">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              s.cpuUsagePercent > 70 ? "bg-rose-500" : "bg-emerald-400",
+                            )}
+                            style={{ width: `${s.cpuUsagePercent}%` }}
+                          />
+                        </div>
+                        <span>{s.cpuUsagePercent.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 font-mono text-zinc-300">
+                      {s.memoryUsageMb} MB
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-mono text-zinc-500">
+                      {s.hostCount} hosts • {s.containerCount} cont
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Metric Catalog & Guardrails */}
+      {activeTab === "catalog" && (
+        <div className="space-y-6">
+          {/* Guardrails Card */}
+          {guardrails && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <Database className="w-4 h-4" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider">Registered Metrics</h4>
+                </div>
+                <p className="text-2xl font-bold text-white mt-2 font-mono">{guardrails.totalMetrics}</p>
+                <p className="text-[11px] text-zinc-500 mt-1">Catalog metric types</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <Layers className="w-4 h-4" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider">Active Dimension Tags</h4>
+                </div>
+                <p className="text-2xl font-bold text-white mt-2 font-mono">{guardrails.activeTagsCount}</p>
+                <p className="text-[11px] text-zinc-500 mt-1">Indexed tag dimensions</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <ShieldAlert className="w-4 h-4" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider">Cardinality Guardrails</h4>
+                </div>
+                <p className="text-2xl font-bold text-white mt-2 font-mono">
+                  {guardrails.highCardinalityViolations.length} Warnings
+                </p>
+                <p className="text-[11px] text-zinc-500 mt-1">Tag key limits enforced (max 1000/hr)</p>
+              </div>
+            </div>
+          )}
+
+          {/* Metric Catalog Table */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-md shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Metric Catalog Definitions</h3>
+              <span className="text-xs text-zinc-500">{metricDefs.length} metrics defined</span>
+            </div>
+
+            <div className="divide-y divide-zinc-850">
+              {metricDefs.map((def) => (
+                <div
+                  key={def.id}
+                  className="p-4 flex items-center justify-between hover:bg-zinc-800/20 transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white font-mono">{def.name}</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase">
+                        {def.type}
+                      </span>
+                      {def.unit && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] bg-zinc-800 text-zinc-400 font-mono">
+                          unit: {def.unit}
+                        </span>
+                      )}
+                    </div>
+                    {def.description && (
+                      <p className="text-xs text-zinc-400">{def.description}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-1 pt-1">
+                      <span className="text-[10px] text-zinc-500 font-semibold uppercase mr-1">Tags:</span>
+                      {def.tagKeys.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800/80 text-zinc-300 font-mono"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right text-[11px] text-zinc-500 font-mono">
+                      <p>Limit: {def.cardinalityLimit}</p>
+                      <p>Retention: {def.retentionDays}d</p>
+                    </div>
+                    {def.projectId !== "default" && (
+                      <Button
+                        onClick={() => void handleDeleteMetric(def.id, def.name)}
+                        variant="ghost"
+                        className="text-rose-400 hover:text-rose-300 h-8 px-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Define Custom Metric */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-cyan-400" />
+                Define Catalog Metric
+              </h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMetric} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Metric Name</label>
+                <Input
+                  required
+                  placeholder="e.g. app.checkout.amount"
+                  value={newMetricName}
+                  onChange={(e) => setNewMetricName(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Metric Type</label>
+                  <select
+                    value={newMetricType}
+                    onChange={(e) => setNewMetricType(e.target.value as MetricType)}
+                    className="h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 text-xs text-white"
+                  >
+                    <option value="counter">Counter</option>
+                    <option value="gauge">Gauge</option>
+                    <option value="histogram">Histogram</option>
+                    <option value="summary">Summary</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Unit</label>
+                  <Input
+                    placeholder="e.g. ms, req/s, %, MB"
+                    value={newMetricUnit}
+                    onChange={(e) => setNewMetricUnit(e.target.value)}
+                    className="bg-zinc-950 border-zinc-800 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Description</label>
+                <Input
+                  placeholder="What this metric measures..."
+                  value={newMetricDesc}
+                  onChange={(e) => setNewMetricDesc(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Indexed Tag Keys (comma-separated)</label>
+                <Input
+                  placeholder="service, environment, region, host"
+                  value={newMetricTags}
+                  onChange={(e) => setNewMetricTags(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-xs text-zinc-400">
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium">
+                  Register Metric
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
   );
-}
-
-function formatMs(value: number | null): string {
-  return value === null ? "-" : `${Math.round(value)}ms`;
-}
-
-function formatMetricValue(value: number, unit: string | null): string {
-  return unit === null ? String(value) : `${value}${unit}`;
 }

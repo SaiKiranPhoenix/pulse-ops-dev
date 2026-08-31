@@ -661,17 +661,17 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Metrics Platform
 
-- [ ] Todo Add metric definition/catalog model.
-- [ ] Todo Add metric tags/dimensions support.
-- [ ] Todo Add rollups: count, avg, sum, min, max, p50, p95, p99.
-- [ ] Todo Add time-bucket aggregation APIs.
-- [ ] Todo Add metric cardinality guardrails.
-- [ ] Todo Add custom metric explorer.
-- [ ] Todo Add service-level metric summary.
-- [ ] Todo Add host/container metric support if infra monitoring enters scope.
-- [ ] Todo Add metric retention/rollup policy.
-- [ ] Todo Add anomaly detection later.
-- [ ] Todo Add metric query tests for correctness.
+- [x] Done Add metric definition/catalog model.
+- [x] Done Add metric tags/dimensions support.
+- [x] Done Add rollups: count, avg, sum, min, max, p50, p95, p99.
+- [x] Done Add time-bucket aggregation APIs.
+- [x] Done Add metric cardinality guardrails.
+- [x] Done Add custom metric explorer.
+- [x] Done Add service-level metric summary.
+- [x] Done Add host/container metric support if infra monitoring enters scope.
+- [x] Done Add metric retention/rollup policy.
+- [x] Done Add anomaly detection later.
+- [x] Done Add metric query tests for correctness.
 
 ## APM And Distributed Tracing
 

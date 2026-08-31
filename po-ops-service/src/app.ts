@@ -28,5 +28,6 @@ function toRouteDependencies(dependencies: OpsServiceDependencies): RouteDepende
   return {
     opsController: dependencies.opsController,
     customDashboardController: dependencies.customDashboardController,
+    metricsPlatformController: dependencies.metricsPlatformController,
   };
 }

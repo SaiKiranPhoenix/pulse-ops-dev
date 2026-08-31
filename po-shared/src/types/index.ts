@@ -5,3 +5,4 @@ export * from "./monitor.js";
 export * from "./slo.js";
 export * from "./custom-dashboard.js";
 export * from "./log-pipeline.js";
+export * from "./metrics-platform.js";

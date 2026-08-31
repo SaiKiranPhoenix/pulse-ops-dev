@@ -5,12 +5,14 @@ import {
   type PulseRedisClient,
 } from "@pulseops/shared";
 import { CustomDashboardController } from "../controllers/custom-dashboard.controller.js";
+import { MetricsPlatformController } from "../controllers/metrics-platform.controller.js";
 import { OpsController } from "../controllers/ops.controller.js";
 import {
   createRealtimeQueueStatusPublisher,
   type RealtimeQueueStatusPublisher,
 } from "../events/publishers/realtime-queue-status.publisher.js";
 import { CustomDashboardRepository } from "../repositories/custom-dashboard.repository.js";
+import { MetricsPlatformRepository } from "../repositories/metrics-platform.repository.js";
 import {
   RabbitQueueStatusRepository,
   type QueueStatusRepository,
@@ -28,6 +30,8 @@ export type OpsServiceDependencies = {
   readonly customDashboardController: CustomDashboardController;
   readonly customDashboardRepo: CustomDashboardRepository;
   readonly queryExplorerService: QueryExplorerService;
+  readonly metricsPlatformController: MetricsPlatformController;
+  readonly metricsPlatformRepo: MetricsPlatformRepository;
   close(): Promise<void>;
 };
 
@@ -73,12 +77,17 @@ export function createOpsServiceDependenciesFromRepositories(options: {
     queryExplorerService,
   );
 
+  const metricsPlatformRepo = new MetricsPlatformRepository();
+  const metricsPlatformController = new MetricsPlatformController(metricsPlatformRepo);
+
   return {
     opsController: new OpsController(opsService),
     opsService,
     customDashboardController,
     customDashboardRepo,
     queryExplorerService,
+    metricsPlatformController,
+    metricsPlatformRepo,
     async close(): Promise<void> {
       await options.close?.();
       if (options.redis !== undefined) {
