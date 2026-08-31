@@ -1,35 +1,34 @@
 import type { CustomDashboard, DashboardWidget } from "@pulseops/shared";
-import {
-  CustomDashboardModel,
-  type CustomDashboardDocument,
-} from "../models/custom-dashboard.model.js";
 
 export class CustomDashboardRepository {
+  private readonly store = new Map<string, CustomDashboard>();
+
   async list(projectId: string): Promise<CustomDashboard[]> {
-    const docs = await CustomDashboardModel.find({ projectId })
-      .sort({ isDefault: -1, createdAt: -1 })
-      .lean<CustomDashboardDocument[]>();
-    return docs.map((doc) => this.toDto(doc));
+    const list = Array.from(this.store.values()).filter((d) => d.projectId === projectId);
+    return list.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
   }
 
   async findById(projectId: string, id: string): Promise<CustomDashboard | null> {
-    const doc = await CustomDashboardModel.findOne({ _id: id, projectId }).lean<CustomDashboardDocument | null>();
-    return doc ? this.toDto(doc) : null;
+    const found = this.store.get(id);
+    if (!found || found.projectId !== projectId) return null;
+    return found;
   }
 
   async create(
     projectId: string,
     input: {
-      name: string;
-      description?: string;
-      templateKey?: string;
-      widgets?: DashboardWidget[];
-      tags?: string[];
-      refreshIntervalSeconds?: number;
-      isDefault?: boolean;
+      readonly name: string;
+      readonly description?: string | undefined;
+      readonly templateKey?: string | undefined;
+      readonly widgets?: DashboardWidget[] | undefined;
+      readonly tags?: string[] | undefined;
+      readonly refreshIntervalSeconds?: number | undefined;
+      readonly isDefault?: boolean | undefined;
     },
   ): Promise<CustomDashboard> {
-    const doc = await CustomDashboardModel.create({
+    const id = `dash_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const doc: CustomDashboard = {
+      id,
       projectId,
       name: input.name,
       description: input.description,
@@ -38,34 +37,50 @@ export class CustomDashboardRepository {
       tags: input.tags ?? [],
       refreshIntervalSeconds: input.refreshIntervalSeconds ?? 30,
       isDefault: input.isDefault ?? false,
-    });
-    return this.toDto(doc.toObject() as CustomDashboardDocument);
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.store.set(id, doc);
+    return doc;
   }
 
   async update(
     projectId: string,
     id: string,
-    input: Partial<{
-      name: string;
-      description?: string;
-      templateKey?: string;
-      widgets?: DashboardWidget[];
-      tags?: string[];
-      refreshIntervalSeconds?: number;
-      isDefault?: boolean;
-    }>,
+    input: {
+      readonly name?: string | undefined;
+      readonly description?: string | undefined;
+      readonly templateKey?: string | undefined;
+      readonly widgets?: DashboardWidget[] | undefined;
+      readonly tags?: string[] | undefined;
+      readonly refreshIntervalSeconds?: number | undefined;
+      readonly isDefault?: boolean | undefined;
+    },
   ): Promise<CustomDashboard | null> {
-    const doc = await CustomDashboardModel.findOneAndUpdate(
-      { _id: id, projectId },
-      { $set: input },
-      { new: true },
-    ).lean<CustomDashboardDocument | null>();
-    return doc ? this.toDto(doc) : null;
+    const existing = await this.findById(projectId, id);
+    if (!existing) return null;
+
+    const updated: CustomDashboard = {
+      ...existing,
+      name: input.name ?? existing.name,
+      description: input.description !== undefined ? input.description : existing.description,
+      templateKey: input.templateKey !== undefined ? input.templateKey : existing.templateKey,
+      widgets: input.widgets ?? existing.widgets,
+      tags: input.tags ?? existing.tags,
+      refreshIntervalSeconds: input.refreshIntervalSeconds ?? existing.refreshIntervalSeconds,
+      isDefault: input.isDefault ?? existing.isDefault,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.store.set(id, updated);
+    return updated;
   }
 
   async delete(projectId: string, id: string): Promise<boolean> {
-    const res = await CustomDashboardModel.deleteOne({ _id: id, projectId });
-    return res.deletedCount > 0;
+    const existing = await this.findById(projectId, id);
+    if (!existing) return false;
+    return this.store.delete(id);
   }
 
   async clone(projectId: string, id: string, newName?: string): Promise<CustomDashboard | null> {
@@ -83,21 +98,5 @@ export class CustomDashboardRepository {
     });
 
     return cloned;
-  }
-
-  private toDto(doc: CustomDashboardDocument): CustomDashboard {
-    return {
-      id: doc._id.toString(),
-      projectId: doc.projectId,
-      name: doc.name,
-      description: doc.description,
-      templateKey: doc.templateKey,
-      widgets: doc.widgets ?? [],
-      tags: doc.tags ?? [],
-      refreshIntervalSeconds: doc.refreshIntervalSeconds ?? 30,
-      isDefault: doc.isDefault ?? false,
-      createdAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
-      updatedAt: doc.updatedAt?.toISOString() ?? new Date().toISOString(),
-    };
   }
 }

@@ -883,6 +883,18 @@ export function CustomDashboardsPage() {
                 </div>
               )}
 
+              {(widgetType === "log_stream" || widgetType === "incident_list" || widgetType === "toplist") && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">Filter Query (Optional)</label>
+                  <Input
+                    placeholder="status:open, service:po-event-workers"
+                    value={widgetFilter}
+                    onChange={(e) => setWidgetFilter(e.target.value)}
+                    className="bg-zinc-950 border-zinc-800 text-xs"
+                  />
+                </div>
+              )}
+
               {widgetType === "markdown" && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-zinc-300">Markdown Content</label>

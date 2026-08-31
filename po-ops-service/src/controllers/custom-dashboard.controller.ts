@@ -9,8 +9,13 @@ export class CustomDashboardController {
     private readonly explorerService: QueryExplorerService,
   ) {}
 
+  private getProjectId(req: Request): string {
+    const raw = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    return typeof raw === "string" ? raw : "";
+  }
+
   list = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
     const dashboards = await this.dashboardRepo.list(projectId);
 
     res.status(200).json({
@@ -20,8 +25,8 @@ export class CustomDashboardController {
   };
 
   detail = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { dashboardId } = req.params;
+    const projectId = this.getProjectId(req);
+    const dashboardId = String(req.params.dashboardId || "");
 
     const dashboard = await this.dashboardRepo.findById(projectId, dashboardId);
     if (!dashboard) {
@@ -35,7 +40,7 @@ export class CustomDashboardController {
   };
 
   create = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
     const dashboard = await this.dashboardRepo.create(projectId, req.body);
 
     res.status(201).json({
@@ -45,8 +50,8 @@ export class CustomDashboardController {
   };
 
   update = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { dashboardId } = req.params;
+    const projectId = this.getProjectId(req);
+    const dashboardId = String(req.params.dashboardId || "");
 
     const updated = await this.dashboardRepo.update(projectId, dashboardId, req.body);
     if (!updated) {
@@ -60,8 +65,8 @@ export class CustomDashboardController {
   };
 
   remove = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { dashboardId } = req.params;
+    const projectId = this.getProjectId(req);
+    const dashboardId = String(req.params.dashboardId || "");
 
     const deleted = await this.dashboardRepo.delete(projectId, dashboardId);
     if (!deleted) {
@@ -75,11 +80,15 @@ export class CustomDashboardController {
   };
 
   clone = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
-    const { dashboardId } = req.params;
+    const projectId = this.getProjectId(req);
+    const dashboardId = String(req.params.dashboardId || "");
     const { name } = req.body ?? {};
 
-    const cloned = await this.dashboardRepo.clone(projectId, dashboardId, name);
+    const cloned = await this.dashboardRepo.clone(
+      projectId,
+      dashboardId,
+      typeof name === "string" ? name : undefined,
+    );
     if (!cloned) {
       throw notFound("Custom dashboard not found to clone");
     }
@@ -91,7 +100,7 @@ export class CustomDashboardController {
   };
 
   queryExplorer = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
     const queryPayload = req.method === "POST" ? req.body : req.query;
 
     const results = await this.explorerService.executeQuery(projectId, {
@@ -113,7 +122,7 @@ export class CustomDashboardController {
   };
 
   seedTemplates = async (req: Request, res: Response): Promise<void> => {
-    const projectId = (req.query.projectId as string) || (req.headers["x-project-id"] as string);
+    const projectId = this.getProjectId(req);
 
     const templates = [
       {
