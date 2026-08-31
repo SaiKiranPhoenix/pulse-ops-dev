@@ -31,5 +31,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 function toRouteDependencies(dependencies: VaultServiceDependencies): RouteDependencies {
   return {
     vaultController: dependencies.vaultController,
+    vaultPolicyController: dependencies.vaultPolicyController,
+    vaultEngineController: dependencies.vaultEngineController,
   };
 }

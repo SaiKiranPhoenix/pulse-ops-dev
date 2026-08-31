@@ -7,12 +7,25 @@ export type EncryptedSecretValue = {
   salt: string;
 };
 
+export type SecretMetadataRecord = {
+  maxVersions?: number;
+  casRequired?: boolean;
+  deleteProtection?: boolean;
+  customMetadata?: Record<string, string>;
+  expiresAt?: Date | null;
+  ttlSeconds?: number;
+  rotationPeriodDays?: number;
+  nextRotationDate?: Date | null;
+  autoRotateEnabled?: boolean;
+};
+
 export type VaultSecretRecord = {
   projectId: string;
   environment: string;
   key: string;
   encryptedValue: EncryptedSecretValue;
   versions: VaultSecretVersionRecord[];
+  metadata?: SecretMetadataRecord;
   version: number;
   status: "active" | "deleted";
   createdBy: string | null;
@@ -25,7 +38,9 @@ export type VaultSecretDocument = HydratedDocument<VaultSecretRecord>;
 
 export type VaultSecretVersionRecord = {
   version: number;
-  status: "rotated" | "deleted";
+  status: "rotated" | "deleted" | "destroyed";
+  isDeleted?: boolean;
+  destroyedAt?: Date | null;
   actorId: string | null;
   occurredAt: Date;
 };
@@ -51,7 +66,9 @@ const vaultSecretSchema = new Schema<VaultSecretRecord>(
         new Schema<VaultSecretVersionRecord>(
           {
             version: { type: Number, required: true, min: 1 },
-            status: { type: String, enum: ["rotated", "deleted"], required: true },
+            status: { type: String, enum: ["rotated", "deleted", "destroyed"], required: true },
+            isDeleted: { type: Boolean, default: false },
+            destroyedAt: { type: Date, default: null },
             actorId: { type: String, default: null },
             occurredAt: { type: Date, required: true },
           },
@@ -60,6 +77,23 @@ const vaultSecretSchema = new Schema<VaultSecretRecord>(
       ],
       default: [],
       select: false,
+    },
+    metadata: {
+      type: new Schema<SecretMetadataRecord>(
+        {
+          maxVersions: { type: Number, default: 10 },
+          casRequired: { type: Boolean, default: false },
+          deleteProtection: { type: Boolean, default: false },
+          customMetadata: { type: Map, of: String, default: {} },
+          expiresAt: { type: Date, default: null },
+          ttlSeconds: { type: Number, default: null },
+          rotationPeriodDays: { type: Number, default: null },
+          nextRotationDate: { type: Date, default: null },
+          autoRotateEnabled: { type: Boolean, default: false },
+        },
+        { _id: false },
+      ),
+      default: {},
     },
     version: { type: Number, required: true, default: 1, min: 1 },
     status: {

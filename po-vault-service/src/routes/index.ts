@@ -1,5 +1,7 @@
 import { Router } from "express";
 import type { VaultController } from "../controllers/vault.controller.js";
+import type { VaultPolicyController } from "../controllers/vault-policy.controller.js";
+import type { VaultEngineController } from "../controllers/vault-engine.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.middleware.js";
 import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -16,6 +18,8 @@ import {
 
 export type RouteDependencies = {
   readonly vaultController: VaultController;
+  readonly vaultPolicyController: VaultPolicyController;
+  readonly vaultEngineController: VaultEngineController;
 };
 
 export function createRoutes(dependencies: RouteDependencies): Router {
@@ -32,6 +36,7 @@ export function createRoutes(dependencies: RouteDependencies): Router {
 
   router.use(createAuthMiddleware());
 
+  // --- KV SECRETS ---
   router.post(
     "/vault/secrets",
     validateBody(createSecretBodySchema),
@@ -66,6 +71,84 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.delete),
   );
+
+  // --- KV v2 METADATA & VERSION LIFECYCLE ---
+  router.patch(
+    "/vault/secrets/:environment/:key/metadata",
+    asyncHandler(dependencies.vaultEngineController.updateSecretMetadata),
+  );
+  router.post(
+    "/vault/secrets/:environment/:key/versions/:version/soft-delete",
+    asyncHandler(dependencies.vaultEngineController.softDeleteVersion),
+  );
+  router.post(
+    "/vault/secrets/:environment/:key/versions/:version/undelete",
+    asyncHandler(dependencies.vaultEngineController.undeleteVersion),
+  );
+  router.delete(
+    "/vault/secrets/:environment/:key/versions/:version/destroy",
+    asyncHandler(dependencies.vaultEngineController.destroyVersion),
+  );
+
+  // --- POLICIES & ACCESS MODEL ---
+  router.get(
+    "/vault/policies",
+    asyncHandler(dependencies.vaultPolicyController.list),
+  );
+  router.post(
+    "/vault/policies",
+    asyncHandler(dependencies.vaultPolicyController.create),
+  );
+  router.get(
+    "/vault/policies/:policyId",
+    asyncHandler(dependencies.vaultPolicyController.get),
+  );
+  router.put(
+    "/vault/policies/:policyId",
+    asyncHandler(dependencies.vaultPolicyController.update),
+  );
+  router.delete(
+    "/vault/policies/:policyId",
+    asyncHandler(dependencies.vaultPolicyController.delete),
+  );
+  router.post(
+    "/vault/policies/simulate",
+    asyncHandler(dependencies.vaultPolicyController.simulate),
+  );
+
+  // --- DYNAMIC DATABASE SECRETS ENGINE ---
+  router.post(
+    "/vault/dynamic/database/creds",
+    asyncHandler(dependencies.vaultEngineController.generateDynamicDb),
+  );
+  router.get(
+    "/vault/dynamic/database/creds",
+    asyncHandler(dependencies.vaultEngineController.listDynamicDb),
+  );
+  router.post(
+    "/vault/dynamic/database/creds/:leaseId/renew",
+    asyncHandler(dependencies.vaultEngineController.renewDynamicDb),
+  );
+  router.post(
+    "/vault/dynamic/database/creds/:leaseId/revoke",
+    asyncHandler(dependencies.vaultEngineController.revokeDynamicDb),
+  );
+
+  // --- TRANSIT ENCRYPTION ENGINE ---
+  router.post(
+    "/vault/transit/encrypt",
+    asyncHandler(dependencies.vaultEngineController.transitEncrypt),
+  );
+  router.post(
+    "/vault/transit/decrypt",
+    asyncHandler(dependencies.vaultEngineController.transitDecrypt),
+  );
+  router.post(
+    "/vault/transit/keys/:keyName/rotate",
+    asyncHandler(dependencies.vaultEngineController.transitRotate),
+  );
+
+  // --- TOKENS ---
   router.post(
     "/vault/tokens",
     validateBody(createVaultTokenBodySchema),
@@ -90,3 +173,4 @@ export function createRoutes(dependencies: RouteDependencies): Router {
 
   return router;
 }
+

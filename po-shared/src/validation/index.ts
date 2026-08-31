@@ -9,3 +9,4 @@ export * from "./apm-tracing.schema.js";
 export * from "./infrastructure.schema.js";
 export * from "./uptime-rum.schema.js";
 export * from "./incident-response.schema.js";
+export * from "./vault-policy.schema.js";

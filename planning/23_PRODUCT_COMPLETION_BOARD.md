@@ -738,31 +738,31 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Vault Policies And Access Model
 
-- [ ] Todo Add vault policy model.
-- [ ] Todo Add policy language or structured policy builder.
-- [ ] Todo Add project/environment/key path permissions.
-- [ ] Todo Add policy assignment to users, roles, service accounts, and tokens.
-- [ ] Todo Add deny-by-default enforcement.
-- [ ] Todo Add policy simulator UI.
-- [ ] Todo Add "why denied" safe explanation.
-- [ ] Todo Add policy version history.
-- [ ] Todo Add policy tests.
-- [ ] Todo Add production environment extra confirmation.
+- [x] Done Add vault policy model.
+- [x] Done Add policy language or structured policy builder.
+- [x] Done Add project/environment/key path permissions.
+- [x] Done Add policy assignment to users, roles, service accounts, and tokens.
+- [x] Done Add deny-by-default enforcement.
+- [x] Done Add policy simulator UI.
+- [x] Done Add "why denied" safe explanation.
+- [x] Done Add policy version history.
+- [x] Done Add policy tests.
+- [x] Done Add production environment extra confirmation.
 
 ## Vault Secret Engines
 
-- [ ] Todo Keep current encrypted env-secret storage as KV engine.
-- [ ] Todo Add KV v2-style version history.
-- [ ] Todo Add soft delete and undelete.
-- [ ] Todo Add destroy version operation.
-- [ ] Todo Add secret metadata separate from secret versions.
-- [ ] Todo Add secret expiration metadata.
-- [ ] Todo Add secret rotation reminders.
-- [ ] Todo Add dynamic database credentials as future engine.
-- [ ] Todo Add leased credentials model for dynamic secrets.
-- [ ] Todo Add SSH/API token broker as future engine if needed.
-- [ ] Todo Add transit encryption engine as future engine.
-- [ ] Todo Add PKI/certificate engine as explicit non-goal or future feature.
+- [x] Done Keep current encrypted env-secret storage as KV engine.
+- [x] Done Add KV v2-style version history.
+- [x] Done Add soft delete and undelete.
+- [x] Done Add destroy version operation.
+- [x] Done Add secret metadata separate from secret versions.
+- [x] Done Add secret expiration metadata.
+- [x] Done Add secret rotation reminders.
+- [x] Done Add dynamic database credentials as future engine.
+- [x] Done Add leased credentials model for dynamic secrets.
+- [x] Done Add SSH/API token broker as future engine if needed.
+- [x] Done Add transit encryption engine as future engine.
+- [x] Done Add PKI/certificate engine as explicit non-goal or future feature.
 
 ## Vault Auth Methods And Identity
 
