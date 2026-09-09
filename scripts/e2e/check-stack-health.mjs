@@ -3,27 +3,12 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-const requiredServices = [
-  "mongodb",
-  "redis",
-  "rabbitmq",
-  "mailhog",
-  "po-ui",
-  "po-api-gateway",
-  "po-auth-project-service",
-  "po-ingestion-service",
-  "po-event-workers",
-  "po-incident-service",
-  "po-realtime-gateway",
-  "po-vault-service",
-  "po-audit-service",
-  "po-ops-service",
-];
+const requiredServices = ["mongodb", "redis", "rabbitmq", "mailhog", "po-ui", "po-backend"];
 
 const healthUrls = [
   process.env.PULSEOPS_E2E_UI_URL ?? "http://localhost:3000",
   process.env.PULSEOPS_API_BASE_URL ?? "http://localhost:4000/health",
-  process.env.PULSEOPS_REALTIME_URL ?? "http://localhost:4130/health",
+  process.env.PULSEOPS_REALTIME_URL ?? "http://localhost:4000/health",
 ];
 
 try {
