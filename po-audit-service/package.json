@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server.js",
+    "audit:integrity": "tsx src/scripts/check-integrity.ts",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {

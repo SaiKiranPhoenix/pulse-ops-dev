@@ -7,6 +7,8 @@ import { MongoVaultSecretRepository } from "../repositories/vault-secret.reposit
 import { MongoVaultTokenRepository } from "../repositories/vault-token.repository.js";
 import { MongoVaultAuthMethodRepository } from "../repositories/vault-auth-method.repository.js";
 import { MongoVaultIdentityRepository } from "../repositories/vault-identity.repository.js";
+import { MongoVaultLeaseRepository } from "../repositories/vault-lease.repository.js";
+import { MongoVaultSecretConsumerRepository } from "../repositories/vault-secret-consumer.repository.js";
 import { AesGcmSecretCryptoService } from "./secret-crypto.service.js";
 import { VaultService } from "./vault.service.js";
 import { VaultPolicyService } from "./vault-policy.service.js";
@@ -34,6 +36,8 @@ export function createVaultServiceDependencies(): VaultServiceDependencies {
     auditPublisher,
     new MongoVaultAuthMethodRepository(),
     new MongoVaultIdentityRepository(),
+    new MongoVaultLeaseRepository(),
+    new MongoVaultSecretConsumerRepository(),
   );
   const vaultPolicyService = new VaultPolicyService();
   const dynamicSecretService = new DynamicSecretService();

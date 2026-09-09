@@ -11,4 +11,16 @@ export const auditListQuerySchema = z.object({
   occurredBefore: z.string().datetime().optional(),
 });
 
+export const auditReportQuerySchema = auditListQuerySchema.pick({
+  projectId: true,
+  occurredAfter: true,
+  occurredBefore: true,
+});
+
+export const auditIntegrityQuerySchema = auditListQuerySchema.pick({
+  projectId: true,
+});
+
 export type AuditListQuery = z.infer<typeof auditListQuerySchema>;
+export type AuditReportQuery = z.infer<typeof auditReportQuerySchema>;
+export type AuditIntegrityQuery = z.infer<typeof auditIntegrityQuerySchema>;

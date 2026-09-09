@@ -5,6 +5,13 @@ export type EncryptedSecretValue = {
   iv: string;
   tag: string;
   salt: string;
+  keyVersion?: number;
+  kdf?: {
+    algorithm: "scrypt";
+    cost: number;
+    blockSize: number;
+    parallelization: number;
+  };
 };
 
 export type SecretMetadataRecord = {
@@ -51,6 +58,19 @@ const encryptedValueSchema = new Schema<EncryptedSecretValue>(
     iv: { type: String, required: true },
     tag: { type: String, required: true },
     salt: { type: String, required: true },
+    keyVersion: { type: Number, default: 1, min: 1 },
+    kdf: {
+      type: new Schema<EncryptedSecretValue["kdf"]>(
+        {
+          algorithm: { type: String, enum: ["scrypt"], default: "scrypt" },
+          cost: { type: Number, default: 16384 },
+          blockSize: { type: Number, default: 8 },
+          parallelization: { type: Number, default: 1 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   { _id: false },
 );

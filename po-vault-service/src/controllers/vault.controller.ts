@@ -4,6 +4,7 @@ import { getAuthContext } from "../middlewares/auth.middleware.js";
 import type { VaultService } from "../services/vault.service.js";
 import type {
   AppRoleLoginBody,
+  BundleFetchParams,
   CreateVaultAuthMethodBody,
   CreateSecretBody,
   CreateVaultTokenBody,
@@ -12,6 +13,7 @@ import type {
   SecretQuery,
   UpdateSecretBody,
   VaultAuthMethodParams,
+  VaultLeaseParams,
   VaultTokenParams,
 } from "../validators/vault.validator.js";
 
@@ -176,6 +178,51 @@ export class VaultController {
     response.status(200).json(successResponse({ identities }, String(response.locals.requestId)));
   };
 
+  listLeases = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const leases = await this.vault.listLeases(query.projectId);
+
+    response.status(200).json(successResponse({ leases }, String(response.locals.requestId)));
+  };
+
+  renewLease = async (request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const params = response.locals.validatedParams as VaultLeaseParams;
+    const lease = await this.vault.renewLease(
+      query.projectId,
+      params.leaseId,
+      auditContext(request, response),
+    );
+
+    response.status(200).json(successResponse({ lease }, String(response.locals.requestId)));
+  };
+
+  revokeLease = async (request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const params = response.locals.validatedParams as VaultLeaseParams;
+    const lease = await this.vault.revokeLease(
+      query.projectId,
+      params.leaseId,
+      auditContext(request, response),
+    );
+
+    response.status(200).json(successResponse({ lease }, String(response.locals.requestId)));
+  };
+
+  listSecretConsumers = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const consumers = await this.vault.listSecretConsumers(query.projectId);
+
+    response.status(200).json(successResponse({ consumers }, String(response.locals.requestId)));
+  };
+
+  listRotationSchedule = async (_request: Request, response: Response): Promise<void> => {
+    const query = response.locals.validatedQuery as SecretQuery;
+    const rotations = await this.vault.listRotationSchedule(query.projectId);
+
+    response.status(200).json(successResponse({ rotations }, String(response.locals.requestId)));
+  };
+
   loginAppRole = async (_request: Request, response: Response): Promise<void> => {
     const body = response.locals.validatedBody as AppRoleLoginBody;
     const token = await this.vault.loginAppRole({
@@ -199,6 +246,18 @@ export class VaultController {
 
     setNoStore(response);
     response.status(200).json(successResponse({ secret }, String(response.locals.requestId)));
+  };
+
+  fetchEnvironmentBundleWithToken = async (request: Request, response: Response): Promise<void> => {
+    const params = response.locals.validatedParams as BundleFetchParams;
+    const bundle = await this.vault.fetchEnvironmentBundleWithToken({
+      rawToken: extractVaultToken(request),
+      environment: params.environment,
+      correlationId: String(response.locals.requestId ?? "unknown"),
+    });
+
+    setNoStore(response);
+    response.status(200).json(successResponse({ bundle }, String(response.locals.requestId)));
   };
 }
 

@@ -27,6 +27,17 @@ import type {
   UpsertVaultIdentityInput,
   VaultIdentityRepository,
 } from "../../src/repositories/vault-identity.repository.js";
+import type {
+  CreateVaultLeaseInput,
+  SafeVaultLeaseRecord,
+  VaultLeaseRepository,
+} from "../../src/repositories/vault-lease.repository.js";
+import type {
+  RecordSecretConsumerInput,
+  SafeVaultSecretConsumerRecord,
+  VaultSecretConsumerRepository,
+} from "../../src/repositories/vault-secret-consumer.repository.js";
+import { AesGcmSecretCryptoService } from "../../src/services/secret-crypto.service.js";
 import type { SecretCryptoService } from "../../src/services/secret-crypto.service.js";
 import { VaultService } from "../../src/services/vault.service.js";
 import { VaultTokenHasher } from "../../src/services/vault-token-hasher.service.js";
@@ -80,6 +91,18 @@ class InMemorySecretRepository implements VaultSecretRepository {
 
   async list(): Promise<SafeVaultSecretRecord[]> {
     return this.secrets.map(withoutValue);
+  }
+
+  async listActiveWithValues(
+    projectId: string,
+    environment: string,
+  ): Promise<VaultSecretWithEncryptedValueRecord[]> {
+    return this.secrets.filter(
+      (secret) =>
+        secret.projectId === projectId &&
+        secret.environment === environment &&
+        secret.status === "active",
+    );
   }
 
   async updateValue(
@@ -340,6 +363,116 @@ class InMemoryIdentityRepository implements VaultIdentityRepository {
 
   async list(projectId: string): Promise<SafeVaultIdentityRecord[]> {
     return [...this.identities.values()].filter((identity) => identity.projectId === projectId);
+  }
+}
+
+class InMemoryLeaseRepository implements VaultLeaseRepository {
+  readonly leases: SafeVaultLeaseRecord[] = [];
+
+  async create(input: CreateVaultLeaseInput): Promise<SafeVaultLeaseRecord> {
+    const lease: SafeVaultLeaseRecord = {
+      id: `lease_doc_${this.leases.length + 1}`,
+      ...input,
+      status: "active",
+      renewedAt: null,
+      revokedAt: null,
+      revokeReason: null,
+      createdAt: input.issuedAt,
+      updatedAt: input.issuedAt,
+    };
+    this.leases.push(lease);
+    return lease;
+  }
+
+  async findActive(projectId: string, leaseId: string): Promise<SafeVaultLeaseRecord | null> {
+    return (
+      this.leases.find(
+        (lease) =>
+          lease.projectId === projectId && lease.leaseId === leaseId && lease.status === "active",
+      ) ?? null
+    );
+  }
+
+  async list(projectId: string): Promise<SafeVaultLeaseRecord[]> {
+    return this.leases.filter((lease) => lease.projectId === projectId);
+  }
+
+  async renew(
+    projectId: string,
+    leaseId: string,
+    expiresAt: Date,
+    renewedAt: Date,
+  ): Promise<SafeVaultLeaseRecord | null> {
+    const lease = await this.findActive(projectId, leaseId);
+    if (lease === null || !lease.renewable) {
+      return null;
+    }
+    lease.expiresAt = expiresAt;
+    lease.renewedAt = renewedAt;
+    lease.updatedAt = renewedAt;
+    return lease;
+  }
+
+  async revoke(
+    projectId: string,
+    leaseId: string,
+    revokedAt: Date,
+    reason: string,
+  ): Promise<SafeVaultLeaseRecord | null> {
+    const lease = await this.findActive(projectId, leaseId);
+    if (lease === null) {
+      return null;
+    }
+    lease.status = "revoked";
+    lease.revokedAt = revokedAt;
+    lease.revokeReason = reason;
+    return lease;
+  }
+
+  async expireDue(now: Date): Promise<SafeVaultLeaseRecord[]> {
+    const expired = this.leases.filter(
+      (lease) => lease.status === "active" && lease.expiresAt.getTime() <= now.getTime(),
+    );
+    for (const lease of expired) {
+      lease.status = "expired";
+      lease.revokeReason = "ttl expired";
+    }
+    return expired;
+  }
+}
+
+class InMemorySecretConsumerRepository implements VaultSecretConsumerRepository {
+  readonly consumers: SafeVaultSecretConsumerRecord[] = [];
+
+  async record(input: RecordSecretConsumerInput): Promise<SafeVaultSecretConsumerRecord> {
+    const existing = this.consumers.find(
+      (consumer) =>
+        consumer.projectId === input.projectId &&
+        consumer.environment === input.environment &&
+        consumer.secretKey === input.secretKey &&
+        consumer.tokenId === input.tokenId,
+    );
+
+    if (existing !== undefined) {
+      existing.fetchCount += 1;
+      existing.lastFetchedAt = input.lastFetchedAt;
+      existing.lastLeaseId = input.lastLeaseId;
+      return existing;
+    }
+
+    const consumer: SafeVaultSecretConsumerRecord = {
+      id: `consumer_${this.consumers.length + 1}`,
+      ...input,
+      fetchCount: 1,
+      createdAt: input.lastFetchedAt,
+      updatedAt: input.lastFetchedAt,
+    };
+    this.consumers.push(consumer);
+    return consumer;
+  }
+
+  async list(projectId: string): Promise<SafeVaultSecretConsumerRecord[]> {
+    return this.consumers.filter((consumer) => consumer.projectId === projectId);
   }
 }
 
@@ -753,6 +886,117 @@ describe("VaultService", () => {
       ]),
     );
   });
+
+  it("fetches environment bundles with leases and consumer usage tracking", async () => {
+    const leases = new InMemoryLeaseRepository();
+    const consumers = new InMemorySecretConsumerRepository();
+    const audits = new CapturingAuditPublisher();
+    const service = createServiceWithRepositories(
+      new InMemorySecretRepository(),
+      new InMemoryTokenRepository(),
+      audits,
+      new InMemoryAuthMethodRepository(),
+      new InMemoryIdentityRepository(),
+      leases,
+      consumers,
+    );
+    await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "DATABASE_URL",
+      value: "postgres://safe",
+    });
+    await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "API_TOKEN",
+      value: "api-secret",
+    });
+    const token = await service.createToken({
+      projectId: "project_1",
+      name: "runtime",
+      environments: ["production"],
+    });
+
+    const bundle = await service.fetchEnvironmentBundleWithToken({
+      rawToken: token.rawToken,
+      environment: "production",
+    });
+
+    expect(bundle.secrets).toEqual({
+      DATABASE_URL: "postgres://safe",
+      API_TOKEN: "api-secret",
+    });
+    expect(bundle.envFile).toContain("DATABASE_URL=postgres://safe");
+    expect(bundle.lease.status).toBe("active");
+    expect(await service.listSecretConsumers("project_1")).toHaveLength(2);
+    expect(JSON.stringify(bundle)).not.toContain(token.rawToken);
+    expect(audits.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "vault.integration.bundle_fetch", result: "success" }),
+        expect.objectContaining({ action: "vault.lease.issue", result: "success" }),
+      ]),
+    );
+  });
+
+  it("renews, revokes, and expires secret delivery leases", async () => {
+    const leases = new InMemoryLeaseRepository();
+    const service = createServiceWithRepositories(
+      new InMemorySecretRepository(),
+      new InMemoryTokenRepository(),
+      undefined,
+      new InMemoryAuthMethodRepository(),
+      new InMemoryIdentityRepository(),
+      leases,
+      new InMemorySecretConsumerRepository(),
+    );
+    await service.create({
+      projectId: "project_1",
+      environment: "production",
+      key: "API_TOKEN",
+      value: "api-secret",
+    });
+    const token = await service.createToken({
+      projectId: "project_1",
+      name: "runtime",
+      environments: ["production"],
+    });
+    const bundle = await service.fetchEnvironmentBundleWithToken({
+      rawToken: token.rawToken,
+      environment: "production",
+    });
+
+    await expect(service.renewLease("project_1", bundle.lease.leaseId)).resolves.toMatchObject({
+      status: "active",
+    });
+    await expect(service.revokeLease("project_1", bundle.lease.leaseId)).resolves.toMatchObject({
+      status: "revoked",
+    });
+
+    leases.leases[0] = {
+      ...leases.leases[0],
+      status: "active",
+      expiresAt: new Date("2026-08-18T00:00:00.000Z"),
+    };
+    await expect(service.expireDueLeases(new Date("2026-08-18T00:01:00.000Z"))).resolves.toEqual([
+      expect.objectContaining({ status: "expired" }),
+    ]);
+  });
+});
+
+describe("AesGcmSecretCryptoService", () => {
+  it("uses a unique nonce and records KDF metadata for each encryption", async () => {
+    const crypto = new AesGcmSecretCryptoService("a-very-long-test-password");
+
+    const first = await crypto.encrypt("same-secret");
+    const second = await crypto.encrypt("same-secret");
+
+    expect(first.iv).not.toBe(second.iv);
+    expect(first.ciphertext).not.toBe(second.ciphertext);
+    expect(first.keyVersion).toBe(1);
+    expect(first.kdf).toMatchObject({ algorithm: "scrypt" });
+    await expect(crypto.decrypt(first)).resolves.toBe("same-secret");
+  });
 });
 
 function createServiceWithRepositories(
@@ -761,6 +1005,8 @@ function createServiceWithRepositories(
   audits?: VaultAuditPublisher,
   authMethods = new InMemoryAuthMethodRepository(),
   identities = new InMemoryIdentityRepository(),
+  leases = new InMemoryLeaseRepository(),
+  consumers = new InMemorySecretConsumerRepository(),
 ): VaultService {
   return new VaultService(
     secrets,
@@ -770,6 +1016,8 @@ function createServiceWithRepositories(
     audits,
     authMethods,
     identities,
+    leases,
+    consumers,
   );
 }
 

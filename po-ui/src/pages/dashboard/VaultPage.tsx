@@ -32,8 +32,12 @@ import {
   createVaultToken,
   deleteSecret,
   disableVaultAuthMethod,
+  fetchEnvironmentBundleWithIntegrationToken,
   fetchSecretWithIntegrationToken,
   getVaultTokenCacheDiagnostics,
+  listVaultLeases,
+  listVaultRotationSchedule,
+  listVaultSecretConsumers,
   listSecrets,
   listSecretVersions,
   listVaultAuditEvents,
@@ -43,7 +47,9 @@ import {
   lookupVaultToken,
   revealSecret,
   renewVaultToken,
+  renewVaultLease,
   revokeVaultToken,
+  revokeVaultLease,
   revokeVaultTokenSelf,
   updateSecret,
   type CreatedVaultAuthMethod,
@@ -51,7 +57,11 @@ import {
   type VaultAuditEvent,
   type VaultAuthMethod,
   type VaultIdentity,
+  type VaultEnvironmentBundle,
+  type VaultLease,
   type VaultSecretMetadata,
+  type VaultSecretConsumer,
+  type VaultSecretRotation,
   type VaultSecretVersion,
   type VaultToken,
   type VaultTokenCacheDiagnostics,
@@ -95,7 +105,7 @@ import {
 const defaultTokenScope = "secrets:read";
 const tokenScopeOptions = ["secrets:read", "secrets:list"] as const;
 
-type VaultTab = "kv" | "policies" | "dynamic" | "transit";
+type VaultTab = "kv" | "delivery" | "policies" | "dynamic" | "transit";
 
 type SecretForm = {
   readonly environment: DashboardEnvironment;
@@ -125,6 +135,10 @@ export function VaultPage() {
   const [createdAuthMethod, setCreatedAuthMethod] = useState<CreatedVaultAuthMethod | null>(null);
   const [tokenLookup, setTokenLookup] = useState<VaultToken | null>(null);
   const [integrationFetch, setIntegrationFetch] = useState<RevealedVaultSecret | null>(null);
+  const [environmentBundle, setEnvironmentBundle] = useState<VaultEnvironmentBundle | null>(null);
+  const [leases, setLeases] = useState<VaultLease[]>([]);
+  const [secretConsumers, setSecretConsumers] = useState<VaultSecretConsumer[]>([]);
+  const [rotationSchedule, setRotationSchedule] = useState<VaultSecretRotation[]>([]);
   const [secretForm, setSecretForm] = useState<SecretForm>({
     environment: selectedEnvironment,
     key: "",
@@ -197,6 +211,9 @@ export function VaultPage() {
       setTokens([]);
       setAuthMethods([]);
       setIdentities([]);
+      setLeases([]);
+      setSecretConsumers([]);
+      setRotationSchedule([]);
       setTokenCacheDiagnostics(null);
       setAuditEvents([]);
       return;
@@ -215,6 +232,9 @@ export function VaultPage() {
         events,
         policyList,
         dynamicList,
+        leaseList,
+        consumerList,
+        rotationList,
       ] = await Promise.all([
         listSecrets(selectedProject.id, selectedEnvironment),
         listVaultTokens(selectedProject.id),
@@ -224,6 +244,9 @@ export function VaultPage() {
         listVaultAuditEvents(selectedProject.id),
         listVaultPolicies(selectedProject.id).catch(() => []),
         listDynamicDbCredentials(selectedProject.id).catch(() => []),
+        listVaultLeases(selectedProject.id).catch(() => []),
+        listVaultSecretConsumers(selectedProject.id).catch(() => []),
+        listVaultRotationSchedule(selectedProject.id).catch(() => []),
       ]);
       setSecrets(secretList);
       setTokens(tokenList);
@@ -233,6 +256,9 @@ export function VaultPage() {
       setAuditEvents(events);
       setPolicies(policyList);
       setDynamicLeases(dynamicList);
+      setLeases(leaseList);
+      setSecretConsumers(consumerList);
+      setRotationSchedule(rotationList);
     } catch (requestError) {
       setErrorMessage(getApiErrorMessage(requestError));
     } finally {
@@ -581,6 +607,56 @@ export function VaultPage() {
     }
   }
 
+  async function fetchEnvironmentBundle(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (fetchForm.token.trim().length === 0) {
+      setErrorMessage("Paste a vault token before fetching an environment bundle.");
+      return;
+    }
+
+    setMessage(null);
+    setErrorMessage(null);
+    setEnvironmentBundle(null);
+
+    try {
+      const bundle = await fetchEnvironmentBundleWithIntegrationToken(
+        fetchForm.environment,
+        fetchForm.token,
+      );
+      setEnvironmentBundle(bundle);
+      setMessage(`Fetched ${Object.keys(bundle.secrets).length} secrets with a renewable lease.`);
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function renewDeliveryLease(lease: VaultLease): Promise<void> {
+    if (selectedProject === null) return;
+    setMessage(null);
+    setErrorMessage(null);
+    try {
+      await renewVaultLease(selectedProject.id, lease.leaseId);
+      setMessage("Secret delivery lease renewed.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function revokeDeliveryLease(lease: VaultLease): Promise<void> {
+    if (selectedProject === null) return;
+    setMessage(null);
+    setErrorMessage(null);
+    try {
+      await revokeVaultLease(selectedProject.id, lease.leaseId);
+      setMessage("Secret delivery lease revoked.");
+      await loadVault();
+    } catch (requestError) {
+      setErrorMessage(getApiErrorMessage(requestError));
+    }
+  }
+
   // --- POLICIES & SIMULATOR HANDLERS ---
   const handleSimulatePolicy = async (e: FormEvent) => {
     e.preventDefault();
@@ -705,7 +781,7 @@ export function VaultPage() {
   };
 
   const vaultSummary = useMemo(() => {
-    const reveals = auditEvents.filter((event) => event.action === "secret.revealed").length;
+    const reveals = auditEvents.filter((event) => event.action === "vault.secret.reveal").length;
     const failures = auditEvents.filter((event) => event.result === "failure").length;
     return {
       secrets: secrets.length,
@@ -715,6 +791,8 @@ export function VaultPage() {
       failures,
       policies: policies.length,
       dynamicLeases: dynamicLeases.length,
+      leases: leases.filter((lease) => lease.status === "active").length,
+      rotationDue: rotationSchedule.filter((rotation) => rotation.due).length,
     };
   }, [
     auditEvents,
@@ -723,6 +801,8 @@ export function VaultPage() {
     tokens,
     policies.length,
     dynamicLeases.length,
+    leases,
+    rotationSchedule,
   ]);
 
   return (
@@ -748,6 +828,12 @@ export function VaultPage() {
         <div className="flex rounded-xl bg-zinc-950 p-1.5 border border-zinc-800 backdrop-blur-md">
           {[
             { id: "kv", label: "KV Secrets (v2)", count: vaultSummary.secrets, icon: LockKeyhole },
+            {
+              id: "delivery",
+              label: "Secret Delivery",
+              count: vaultSummary.leases,
+              icon: Clipboard,
+            },
             {
               id: "policies",
               label: "Access Policies & RBAC",
@@ -1382,7 +1468,207 @@ export function VaultPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: ACCESS POLICIES & RBAC SIMULATOR */}
+      {/* TAB 2: SECRET DELIVERY, LEASES & ROTATION */}
+      {/* ========================================================================= */}
+      {activeTab === "delivery" && (
+        <div className="space-y-6">
+          <section className="grid gap-3 grid-cols-2 md:grid-cols-4">
+            <Summary label="Active Leases" value={vaultSummary.leases} />
+            <Summary label="Consumers" value={secretConsumers.length} />
+            <Summary label="Rotation Due" value={vaultSummary.rotationDue} />
+            <Summary label="Bundle Fetches" value={environmentBundle === null ? 0 : 1} />
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[26rem_1fr]">
+            <form
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 backdrop-blur-md"
+              onSubmit={fetchEnvironmentBundle}
+            >
+              <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+                <Clipboard className="h-4 w-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Environment Bundle Export</h3>
+              </div>
+
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold text-zinc-300">Vault Token</span>
+                <Input
+                  onChange={(event) =>
+                    setFetchForm((current) => ({ ...current, token: event.target.value }))
+                  }
+                  placeholder="povt_..."
+                  type="password"
+                  value={fetchForm.token}
+                  className="bg-zinc-950 border-zinc-800 text-xs text-white"
+                />
+              </label>
+
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold text-zinc-300">Environment</span>
+                <select
+                  className="h-11 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-xs font-semibold uppercase text-zinc-200 focus:outline-none"
+                  onChange={(event) =>
+                    setFetchForm((current) => ({
+                      ...current,
+                      environment: event.target.value as DashboardEnvironment,
+                    }))
+                  }
+                  value={fetchForm.environment}
+                >
+                  {dashboardEnvironments.map((environment) => (
+                    <option key={environment} value={environment}>
+                      {environment}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <Button
+                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold"
+                type="submit"
+              >
+                Fetch .env Bundle
+              </Button>
+
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs leading-5 text-amber-200">
+                Bundle responses contain raw secret values. Do not paste them into logs,
+                screenshots, build output, or source control.
+              </div>
+            </form>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                <Terminal className="w-4 h-4 text-cyan-400" />
+                Last .env Export
+              </h3>
+              {environmentBundle === null ? (
+                <p className="py-8 text-center text-xs text-zinc-500">
+                  Fetch an environment bundle to preview export output and lease details.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <pre className="max-h-72 overflow-auto rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs text-zinc-100">
+                    {environmentBundle.envFile}
+                  </pre>
+                  <div className="grid gap-3 text-xs text-zinc-300 md:grid-cols-3">
+                    <DetailPill label="Lease" value={environmentBundle.lease.leaseId} />
+                    <DetailPill
+                      label="Expires"
+                      value={new Date(environmentBundle.lease.expiresAt).toLocaleString()}
+                    />
+                    <DetailPill
+                      label="Secrets"
+                      value={String(Object.keys(environmentBundle.secrets).length)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-2">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                <Zap className="w-4 h-4 text-amber-400" />
+                Secret Delivery Leases
+              </h3>
+              <div className="mt-4 space-y-3">
+                {leases.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-zinc-500">
+                    No secret delivery leases have been issued yet.
+                  </p>
+                ) : (
+                  leases.slice(0, 8).map((lease) => (
+                    <div
+                      key={lease.leaseId}
+                      className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate font-mono text-white">{lease.leaseId}</p>
+                          <p className="mt-1 text-zinc-500">
+                            {lease.identityAlias} · {lease.environment} · {lease.secretKeys.length}{" "}
+                            keys
+                          </p>
+                        </div>
+                        <span className="rounded bg-zinc-900 px-2 py-1 font-bold uppercase text-cyan-300">
+                          {lease.status}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          className="bg-zinc-800 text-zinc-100"
+                          disabled={lease.status !== "active" || !lease.renewable}
+                          onClick={() => void renewDeliveryLease(lease)}
+                          type="button"
+                        >
+                          Renew
+                        </Button>
+                        <Button
+                          className="border-zinc-700 text-zinc-300"
+                          disabled={lease.status !== "active"}
+                          onClick={() => void revokeDeliveryLease(lease)}
+                          type="button"
+                          variant="outline"
+                        >
+                          Revoke
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-md">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-800 pb-3">
+                <History className="w-4 h-4 text-cyan-400" />
+                Consumers & Rotation
+              </h3>
+              <div className="mt-4 space-y-3">
+                {secretConsumers.slice(0, 6).map((consumer) => (
+                  <div
+                    key={consumer.id}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs"
+                  >
+                    <p className="font-mono text-white">
+                      {consumer.environment}/{consumer.secretKey}
+                    </p>
+                    <p className="mt-1 text-zinc-500">
+                      Last fetched by {consumer.identityAlias} ({consumer.tokenPrefix}) ·{" "}
+                      {formatRelativeTime(consumer.lastFetchedAt)}
+                    </p>
+                  </div>
+                ))}
+                {secretConsumers.length === 0 && (
+                  <p className="py-6 text-center text-xs text-zinc-500">
+                    Secret usage will appear after token or bundle fetches.
+                  </p>
+                )}
+                <div className="border-t border-zinc-800 pt-3">
+                  {rotationSchedule.slice(0, 6).map((rotation) => (
+                    <div
+                      key={`${rotation.environment}:${rotation.key}`}
+                      className="flex items-center justify-between gap-3 py-2 text-xs"
+                    >
+                      <span className="font-mono text-zinc-200">
+                        {rotation.environment}/{rotation.key}
+                      </span>
+                      <span className={rotation.due ? "text-amber-300" : "text-zinc-500"}>
+                        {rotation.nextRotationDate === null
+                          ? "manual rotation"
+                          : new Date(rotation.nextRotationDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: ACCESS POLICIES & RBAC SIMULATOR */}
       {/* ========================================================================= */}
       {activeTab === "policies" && (
         <div className="space-y-6">
@@ -2106,6 +2392,15 @@ function Summary({ label, value }: { readonly label: string; readonly value: num
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-md">
       <p className="text-xs font-semibold text-zinc-400">{label}</p>
       <p className="mt-2 text-2xl font-bold tabular-nums text-white">{value}</p>
+    </div>
+  );
+}
+
+function DetailPill({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</p>
+      <p className="mt-1 break-all font-mono text-zinc-100">{value}</p>
     </div>
   );
 }

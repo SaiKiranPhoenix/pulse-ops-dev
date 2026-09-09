@@ -31,6 +31,14 @@ import type {
   SafeVaultIdentityRecord,
   VaultIdentityRepository,
 } from "../repositories/vault-identity.repository.js";
+import type {
+  SafeVaultLeaseRecord,
+  VaultLeaseRepository,
+} from "../repositories/vault-lease.repository.js";
+import type {
+  SafeVaultSecretConsumerRecord,
+  VaultSecretConsumerRepository,
+} from "../repositories/vault-secret-consumer.repository.js";
 import type { SecretCryptoService } from "./secret-crypto.service.js";
 import type { VaultTokenHasher } from "./vault-token-hasher.service.js";
 
@@ -168,6 +176,62 @@ export type RevealedSecretDto = SecretMetadataDto & {
   readonly value: string;
 };
 
+export type VaultLeaseDto = {
+  readonly id: string;
+  readonly leaseId: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly tokenId: string;
+  readonly tokenPrefix: string;
+  readonly identityAlias: string;
+  readonly secretKeys: string[];
+  readonly status: SafeVaultLeaseRecord["status"];
+  readonly ttlSeconds: number;
+  readonly renewable: boolean;
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly renewedAt: string | null;
+  readonly revokedAt: string | null;
+  readonly revokeReason: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type VaultSecretConsumerDto = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly secretKey: string;
+  readonly tokenId: string;
+  readonly tokenPrefix: string;
+  readonly identityAlias: string;
+  readonly fetchCount: number;
+  readonly lastFetchedAt: string;
+  readonly lastLeaseId: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type VaultSecretRotationDto = {
+  readonly environment: string;
+  readonly key: string;
+  readonly version: number;
+  readonly rotationPeriodDays: number | null;
+  readonly autoRotateEnabled: boolean;
+  readonly nextRotationDate: string | null;
+  readonly due: boolean;
+  readonly lastRotatedAt: string;
+};
+
+export type EnvironmentBundleDto = {
+  readonly projectId: string;
+  readonly environment: string;
+  readonly secrets: Record<string, string>;
+  readonly envFile: string;
+  readonly lease: VaultLeaseDto;
+  readonly warnings: string[];
+};
+
 export type SecretVersionDto = {
   readonly version: number;
   readonly status: SafeVaultSecretVersionRecord["status"];
@@ -192,6 +256,8 @@ export class VaultService {
     private readonly audits: VaultAuditPublisher = noopVaultAuditPublisher,
     private readonly authMethods?: VaultAuthMethodRepository,
     private readonly identities?: VaultIdentityRepository,
+    private readonly leases?: VaultLeaseRepository,
+    private readonly consumers?: VaultSecretConsumerRepository,
   ) {}
 
   async create(input: CreateSecretInput): Promise<SecretMetadataDto> {
@@ -221,6 +287,27 @@ export class VaultService {
       environment === undefined ? undefined : normalizeEnvironment(environment),
     );
     return secrets.map(toMetadataDto);
+  }
+
+  async listRotationSchedule(projectId: string): Promise<VaultSecretRotationDto[]> {
+    const now = Date.now();
+    const secrets = await this.secrets.list(projectId);
+    return secrets.map((secret) => {
+      const nextRotationDate = secret.metadata?.nextRotationDate ?? null;
+      return {
+        environment: secret.environment,
+        key: secret.key,
+        version: secret.version,
+        rotationPeriodDays: secret.metadata?.rotationPeriodDays ?? null,
+        autoRotateEnabled: secret.metadata?.autoRotateEnabled ?? false,
+        nextRotationDate: nextRotationDate?.toISOString() ?? null,
+        due:
+          nextRotationDate !== null &&
+          (secret.metadata?.autoRotateEnabled ?? false) &&
+          nextRotationDate.getTime() <= now,
+        lastRotatedAt: secret.updatedAt.toISOString(),
+      };
+    });
   }
 
   async reveal(input: RevealSecretInput): Promise<RevealedSecretDto> {
@@ -548,7 +635,18 @@ export class VaultService {
       throw notFound("Secret not found");
     }
 
-    await this.tokens.markUsed(token.id, new Date());
+    const fetchedAt = new Date();
+    await this.tokens.markUsed(token.id, fetchedAt);
+    await this.consumers?.record({
+      projectId: token.projectId,
+      environment,
+      secretKey: key,
+      tokenId: token.id,
+      tokenPrefix: token.tokenPrefix,
+      identityAlias: token.identityAlias,
+      lastFetchedAt: fetchedAt,
+      lastLeaseId: null,
+    });
     await this.publishTokenAudit("vault.integration.fetch", "success", token, {
       actorId: token.id,
       correlationId: input.correlationId ?? "unknown",
@@ -558,6 +656,164 @@ export class VaultService {
       ...toMetadataDto(secret),
       value: await this.crypto.decrypt(secret.encryptedValue),
     };
+  }
+
+  async fetchEnvironmentBundleWithToken(input: {
+    readonly rawToken: string;
+    readonly environment: string;
+    readonly ttlSeconds?: number | undefined;
+    readonly correlationId?: string;
+  }): Promise<EnvironmentBundleDto> {
+    if (this.leases === undefined) {
+      throw forbidden("Vault lease storage is unavailable");
+    }
+
+    const tokenHash = this.tokenHasher.hash(input.rawToken);
+    this.assertSecretAccessAllowed(`token-auth:${tokenHash}`);
+    const token = await this.findUsableToken(tokenHash);
+    const environment = normalizeEnvironment(input.environment);
+    this.assertSecretAccessAllowed(`token-bundle:${token.id}:${environment}`);
+
+    if (!token.scopes.includes("secrets:read")) {
+      await this.publishTokenAudit("vault.integration.bundle_fetch", "failure", token, {
+        actorId: token.id,
+        correlationId: input.correlationId ?? "unknown",
+        reason: "missing secrets:read scope",
+      });
+      throw forbidden("Vault token scope denied");
+    }
+
+    if (token.environments.length > 0 && !token.environments.includes(environment)) {
+      await this.publishTokenAudit("vault.integration.bundle_fetch", "failure", token, {
+        actorId: token.id,
+        correlationId: input.correlationId ?? "unknown",
+        reason: "environment denied",
+      });
+      throw forbidden("Vault token environment denied");
+    }
+
+    const secrets = await this.secrets.listActiveWithValues(token.projectId, environment);
+    const issuedAt = new Date();
+    const ttlSeconds = normalizeTtl(input.ttlSeconds, Math.min(token.ttlSeconds, 3600));
+    const lease = await this.leases.create({
+      leaseId: createCredentialId("lease_secret"),
+      projectId: token.projectId,
+      environment,
+      tokenId: token.id,
+      tokenPrefix: token.tokenPrefix,
+      identityAlias: token.identityAlias,
+      secretKeys: secrets.map((secret) => secret.key),
+      ttlSeconds,
+      renewable: token.renewable,
+      issuedAt,
+      expiresAt: new Date(issuedAt.getTime() + ttlSeconds * 1000),
+    });
+    const bundleEntries = await Promise.all(
+      secrets.map(async (secret) => [secret.key, await this.crypto.decrypt(secret.encryptedValue)]),
+    );
+    const bundle = Object.fromEntries(bundleEntries);
+    await this.tokens.markUsed(token.id, issuedAt);
+    await Promise.all(
+      secrets.map((secret) =>
+        this.consumers?.record({
+          projectId: token.projectId,
+          environment,
+          secretKey: secret.key,
+          tokenId: token.id,
+          tokenPrefix: token.tokenPrefix,
+          identityAlias: token.identityAlias,
+          lastFetchedAt: issuedAt,
+          lastLeaseId: lease.leaseId,
+        }),
+      ),
+    );
+    await this.publishTokenAudit("vault.integration.bundle_fetch", "success", token, {
+      actorId: token.id,
+      correlationId: input.correlationId ?? "unknown",
+    });
+    await this.publishLeaseAudit("vault.lease.issue", "success", lease, {
+      actorId: token.id,
+      correlationId: input.correlationId ?? "unknown",
+    });
+
+    return {
+      projectId: token.projectId,
+      environment,
+      secrets: bundle,
+      envFile: toEnvFile(bundle),
+      lease: toLeaseDto(lease),
+      warnings: [
+        "This response contains raw secret values. Keep it out of logs, build artifacts, and source control.",
+        "The lease must be renewed before expiry or fetched again by the runtime.",
+      ],
+    };
+  }
+
+  async listLeases(projectId: string): Promise<VaultLeaseDto[]> {
+    return ((await this.leases?.list(projectId)) ?? []).map(toLeaseDto);
+  }
+
+  async renewLease(
+    projectId: string,
+    leaseId: string,
+    context: VaultAuditContext = {},
+  ): Promise<VaultLeaseDto> {
+    const current = await this.leases?.findActive(projectId, leaseId);
+
+    if (current === undefined || current === null) {
+      throw notFound("Vault lease not found");
+    }
+
+    if (!current.renewable) {
+      throw forbidden("Vault lease is not renewable");
+    }
+
+    const now = new Date();
+    const renewed = await this.leases?.renew(
+      projectId,
+      leaseId,
+      new Date(now.getTime() + current.ttlSeconds * 1000),
+      now,
+    );
+
+    if (renewed === undefined || renewed === null) {
+      throw notFound("Vault lease not found");
+    }
+
+    await this.publishLeaseAudit("vault.lease.renew", "success", renewed, context);
+    return toLeaseDto(renewed);
+  }
+
+  async revokeLease(
+    projectId: string,
+    leaseId: string,
+    context: VaultAuditContext = {},
+  ): Promise<VaultLeaseDto> {
+    const revoked = await this.leases?.revoke(projectId, leaseId, new Date(), "manual revoke");
+
+    if (revoked === undefined || revoked === null) {
+      throw notFound("Vault lease not found");
+    }
+
+    await this.publishLeaseAudit("vault.lease.revoke", "success", revoked, context);
+    return toLeaseDto(revoked);
+  }
+
+  async expireDueLeases(now: Date = new Date()): Promise<VaultLeaseDto[]> {
+    const expired = (await this.leases?.expireDue(now)) ?? [];
+    await Promise.all(
+      expired.map((lease) =>
+        this.publishLeaseAudit("vault.lease.expire", "success", lease, {
+          actorId: "lease-expiration-worker",
+          correlationId: "lease-expiration-worker",
+        }),
+      ),
+    );
+    return expired.map(toLeaseDto);
+  }
+
+  async listSecretConsumers(projectId: string): Promise<VaultSecretConsumerDto[]> {
+    return ((await this.consumers?.list(projectId)) ?? []).map(toConsumerDto);
   }
 
   private async findUsableToken(tokenHash: string): Promise<VaultTokenWithHashRecord> {
@@ -763,6 +1019,33 @@ export class VaultService {
       // Audit publishing is best-effort for local MVP availability.
     }
   }
+
+  private async publishLeaseAudit(
+    action: VaultAuditEventMessage["action"],
+    result: VaultAuditEventMessage["result"],
+    lease: SafeVaultLeaseRecord,
+    context: VaultAuditContext,
+  ): Promise<void> {
+    try {
+      await this.audits.publish({
+        messageId: `${lease.leaseId}:${action}:${Date.now()}`,
+        schemaVersion: 1,
+        projectId: lease.projectId,
+        actorType: "service",
+        actorId: context.actorId ?? lease.identityAlias,
+        action,
+        result,
+        environment: lease.environment,
+        secretKey: null,
+        tokenPrefix: lease.tokenPrefix,
+        reason: lease.revokeReason,
+        correlationId: context.correlationId ?? "unknown",
+        occurredAt: new Date().toISOString(),
+      });
+    } catch {
+      // Lease lifecycle audit delivery is best-effort for local MVP availability.
+    }
+  }
 }
 
 function normalizeEnvironment(environment: string): string {
@@ -795,6 +1078,60 @@ function toVersionDto(version: SafeVaultSecretVersionRecord): SecretVersionDto {
     actorId: version.actorId,
     occurredAt: version.occurredAt.toISOString(),
   };
+}
+
+function toLeaseDto(lease: SafeVaultLeaseRecord): VaultLeaseDto {
+  return {
+    id: lease.id,
+    leaseId: lease.leaseId,
+    projectId: lease.projectId,
+    environment: lease.environment,
+    tokenId: lease.tokenId,
+    tokenPrefix: lease.tokenPrefix,
+    identityAlias: lease.identityAlias,
+    secretKeys: [...lease.secretKeys],
+    status: lease.status,
+    ttlSeconds: lease.ttlSeconds,
+    renewable: lease.renewable,
+    issuedAt: lease.issuedAt.toISOString(),
+    expiresAt: lease.expiresAt.toISOString(),
+    renewedAt: lease.renewedAt?.toISOString() ?? null,
+    revokedAt: lease.revokedAt?.toISOString() ?? null,
+    revokeReason: lease.revokeReason,
+    createdAt: lease.createdAt.toISOString(),
+    updatedAt: lease.updatedAt.toISOString(),
+  };
+}
+
+function toConsumerDto(consumer: SafeVaultSecretConsumerRecord): VaultSecretConsumerDto {
+  return {
+    id: consumer.id,
+    projectId: consumer.projectId,
+    environment: consumer.environment,
+    secretKey: consumer.secretKey,
+    tokenId: consumer.tokenId,
+    tokenPrefix: consumer.tokenPrefix,
+    identityAlias: consumer.identityAlias,
+    fetchCount: consumer.fetchCount,
+    lastFetchedAt: consumer.lastFetchedAt.toISOString(),
+    lastLeaseId: consumer.lastLeaseId,
+    createdAt: consumer.createdAt.toISOString(),
+    updatedAt: consumer.updatedAt.toISOString(),
+  };
+}
+
+function toEnvFile(values: Record<string, string>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `${key}=${formatEnvValue(value)}`)
+    .join("\n");
+}
+
+function formatEnvValue(value: string): string {
+  if (/^[A-Za-z0-9_./:@-]+$/.test(value)) {
+    return value;
+  }
+
+  return JSON.stringify(value);
 }
 
 function normalizeTokenScopes(scopes: string[] | undefined): string[] {

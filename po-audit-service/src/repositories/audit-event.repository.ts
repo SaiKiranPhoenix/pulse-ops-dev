@@ -23,6 +23,7 @@ export type AuditEventFilter = {
 export interface AuditEventRepository {
   createFromMessage(message: VaultAuditEventMessage): Promise<SafeAuditEventRecord>;
   findByProject(filter: AuditEventFilter): Promise<SafeAuditEventRecord[]>;
+  findAllByProject(projectId: string): Promise<SafeAuditEventRecord[]>;
 }
 
 export class MongoAuditEventRepository implements AuditEventRepository {
@@ -69,6 +70,11 @@ export class MongoAuditEventRepository implements AuditEventRepository {
       .sort({ occurredAt: -1 })
       .limit(100)
       .exec();
+    return events.map(toSafeAuditEventRecord);
+  }
+
+  async findAllByProject(projectId: string): Promise<SafeAuditEventRecord[]> {
+    const events = await AuditEventModel.find({ projectId }).sort({ occurredAt: 1 }).exec();
     return events.map(toSafeAuditEventRecord);
   }
 }
