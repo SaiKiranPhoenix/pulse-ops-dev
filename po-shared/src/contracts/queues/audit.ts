@@ -18,6 +18,13 @@ export const auditActionSchema = z.enum([
   "vault.auth_method.disable",
   "vault.auth_method.login",
   "vault.integration.fetch",
+  "vault.integration.bundle_fetch",
+  "vault.lease.issue",
+  "vault.lease.renew",
+  "vault.lease.revoke",
+  "vault.lease.expire",
+  "vault.audit.export",
+  "vault.audit.integrity_check",
 ]);
 export const auditResultSchema = z.enum(["success", "failure"]);
 

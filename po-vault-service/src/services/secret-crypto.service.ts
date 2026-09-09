@@ -38,6 +38,13 @@ export class AesGcmSecretCryptoService implements SecretCryptoService {
       iv: iv.toString("base64url"),
       tag: tag.toString("base64url"),
       salt: salt.toString("base64url"),
+      keyVersion: 1,
+      kdf: {
+        algorithm: "scrypt",
+        cost: VAULT_CRYPTO.scryptCost,
+        blockSize: VAULT_CRYPTO.scryptBlockSize,
+        parallelization: VAULT_CRYPTO.scryptParallelization,
+      },
     };
   }
 

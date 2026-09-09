@@ -7,6 +7,7 @@ import { validateBody, validateParams, validateQuery } from "../middlewares/vali
 import { asyncHandler } from "../utils/async-handler.js";
 import {
   appRoleLoginBodySchema,
+  bundleFetchParamsSchema,
   createVaultAuthMethodBodySchema,
   createSecretBodySchema,
   createVaultTokenBodySchema,
@@ -16,6 +17,7 @@ import {
   tokenFetchParamsSchema,
   updateSecretBodySchema,
   vaultAuthMethodParamsSchema,
+  vaultLeaseParamsSchema,
   vaultTokenParamsSchema,
 } from "../validators/vault.validator.js";
 
@@ -35,6 +37,11 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/integrations/vault/secrets/:environment/:key",
     validateParams(tokenFetchParamsSchema),
     asyncHandler(dependencies.vaultController.fetchWithToken),
+  );
+  router.get(
+    "/integrations/vault/env/:environment",
+    validateParams(bundleFetchParamsSchema),
+    asyncHandler(dependencies.vaultController.fetchEnvironmentBundleWithToken),
   );
   router.post(
     "/vault/auth/approle/login",
@@ -190,6 +197,33 @@ export function createRoutes(dependencies: RouteDependencies): Router {
     "/vault/identities",
     validateQuery(secretQuerySchema),
     asyncHandler(dependencies.vaultController.listIdentities),
+  );
+  router.get(
+    "/vault/leases",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listLeases),
+  );
+  router.post(
+    "/vault/leases/:leaseId/renew",
+    validateParams(vaultLeaseParamsSchema),
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.renewLease),
+  );
+  router.post(
+    "/vault/leases/:leaseId/revoke",
+    validateParams(vaultLeaseParamsSchema),
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.revokeLease),
+  );
+  router.get(
+    "/vault/secret-consumers",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listSecretConsumers),
+  );
+  router.get(
+    "/vault/rotation-schedule",
+    validateQuery(secretQuerySchema),
+    asyncHandler(dependencies.vaultController.listRotationSchedule),
   );
 
   return router;

@@ -36,6 +36,10 @@ export interface VaultSecretRepository {
     environment: string,
     key: string,
   ): Promise<VaultSecretWithEncryptedValueRecord | null>;
+  listActiveWithValues(
+    projectId: string,
+    environment: string,
+  ): Promise<VaultSecretWithEncryptedValueRecord[]>;
   list(projectId: string, environment?: string | undefined): Promise<SafeVaultSecretRecord[]>;
   updateValue(
     projectId: string,
@@ -112,6 +116,22 @@ export class MongoVaultSecretRepository implements VaultSecretRepository {
       .exec();
 
     return secrets.map(toSafeSecretRecord);
+  }
+
+  async listActiveWithValues(
+    projectId: string,
+    environment: string,
+  ): Promise<VaultSecretWithEncryptedValueRecord[]> {
+    const secrets = await VaultSecretModel.find({
+      projectId,
+      environment,
+      status: "active",
+    })
+      .select("+encryptedValue")
+      .sort({ key: 1 })
+      .exec();
+
+    return secrets.map(toSecretWithValueRecord);
   }
 
   async updateValue(

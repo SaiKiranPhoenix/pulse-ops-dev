@@ -14,6 +14,62 @@ export type VaultSecretMetadata = {
   readonly updatedAt: string;
 };
 
+export type VaultLease = {
+  readonly id: string;
+  readonly leaseId: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly tokenId: string;
+  readonly tokenPrefix: string;
+  readonly identityAlias: string;
+  readonly secretKeys: string[];
+  readonly status: "active" | "revoked" | "expired";
+  readonly ttlSeconds: number;
+  readonly renewable: boolean;
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly renewedAt: string | null;
+  readonly revokedAt: string | null;
+  readonly revokeReason: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type VaultSecretConsumer = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly secretKey: string;
+  readonly tokenId: string;
+  readonly tokenPrefix: string;
+  readonly identityAlias: string;
+  readonly fetchCount: number;
+  readonly lastFetchedAt: string;
+  readonly lastLeaseId: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type VaultSecretRotation = {
+  readonly environment: string;
+  readonly key: string;
+  readonly version: number;
+  readonly rotationPeriodDays: number | null;
+  readonly autoRotateEnabled: boolean;
+  readonly nextRotationDate: string | null;
+  readonly due: boolean;
+  readonly lastRotatedAt: string;
+};
+
+export type VaultEnvironmentBundle = {
+  readonly projectId: string;
+  readonly environment: string;
+  readonly secrets: Record<string, string>;
+  readonly envFile: string;
+  readonly lease: VaultLease;
+  readonly warnings: string[];
+};
+
 export type RevealedVaultSecret = VaultSecretMetadata & {
   readonly value: string;
 };
@@ -105,6 +161,45 @@ export type VaultAuditEvent = {
   readonly occurredAt: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+};
+
+export type VaultAuditComplianceReport = {
+  readonly backend: {
+    readonly name: string;
+    readonly capabilities: {
+      readonly durable: boolean;
+      readonly export: boolean;
+      readonly integrityCheck: boolean;
+      readonly retentionDays: number | null;
+    };
+    readonly planned: readonly {
+      readonly name: string;
+      readonly status: string;
+      readonly purpose: string;
+    }[];
+  };
+  readonly generatedAt: string;
+  readonly totals: {
+    readonly events: number;
+    readonly successes: number;
+    readonly failures: number;
+    readonly failedReveals: number;
+    readonly failedFetches: number;
+  };
+  readonly secretAccessByActor: readonly {
+    readonly actor: string;
+    readonly fetches: number;
+    readonly reveals: number;
+    readonly failures: number;
+  }[];
+};
+
+export type VaultAuditIntegrity = {
+  readonly backend: string;
+  readonly checkedAt: string;
+  readonly valid: boolean;
+  readonly eventCount: number;
+  readonly headHash: string;
 };
 
 export type VaultAuditFilters = {
@@ -341,4 +436,92 @@ export async function fetchSecretWithIntegrationToken(
     headers: { "x-vault-token": rawToken },
   });
   return response.data.data.secret;
+}
+
+export async function fetchEnvironmentBundleWithIntegrationToken(
+  environment: string,
+  rawToken: string,
+): Promise<VaultEnvironmentBundle> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly bundle: VaultEnvironmentBundle }>
+  >(`/integrations/vault/env/${encodeURIComponent(environment)}`, {
+    headers: { "x-vault-token": rawToken },
+  });
+  return response.data.data.bundle;
+}
+
+export async function listVaultLeases(projectId: string): Promise<VaultLease[]> {
+  const response = await apiClient.get<ApiSuccessResponse<{ readonly leases: VaultLease[] }>>(
+    "/vault/leases",
+    { params: { projectId } },
+  );
+  return response.data.data.leases;
+}
+
+export async function renewVaultLease(projectId: string, leaseId: string): Promise<VaultLease> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly lease: VaultLease }>>(
+    `/vault/leases/${encodeURIComponent(leaseId)}/renew`,
+    undefined,
+    { params: { projectId } },
+  );
+  return response.data.data.lease;
+}
+
+export async function revokeVaultLease(projectId: string, leaseId: string): Promise<VaultLease> {
+  const response = await apiClient.post<ApiSuccessResponse<{ readonly lease: VaultLease }>>(
+    `/vault/leases/${encodeURIComponent(leaseId)}/revoke`,
+    undefined,
+    { params: { projectId } },
+  );
+  return response.data.data.lease;
+}
+
+export async function listVaultSecretConsumers(projectId: string): Promise<VaultSecretConsumer[]> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly consumers: VaultSecretConsumer[] }>
+  >("/vault/secret-consumers", { params: { projectId } });
+  return response.data.data.consumers;
+}
+
+export async function listVaultRotationSchedule(projectId: string): Promise<VaultSecretRotation[]> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly rotations: VaultSecretRotation[] }>
+  >("/vault/rotation-schedule", { params: { projectId } });
+  return response.data.data.rotations;
+}
+
+export async function exportVaultAuditEvents(
+  projectId: string,
+  filters: VaultAuditFilters = {},
+): Promise<{
+  readonly backend: string;
+  readonly exportedAt: string;
+  readonly events: VaultAuditEvent[];
+}> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{
+      readonly export: {
+        readonly backend: string;
+        readonly exportedAt: string;
+        readonly events: VaultAuditEvent[];
+      };
+    }>
+  >("/audit/events/export", { params: { projectId, ...filters } });
+  return response.data.data.export;
+}
+
+export async function getVaultAuditComplianceReport(
+  projectId: string,
+): Promise<VaultAuditComplianceReport> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly report: VaultAuditComplianceReport }>
+  >("/audit/compliance/report", { params: { projectId } });
+  return response.data.data.report;
+}
+
+export async function checkVaultAuditIntegrity(projectId: string): Promise<VaultAuditIntegrity> {
+  const response = await apiClient.get<
+    ApiSuccessResponse<{ readonly integrity: VaultAuditIntegrity }>
+  >("/audit/compliance/integrity", { params: { projectId } });
+  return response.data.data.integrity;
 }

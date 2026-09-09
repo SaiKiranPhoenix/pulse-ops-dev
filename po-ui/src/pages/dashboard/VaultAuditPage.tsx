@@ -1,11 +1,16 @@
-import { Clipboard, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { Clipboard, Download, FileCheck2, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  checkVaultAuditIntegrity,
+  exportVaultAuditEvents,
+  getVaultAuditComplianceReport,
   listVaultAuditEvents,
+  type VaultAuditComplianceReport,
   type VaultAuditEvent,
   type VaultAuditFilters,
+  type VaultAuditIntegrity,
 } from "@/features/vault/api";
 import { getApiErrorMessage } from "@/lib/api-client";
 import {
@@ -40,6 +45,8 @@ export function VaultAuditPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [complianceReport, setComplianceReport] = useState<VaultAuditComplianceReport | null>(null);
+  const [integrity, setIntegrity] = useState<VaultAuditIntegrity | null>(null);
 
   async function loadAudit(): Promise<void> {
     if (selectedProject === null) {
@@ -63,6 +70,12 @@ export function VaultAuditPage() {
         }),
       );
       setEvents(nextEvents);
+      const [report, nextIntegrity] = await Promise.all([
+        getVaultAuditComplianceReport(selectedProject.id).catch(() => null),
+        checkVaultAuditIntegrity(selectedProject.id).catch(() => null),
+      ]);
+      setComplianceReport(report);
+      setIntegrity(nextIntegrity);
       setSelectedEvent((current) =>
         current === null
           ? (nextEvents[0] ?? null)
@@ -181,6 +194,30 @@ export function VaultAuditPage() {
     setMessage("Audit event copied.");
   }
 
+  async function exportAudit(): Promise<void> {
+    if (selectedProject === null) {
+      return;
+    }
+
+    try {
+      const exported = await exportVaultAuditEvents(
+        selectedProject.id,
+        buildAuditFilters({
+          actionFilter,
+          actorFilter,
+          environmentFilter,
+          resultFilter,
+          secretKeyFilter,
+          timeRange,
+        }),
+      );
+      await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
+      setMessage("Audit export copied.");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    }
+  }
+
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -203,6 +240,15 @@ export function VaultAuditPage() {
           <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => void exportAudit()}
+          type="button"
+          variant="outline"
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </Button>
       </header>
 
       {message !== null ? (
@@ -222,6 +268,49 @@ export function VaultAuditPage() {
         <Summary label="Success" value={summary.success} />
         <Summary label="Failures" value={summary.failure} />
         <Summary label="Reveals" value={summary.reveals} />
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <FileCheck2 className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold text-slate-900">Compliance report</h2>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+            <Summary label="Failed reveals" value={complianceReport?.totals.failedReveals ?? 0} />
+            <Summary label="Failed fetches" value={complianceReport?.totals.failedFetches ?? 0} />
+            <Summary
+              label="Retention days"
+              value={complianceReport?.backend.capabilities.retentionDays ?? 0}
+            />
+          </div>
+          <div className="mt-4 space-y-2">
+            {(complianceReport?.secretAccessByActor ?? []).slice(0, 4).map((actor) => (
+              <div
+                className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2 text-xs"
+                key={actor.actor}
+              >
+                <span className="font-mono text-slate-700">{actor.actor}</span>
+                <span className="text-slate-500">
+                  {actor.fetches} fetches · {actor.reveals} reveals · {actor.failures} failures
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-cyan-700" />
+            <h2 className="text-sm font-semibold text-slate-900">Audit backend integrity</h2>
+          </div>
+          <dl className="mt-4 grid gap-3 text-sm">
+            <Detail label="Backend" value={complianceReport?.backend.name ?? "mongodb"} />
+            <Detail label="Integrity" value={integrity?.valid ? "valid" : "not checked"} />
+            <Detail label="Events checked" value={String(integrity?.eventCount ?? 0)} />
+            <Detail label="Head hash" value={integrity?.headHash ?? "-"} mono />
+          </dl>
+        </div>
       </section>
 
       <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_10rem_10rem_10rem]">

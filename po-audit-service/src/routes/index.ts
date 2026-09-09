@@ -15,6 +15,9 @@ export function createRoutes(dependencies: RouteDependencies): Router {
   });
   router.use(createAuthMiddleware());
   router.get("/audit/events", asyncHandler(dependencies.auditController.list));
+  router.get("/audit/events/export", asyncHandler(dependencies.auditController.export));
+  router.get("/audit/compliance/report", asyncHandler(dependencies.auditController.report));
+  router.get("/audit/compliance/integrity", asyncHandler(dependencies.auditController.integrity));
 
   return router;
 }

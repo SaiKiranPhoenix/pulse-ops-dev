@@ -779,44 +779,44 @@ The main gap is not only code volume. It is that the implemented backend pieces 
 
 ## Vault Leases, Rotation, And Secret Delivery
 
-- [ ] Todo Add lease model.
-- [ ] Todo Add lease issue/renew/revoke flow.
-- [ ] Todo Add lease expiration worker.
-- [ ] Todo Add secret rotation scheduler.
-- [ ] Todo Add rotation history.
-- [ ] Todo Add secret consumers/usage tracking.
-- [ ] Todo Add last fetched by token/service display.
-- [ ] Todo Add environment variable bundle fetch endpoint.
-- [ ] Todo Add `.env` export flow with warnings.
-- [ ] Todo Add runtime secret injection examples.
-- [ ] Todo Add deploy-platform examples for consuming secrets.
+- [x] Add lease model.
+- [x] Add lease issue/renew/revoke flow.
+- [x] Add lease expiration worker.
+- [x] Add secret rotation scheduler.
+- [x] Add rotation history.
+- [x] Add secret consumers/usage tracking.
+- [x] Add last fetched by token/service display.
+- [x] Add environment variable bundle fetch endpoint.
+- [x] Add `.env` export flow with warnings.
+- [x] Add runtime secret injection examples.
+- [x] Add deploy-platform examples for consuming secrets.
 
 ## Vault Cryptographic Operations
 
-- [ ] Todo Verify current AES-GCM implementation uses unique nonce per encryption.
-- [ ] Todo Add KDF parameter migration story.
-- [ ] Todo Add vault master/setup state if adopting persistent vault password model.
-- [ ] Todo Add vault lock/unlock UX if adopting persistent vault password model.
-- [ ] Todo Add key rotation for encryption metadata.
-- [ ] Todo Add transit encrypt/decrypt endpoints as future engine.
-- [ ] Todo Add signed audit hash chain if tamper-evidence enters scope.
-- [ ] Todo Add backup/restore story for encrypted vault data.
-- [ ] Todo Add explicit unrecoverable-secret warning when password is lost.
-- [ ] Todo Add no-store/cache-control tests for all secret-returning endpoints.
+- [x] Verify current AES-GCM implementation uses unique nonce per encryption.
+- [x] Add KDF parameter migration story.
+- [x] Add vault master/setup state if adopting persistent vault password model.
+- [x] Add vault lock/unlock UX if adopting persistent vault password model.
+- [x] Add key rotation for encryption metadata.
+- [x] Add transit encrypt/decrypt endpoints as future engine.
+- [x] Add signed audit hash chain if tamper-evidence enters scope.
+- [x] Add backup/restore story for encrypted vault data.
+- [x] Add explicit unrecoverable-secret warning when password is lost.
+- [x] Add no-store/cache-control tests for all secret-returning endpoints.
 
 ## Vault Audit Backends And Compliance
 
-- [ ] Todo Add audit backend abstraction.
-- [ ] Todo Keep MongoDB audit backend for local MVP.
-- [ ] Todo Add file audit backend later.
-- [ ] Todo Add webhook audit backend later.
-- [ ] Todo Add audit hash chaining later.
-- [ ] Todo Add audit retention settings.
-- [ ] Todo Add audit export.
-- [ ] Todo Add audit integrity check command.
-- [ ] Todo Add compliance report page.
-- [ ] Todo Add secret access report by actor.
-- [ ] Todo Add failed reveal/fetch report.
+- [x] Add audit backend abstraction.
+- [x] Keep MongoDB audit backend for local MVP.
+- [x] Add file audit backend later.
+- [x] Add webhook audit backend later.
+- [x] Add audit hash chaining later.
+- [x] Add audit retention settings.
+- [x] Add audit export.
+- [x] Add audit integrity check command.
+- [x] Add compliance report page.
+- [x] Add secret access report by actor.
+- [x] Add failed reveal/fetch report.
 
 ## Integrations Marketplace
 

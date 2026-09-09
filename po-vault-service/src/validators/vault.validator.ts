@@ -19,6 +19,14 @@ export const vaultAuthMethodParamsSchema = z.object({
   authMethodId: z.string().trim().min(1).max(128),
 });
 
+export const vaultLeaseParamsSchema = z.object({
+  leaseId: z.string().trim().min(1).max(160),
+});
+
+export const bundleFetchParamsSchema = z.object({
+  environment: z.string().trim().min(1).max(VAULT_LIMITS.environmentMaxLength),
+});
+
 export const createSecretBodySchema = z.object({
   projectId: z.string().trim().min(1).max(128),
   environment: z.string().trim().min(1).max(VAULT_LIMITS.environmentMaxLength),
@@ -70,6 +78,8 @@ export type SecretQuery = z.infer<typeof secretQuerySchema>;
 export type SecretParams = z.infer<typeof secretParamsSchema>;
 export type VaultTokenParams = z.infer<typeof vaultTokenParamsSchema>;
 export type VaultAuthMethodParams = z.infer<typeof vaultAuthMethodParamsSchema>;
+export type VaultLeaseParams = z.infer<typeof vaultLeaseParamsSchema>;
+export type BundleFetchParams = z.infer<typeof bundleFetchParamsSchema>;
 export type CreateSecretBody = z.infer<typeof createSecretBodySchema>;
 export type UpdateSecretBody = z.infer<typeof updateSecretBodySchema>;
 export type RevealSecretBody = z.infer<typeof revealSecretBodySchema>;
