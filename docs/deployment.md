@@ -1,10 +1,36 @@
-# Separate Service Deployment
+# Deployment
 
-PulseOps is designed to deploy every runtime independently.
+PulseOps now defaults to an affordable monolith deployment while preserving the original service
+folders as internal boundaries and optional scale-out units.
+
+## Default Monolith Deployment
+
+- `po-backend`: auth/projects, ingestion, event workers, incidents, ops, Vault, audit, API gateway
+  dashboard routes, and realtime sockets in one process.
+- `po-ui`: dashboard frontend.
+- MongoDB, Redis, and RabbitMQ: shared data services.
+
+Run the default local deployment:
+
+```powershell
+pnpm.cmd infra:up
+pnpm.cmd apps:up
+```
+
+Build the monolith backend image:
+
+```powershell
+docker build -f po-backend/Dockerfile -t pulseops-backend .
+```
+
+The backend exposes `GET /health` and Socket.IO on port `4000`.
+
+## Optional Separate Service Deployment
 
 ## Deployable Units
 
 - `po-ui`
+- `po-backend`
 - `po-api-gateway`
 - `po-auth-project-service`
 - `po-ingestion-service`
@@ -33,22 +59,22 @@ Start only infrastructure:
 pnpm.cmd infra:up
 ```
 
-Build every app image:
+Build every microservice image:
 
 ```powershell
-pnpm.cmd apps:build
+pnpm.cmd microservices:build
 ```
 
 Run the full separately deployed local stack:
 
 ```powershell
-pnpm.cmd stack:up
+pnpm.cmd microservices:up
 ```
 
 Scale specific services locally:
 
 ```powershell
-docker compose --profile apps up -d --scale po-ingestion-service=3 --scale po-event-workers=3
+docker compose --profile microservices up -d --scale po-ingestion-service=3 --scale po-event-workers=3
 ```
 
 Only services without host-bound ports can be scaled this way. `po-ui`, `po-api-gateway`, and `po-realtime-gateway` expose host ports in local Compose and should normally run as one local instance unless a load balancer is added.
@@ -88,7 +114,8 @@ The older `VITE_API_BASE_URL` and `VITE_REALTIME_URL` values still work for loca
 Every deployable image includes a Docker health check:
 
 - `po-ui`: `GET /health` on port `8080`
-- `po-api-gateway`: `GET /health` on port `4000`
+- `po-backend`: `GET /health` on port `4000`
+- `po-api-gateway`: `GET /health` on port `4000` in microservice mode
 - `po-auth-project-service`: `GET /health` on port `4010`
 - `po-ingestion-service`: `GET /health` on port `4100`
 - `po-event-workers`: `GET /health` on port `4110`
@@ -114,7 +141,7 @@ Branch flow is controlled by the `PR Review Guardrails` workflow:
 
 ## Production Direction
 
-For production-style deployment, run one image per service behind a gateway/load balancer:
+For higher-scale deployment, run one image per service behind a gateway/load balancer:
 
 - scale `po-ingestion-service` for ingestion throughput
 - scale `po-event-workers` for queue drain rate

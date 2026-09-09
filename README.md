@@ -19,8 +19,9 @@ PulseOps is a local-first developer operations platform for real-time observabil
 This repo is a pnpm monorepo using top-level `po-*` folders:
 
 - `po-ui`: Vite React dashboard.
+- `po-backend`: monolith backend that runs all API modules, realtime sockets, and workers in one process.
 - `po-shared`: shared contracts and utilities.
-- `po-*-service`: backend services and workers.
+- `po-*-service`: domain service modules kept as internal boundaries and optional scale-out units.
 - `scripts`: CI, security, load-test, and demo automation.
 - `planning`: architecture and implementation planning docs.
 
@@ -42,8 +43,8 @@ pnpm.cmd stack:up
 Local URLs:
 
 - Dashboard: `http://localhost:3000`
-- API gateway: `http://localhost:4000`
-- Realtime gateway: `http://localhost:4130`
+- Backend API: `http://localhost:4000`
+- Realtime socket: `http://localhost:4000`
 - RabbitMQ management: `http://localhost:15672`
 - Mailhog: `http://localhost:8025`
 

@@ -32,6 +32,16 @@ export type RealtimeGateway = {
 export function createRealtimeGateway(options: CreateRealtimeGatewayOptions): RealtimeGateway {
   const app = express();
   const httpServer = createServer(app);
+
+  return attachRealtimeGateway(app, httpServer, options, { closeHttpServer: true });
+}
+
+export function attachRealtimeGateway(
+  app: Express,
+  httpServer: HttpServer,
+  options: CreateRealtimeGatewayOptions,
+  lifecycle: { readonly closeHttpServer: boolean } = { closeHttpServer: false },
+): RealtimeGateway {
   const io = new SocketIoServer(httpServer, {
     cors: {
       origin: [...options.allowedOrigins],
@@ -75,6 +85,9 @@ export function createRealtimeGateway(options: CreateRealtimeGatewayOptions): Re
     realtimeEvents: new RealtimeEventService(io),
     async close(): Promise<void> {
       await new Promise<void>((resolve) => io.close(() => resolve()));
+      if (!lifecycle.closeHttpServer) {
+        return;
+      }
       await new Promise<void>((resolve, reject) => {
         httpServer.close((error) => {
           if (error !== undefined) {

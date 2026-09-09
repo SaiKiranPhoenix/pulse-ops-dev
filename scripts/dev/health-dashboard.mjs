@@ -44,44 +44,12 @@ const SERVICES = [
   // Applications
   { name: "po-ui", profile: "apps", port: 3000, healthUrl: "http://localhost:3000", label: "UI" },
   {
-    name: "po-api-gateway",
+    name: "po-backend",
     profile: "apps",
     port: 4000,
     healthUrl: "http://localhost:4000/health",
-    label: "API Gateway",
+    label: "Backend Monolith",
   },
-  {
-    name: "po-auth-project-service",
-    profile: "apps",
-    port: 4010,
-    healthUrl: null,
-    label: "Auth / Projects",
-  },
-  {
-    name: "po-ingestion-service",
-    profile: "apps",
-    port: 4100,
-    healthUrl: null,
-    label: "Ingestion",
-  },
-  {
-    name: "po-event-workers",
-    profile: "apps",
-    port: 4110,
-    healthUrl: null,
-    label: "Event Workers",
-  },
-  { name: "po-incident-service", profile: "apps", port: 4120, healthUrl: null, label: "Incidents" },
-  {
-    name: "po-realtime-gateway",
-    profile: "apps",
-    port: 4130,
-    healthUrl: "http://localhost:4130/health",
-    label: "Realtime",
-  },
-  { name: "po-vault-service", profile: "apps", port: 4200, healthUrl: null, label: "Vault" },
-  { name: "po-audit-service", profile: "apps", port: 4140, healthUrl: null, label: "Audit" },
-  { name: "po-ops-service", profile: "apps", port: 4150, healthUrl: null, label: "Ops" },
 ];
 
 // ── Main ──────────────────────────────────────────────────────────
@@ -131,7 +99,7 @@ async function main() {
   console.log(`\n${bld("Dashboard URLs:")}`);
   console.log(`  ${cyn("UI")}             http://localhost:3000`);
   console.log(`  ${cyn("API")}            http://localhost:4000`);
-  console.log(`  ${cyn("Realtime")}       http://localhost:4130`);
+  console.log(`  ${cyn("Realtime")}       http://localhost:4000`);
   console.log(`  ${cyn("RabbitMQ Mgmt")} http://localhost:15672`);
   console.log(`  ${cyn("MailHog")}        http://localhost:8025`);
   console.log(`  ${cyn("MongoDB")}        localhost:27018  (Compass / mongosh)`);
