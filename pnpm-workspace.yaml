@@ -1,0 +1,8 @@
+packages:
+  - "po-*"
+allowBuilds:
+  esbuild: true
+overrides:
+  "@vitest/mocker": "^4.1.11"
+  js-yaml: "^4.3.2"
+  qs: "^6.16.0"

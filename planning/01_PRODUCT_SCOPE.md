@@ -101,6 +101,6 @@ PulseOps is a local-first developer operations platform for monitoring applicati
 ## Temporary Assumptions
 
 - Single-user project ownership in MVP; no organizations or teams.
-- API gateway and dashboard/query service may run in one Express process during early implementation, but service boundaries remain documented.
+- API gateway, auth/project, ingestion, workers, incident, realtime, vault, audit, and ops runtimes are deployed separately from the start.
 - RabbitMQ is required for ingestion processing and cannot be mocked in the final MVP.
 - Redis is required for rate limiting and idempotency and cannot be replaced with in-memory state.

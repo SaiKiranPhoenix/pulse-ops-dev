@@ -4,32 +4,36 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 
 ## Current Project State
 
-- Repository is planning-only before implementation.
+- Repository now contains the PulseOps monorepo implementation across `po-*` services, `po-ui`, Docker Compose, k6 scripts, and shared utilities.
 - Do not reread every planning file unless a task needs deep detail.
-- Start coding from the vertical-slice roadmap in `planning/16_IMPLEMENTATION_ROADMAP.md` and backlog in `planning/21_CODING_BACKLOG.md`.
+- Start coding from the remaining gaps in `planning/16_IMPLEMENTATION_ROADMAP.md` and backlog in `planning/21_CODING_BACKLOG.md`.
+- Current implemented demo path includes auth/project/API keys, ingestion, Redis rate limits/idempotency/cache, RabbitMQ workers, incidents, realtime dashboard, ops health/queues, encrypted vault, vault audit, and hashed vault integration token fetch.
 
 ## Fixed Decisions
 
 - Language: TypeScript.
 - Backend: Express.
-- Frontend: React/Next.js, Tailwind CSS, Socket.IO client, Recharts.
+- Frontend: Vite React, React Router, Tailwind CSS, ShadCN UI, Socket.IO client, Recharts.
 - Monorepo: pnpm workspaces using top-level `po-*` folders.
 - Database: MongoDB.
 - Cache/hot state: Redis.
 - Queue: RabbitMQ.
 - Realtime: Socket.IO.
 - Load testing: k6.
-- Infrastructure: Docker Compose, local-first, zero-cost.
+- Infrastructure: Docker Compose, local-first, zero-cost, with each app service independently deployable/scalable.
 
 ## Architecture Rules
 
-- Microservices-first boundaries, even if MVP starts with grouped runtime processes.
-- API Gateway, Auth/Project, Dashboard Query, and Incident HTTP APIs may start in one Express process.
-- Event workers, incident worker, audit worker, and heartbeat may start in one worker process.
+- Microservices-first boundaries with separate runtime deployment for every `po-*` service.
+- Do not group API Gateway, Auth/Project, Ingestion, Incident, Vault, Audit, Ops, Realtime, or Worker runtimes.
+- Each deployable service has its own Dockerfile and Compose service so load can be managed independently.
 - Vault logic must stay security-isolated in code structure.
 - Each service owns its writes and collections.
 - Shared utilities should live in a top-level `po-shared` folder only if/when needed; do not recreate `apps/`, `services/`, or `packages/` directories.
 - Do not put service-specific database models in shared utilities.
+- Each backend `po-*` service uses the requested Express structure: `config`, `routes`, `controllers`, `services`, `repositories`, `models`, `middlewares`, `validators`, `events`, `sockets`, `utils`, `types`, `errors`, `app.ts`, and `server.ts`.
+- `po-ui` uses the requested Vite structure: `pages`, `routes`, `components`, `features`, `hooks`, `lib`, `store`, `types`, `utils`, `styles`, `App.tsx`, and `main.tsx`.
+- Use ShadCN components for reusable UI primitives instead of hand-building buttons, inputs, dialogs, tables, tabs, forms, and dropdowns.
 
 ## MVP Must-Haves
 
@@ -45,6 +49,7 @@ Use this as the compact working memory for PulseOps implementation. The full sou
 - Vault secrets encrypted with AES-256-GCM.
 - Vault password derived key using Argon2id preferred, scrypt fallback acceptable.
 - Vault integration tokens hashed at rest and raw token shown once.
+- Vault integration fetch uses `GET /api/integrations/vault/secrets/:environment/:key` with `Authorization: Bearer <vault_integration_token>` or `x-vault-token`.
 - Audit logs for all sensitive vault operations.
 - k6 scripts for normal traffic, burst, repeated errors, high latency, and rate limiting.
 

@@ -2,62 +2,41 @@
 
 ## Decision
 
-Use a pnpm TypeScript monorepo with Express services and shared packages.
+Use a pnpm TypeScript monorepo with top-level `po-*` deployable services and `po-shared`.
 
 ## Top-Level Structure
 
 ```text
 pulse-ops/
-  apps/
-    dashboard/
-  services/
-    api-gateway/
-    auth-project-service/
-    ingestion-service/
-    event-workers/
-    incident-service/
-    realtime-gateway/
-    vault-service/
-    audit-service/
-    ops-service/
-  packages/
-    config/
-    logger/
-    errors/
-    validation/
-    contracts/
-    crypto-utils/
-    rabbitmq/
-    redis-utils/
-    mongo-utils/
-  infra/
-    docker/
-  scripts/
-  tests/
-    k6/
-    integration/
+  po-ui/
+  po-api-gateway/
+  po-auth-project-service/
+  po-ingestion-service/
+  po-event-workers/
+  po-incident-service/
+  po-realtime-gateway/
+  po-vault-service/
+  po-audit-service/
+  po-ops-service/
+  po-shared/
   planning/
   docs/
+  scripts/
+  compose.yaml
 ```
 
 ## Folder Responsibilities
 
 | Folder | Belongs Here | Does Not Belong Here |
 | --- | --- | --- |
-| `apps/dashboard` | UI routes, components, charts, socket client | backend business logic |
-| `services/*` | service-specific APIs, workers, models, repositories | shared cross-service utilities |
-| `packages/config` | env parsing and typed config | hardcoded secrets |
-| `packages/logger` | structured logging and redaction | service-specific log messages |
-| `packages/errors` | common error shape and helpers | business-specific policy |
-| `packages/validation` | shared Zod helpers | service-owned schemas that are not public contracts |
-| `packages/contracts` | API and queue payload contracts | database models |
-| `packages/crypto-utils` | encryption wrappers and hashing helpers | vault business workflows |
-| `packages/rabbitmq` | connection, publish, consume helpers | concrete worker handlers |
-| `packages/redis-utils` | client and safe key helpers | feature-specific cache policy |
-| `packages/mongo-utils` | connection helpers | collection ownership shortcuts |
-| `infra/docker` | compose files and local infra config | application source |
+| `po-ui` | UI routes, components, charts, socket client | backend business logic |
+| `po-*-service` | service-specific APIs, workers, models, repositories | shared cross-service utilities |
+| `po-api-gateway` | public API edge and routing | domain persistence owned by other services |
+| `po-event-workers` | queue consumers and event processing | HTTP ingestion admission |
+| `po-vault-service` | secret encryption and vault APIs | telemetry processing |
+| `po-shared` | env parsing, contracts, logger, errors, validation, safe shared helpers | service-owned schemas, repositories, or business workflows |
+| `compose.yaml` | local infra and app service orchestration | source code |
 | `scripts` | seed, reset, index setup, demo helpers | destructive broad filesystem commands |
-| `tests/k6` | load tests | unit tests |
 | `planning` | architecture markdown | code |
 | `docs` | generated diagrams and user-facing docs | secrets |
 
@@ -78,32 +57,29 @@ Each HTTP service should follow:
 src/
   app.ts
   server.ts
+  config/
   routes/
   controllers/
   services/
   repositories/
   models/
-  middleware/
-  schemas/
-  health/
+  middlewares/
+  validators/
+  events/
+    publishers/
+    consumers/
+  sockets/
+  utils/
+  types/
+  errors/
 ```
 
-Worker services should follow:
-
-```text
-src/
-  index.ts
-  consumers/
-  handlers/
-  repositories/
-  heartbeat/
-  retry/
-```
+Worker services use the same structure; `server.ts` is the worker runtime entry point.
 
 ## Shared Validation
 
 - Use Zod for public API bodies, query params, and queue payloads.
-- Store public contract schemas in `packages/contracts`.
+- Store public contract schemas in `po-shared/src/contracts`.
 - Store internal service schemas inside the owning service.
 
 ## Environment Strategy
@@ -139,11 +115,6 @@ Root README should include:
 - interview talking points
 - resume bullets
 
-## Migration Compatibility
+## Deployment Compatibility
 
-If services start grouped in one process:
-
-- keep route modules and service modules separable.
-- do not import private repositories across logical service boundaries.
-- keep queue contracts stable.
-- keep collection ownership documented.
+Every `po-*` runtime has its own Dockerfile and Compose service. Do not merge service runtimes. Start only the subset needed during local development, but keep each service independently deployable and scalable.

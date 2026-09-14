@@ -8,11 +8,16 @@ Run the full MVP locally at zero cost with Docker Compose. The environment shoul
 
 | Container | Responsibility | Ports | Depends On |
 | --- | --- | --- | --- |
-| `dashboard` | React/Next.js UI | `3000` | `api` |
-| `api` | API gateway plus early merged HTTP services | `4000` | MongoDB, Redis, RabbitMQ |
-| `ingestion` | telemetry admission path | `4100` optional, or mounted under api | Redis, RabbitMQ |
-| `workers` | event, incident, audit, heartbeat workers | none | MongoDB, Redis, RabbitMQ |
-| `vault` | vault APIs, encryption, token validation | `4200` optional, or mounted under api | MongoDB, Redis, RabbitMQ |
+| `po-ui` | Vite React UI | `3000` | API gateway, realtime gateway |
+| `po-api-gateway` | public API gateway | `4000` | MongoDB, Redis, RabbitMQ |
+| `po-auth-project-service` | auth, projects, API keys | `4010` internal | MongoDB, Redis, RabbitMQ |
+| `po-ingestion-service` | telemetry admission path | `4100` internal | Redis, RabbitMQ |
+| `po-event-workers` | event processing workers | `4110` internal | MongoDB, Redis, RabbitMQ |
+| `po-incident-service` | incident APIs and worker logic | `4120` internal | MongoDB, Redis, RabbitMQ |
+| `po-realtime-gateway` | Socket.IO realtime gateway | `4130` | Redis, RabbitMQ |
+| `po-audit-service` | audit event worker/API | `4140` internal | MongoDB, RabbitMQ |
+| `po-ops-service` | worker/queue/health APIs | `4150` internal | MongoDB, Redis, RabbitMQ |
+| `po-vault-service` | vault APIs, encryption, token validation | `4200` internal | MongoDB, Redis, RabbitMQ |
 | `mongodb` | durable data | `27017` | none |
 | `redis` | cache and hot state | `6379` | none |
 | `rabbitmq` | queue broker | `5672`, `15672` | none |
@@ -23,14 +28,13 @@ Run the full MVP locally at zero cost with Docker Compose. The environment shoul
 
 - Dashboard: `http://localhost:3000`
 - API gateway: `http://localhost:4000`
-- Ingestion direct service if split: `http://localhost:4100`
-- Vault direct service if split: `http://localhost:4200`
+- Realtime gateway: `http://localhost:4130`
 - RabbitMQ management: `http://localhost:15672`
 - Mailhog UI: `http://localhost:8025`
 - MongoDB: `mongodb://localhost:27017/pulseops`
 - Redis: `redis://localhost:6379`
 
-Use demo credentials only in `.env.example`; never commit real secrets.
+Use placeholder credentials only in `.env.example`; copy them into a local `.env` and replace them before running Compose. Never commit real secrets.
 
 ## Environment Variables
 
@@ -41,9 +45,11 @@ Use demo credentials only in `.env.example`; never commit real secrets.
 | `MONGODB_URI` | API, workers, vault | local compose URI |
 | `REDIS_URL` | API, ingestion, workers, vault | local compose URI |
 | `RABBITMQ_URL` | ingestion, workers, audit | local compose URI |
-| `JWT_SECRET` | auth/api | demo value only in `.env.example` |
-| `API_PUBLIC_URL` | dashboard | browser-facing API URL |
-| `SOCKET_URL` | dashboard | realtime endpoint |
+| `JWT_SECRET` | auth/api | placeholder value only in `.env.example`; real local value belongs in ignored `.env` |
+| `PULSEOPS_API_BASE_URL` | dashboard container | browser-facing API URL generated into the static UI at container start |
+| `PULSEOPS_REALTIME_URL` | dashboard container | browser-facing realtime endpoint generated into the static UI at container start |
+| `VITE_API_BASE_URL` | dashboard local build | development-build fallback for the API URL |
+| `VITE_REALTIME_URL` | dashboard local build | development-build fallback for the realtime endpoint |
 | `VAULT_KDF` | vault | argon2id preferred |
 | `LOG_REDACTION_ENABLED` | all services | default true |
 | `RATE_LIMIT_PER_MINUTE` | ingestion | default 600 |
@@ -52,10 +58,10 @@ Use demo credentials only in `.env.example`; never commit real secrets.
 
 | Service | Health Check |
 | --- | --- |
-| dashboard | HTTP `GET /` |
+| dashboard | HTTP `GET /health` |
 | api | `GET /api/health` |
 | ingestion | `GET /health` or gateway health |
-| workers | heartbeat key in Redis plus MongoDB `workerHealth` |
+| workers | `GET /health`, heartbeat key in Redis, plus MongoDB `workerHealth` |
 | vault | `GET /health` with crypto readiness |
 | MongoDB | `db.adminCommand('ping')` |
 | Redis | `PING` |
@@ -71,9 +77,11 @@ Use demo credentials only in `.env.example`; never commit real secrets.
 
 Planned commands:
 
-- `pnpm dev` starts dashboard, API, ingestion, vault, and workers in watch mode.
-- `pnpm dev:infra` starts MongoDB, Redis, RabbitMQ, Mailhog.
-- `pnpm dev:workers` starts worker runtime.
+- `pnpm dev` starts workspace services in watch mode.
+- `pnpm infra:up` starts MongoDB, Redis, RabbitMQ, Mailhog.
+- `pnpm apps:build` builds separate app images.
+- `pnpm stack:up` starts infra plus all app services with the `apps` Compose profile.
+- `docker compose --profile apps up -d --scale po-ingestion-service=3 --scale po-event-workers=3` scales hot-path services locally.
 - `pnpm test` runs unit and integration tests.
 - `pnpm test:contracts` validates API contracts.
 - `pnpm load:normal`, `pnpm load:burst`, `pnpm load:incidents` run k6 scripts.
@@ -87,12 +95,12 @@ Seed script should create:
 - active API key hash and raw key printed once to console
 - sample events
 - sample active and resolved incidents
-- sample encrypted vault metadata using a known local demo vault password from `.env.example`
+- sample encrypted vault metadata using a clearly marked local-only placeholder vault password from `.env`
 
 Rules:
 
 - Seed values are fake only.
-- Seed script must clearly mark demo-only credentials.
+- Seed script must clearly mark local-only placeholder credentials.
 - Do not seed real third-party URLs or tokens.
 
 ## Safe Reset Strategy

@@ -6,7 +6,7 @@ Status: Accepted
 
 Context: PulseOps must demonstrate real system design concepts: ingestion, workers, queues, caching, incidents, vault, audit, and realtime dashboards.
 
-Decision: Use microservices-first boundaries with possible grouped runtime deployment during MVP.
+Decision: Use microservices-first boundaries with separate runtime deployment for every `po-*` service from the start.
 
 Consequences: Stronger architecture signal and clearer ownership, with more coordination overhead.
 

@@ -1,0 +1,116 @@
+import {
+  closeRedisClient,
+  connectRedisClient,
+  createRedisClient,
+  type PulseRedisClient,
+} from "@pulseops/shared";
+import { CustomDashboardController } from "../controllers/custom-dashboard.controller.js";
+import { InfrastructureController } from "../controllers/infrastructure.controller.js";
+import { MetricsPlatformController } from "../controllers/metrics-platform.controller.js";
+import { OpsController } from "../controllers/ops.controller.js";
+import { UptimeRumController } from "../controllers/uptime-rum.controller.js";
+import {
+  createRealtimeQueueStatusPublisher,
+  type RealtimeQueueStatusPublisher,
+} from "../events/publishers/realtime-queue-status.publisher.js";
+import { CustomDashboardRepository } from "../repositories/custom-dashboard.repository.js";
+import { InfrastructureRepository } from "../repositories/infrastructure.repository.js";
+import { MetricsPlatformRepository } from "../repositories/metrics-platform.repository.js";
+import {
+  RabbitQueueStatusRepository,
+  type QueueStatusRepository,
+} from "../repositories/queue-status.repository.js";
+import { UptimeRumRepository } from "../repositories/uptime-rum.repository.js";
+import {
+  RedisWorkerHealthRepository,
+  type WorkerHealthRepository,
+} from "../repositories/worker-health.repository.js";
+import { OpsService } from "./ops.service.js";
+import { QueryExplorerService } from "./query-explorer.service.js";
+
+export type OpsServiceDependencies = {
+  readonly opsController: OpsController;
+  readonly opsService: OpsService;
+  readonly customDashboardController: CustomDashboardController;
+  readonly customDashboardRepo: CustomDashboardRepository;
+  readonly queryExplorerService: QueryExplorerService;
+  readonly metricsPlatformController: MetricsPlatformController;
+  readonly metricsPlatformRepo: MetricsPlatformRepository;
+  readonly infrastructureController: InfrastructureController;
+  readonly infrastructureRepo: InfrastructureRepository;
+  readonly uptimeRumController: UptimeRumController;
+  readonly uptimeRumRepo: UptimeRumRepository;
+  close(): Promise<void>;
+};
+
+export type CreateOpsServiceDependenciesOptions = {
+  readonly redisUrl: string;
+  readonly rabbitMqUrl: string;
+};
+
+export async function createOpsServiceDependencies(
+  options: CreateOpsServiceDependenciesOptions,
+): Promise<OpsServiceDependencies> {
+  const redis = await connectRedisClient(createRedisClient(options.redisUrl));
+  const realtimeQueueStatusPublisher = createRealtimeQueueStatusPublisher(options.rabbitMqUrl);
+
+  return createOpsServiceDependenciesFromRepositories({
+    workerHealthRepository: new RedisWorkerHealthRepository(redis),
+    queueStatusRepository: new RabbitQueueStatusRepository(options.rabbitMqUrl),
+    realtimeQueueStatusPublisher,
+    close: async () => {
+      await realtimeQueueStatusPublisher.close();
+      await closeRedisClient(redis);
+    },
+  });
+}
+
+export function createOpsServiceDependenciesFromRepositories(options: {
+  readonly workerHealthRepository: WorkerHealthRepository;
+  readonly queueStatusRepository: QueueStatusRepository;
+  readonly realtimeQueueStatusPublisher?: RealtimeQueueStatusPublisher;
+  readonly redis?: PulseRedisClient;
+  close?(): Promise<void>;
+}): OpsServiceDependencies {
+  const opsService = new OpsService(
+    options.workerHealthRepository,
+    options.queueStatusRepository,
+    options.realtimeQueueStatusPublisher,
+  );
+
+  const customDashboardRepo = new CustomDashboardRepository();
+  const queryExplorerService = new QueryExplorerService();
+  const customDashboardController = new CustomDashboardController(
+    customDashboardRepo,
+    queryExplorerService,
+  );
+
+  const metricsPlatformRepo = new MetricsPlatformRepository();
+  const metricsPlatformController = new MetricsPlatformController(metricsPlatformRepo);
+
+  const infrastructureRepo = new InfrastructureRepository();
+  const infrastructureController = new InfrastructureController(infrastructureRepo);
+
+  const uptimeRumRepo = new UptimeRumRepository();
+  const uptimeRumController = new UptimeRumController(uptimeRumRepo);
+
+  return {
+    opsController: new OpsController(opsService),
+    opsService,
+    customDashboardController,
+    customDashboardRepo,
+    queryExplorerService,
+    metricsPlatformController,
+    metricsPlatformRepo,
+    infrastructureController,
+    infrastructureRepo,
+    uptimeRumController,
+    uptimeRumRepo,
+    async close(): Promise<void> {
+      await options.close?.();
+      if (options.redis !== undefined) {
+        await closeRedisClient(options.redis);
+      }
+    },
+  };
+}

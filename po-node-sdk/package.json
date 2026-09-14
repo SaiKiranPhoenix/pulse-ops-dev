@@ -1,0 +1,42 @@
+{
+  "name": "@pulseops/node-sdk",
+  "version": "0.1.0",
+  "description": "Official Node.js SDK and instrumentation toolkit for PulseOps observability platform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./express": {
+      "types": "./src/middleware/express.ts",
+      "default": "./dist/middleware/express.js"
+    },
+    "./jobs": {
+      "types": "./src/helpers/jobs.ts",
+      "default": "./dist/helpers/jobs.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pulseops/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "express": "^5.0.1"
+  },
+  "peerDependencies": {
+    "express": ">=4.18.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
+  }
+}

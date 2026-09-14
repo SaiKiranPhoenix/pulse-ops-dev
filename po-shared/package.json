@@ -1,0 +1,71 @@
+{
+  "name": "@pulseops/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./src/config/index.ts",
+      "default": "./dist/config/index.js"
+    },
+    "./contracts": {
+      "types": "./src/contracts/index.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./crypto": {
+      "types": "./src/crypto/index.ts",
+      "default": "./dist/crypto/index.js"
+    },
+    "./errors": {
+      "types": "./src/errors/index.ts",
+      "default": "./dist/errors/index.js"
+    },
+    "./logger": {
+      "types": "./src/logger/index.ts",
+      "default": "./dist/logger/index.js"
+    },
+    "./messaging": {
+      "types": "./src/messaging/index.ts",
+      "default": "./dist/messaging/index.js"
+    },
+    "./mongo": {
+      "types": "./src/mongo/index.ts",
+      "default": "./dist/mongo/index.js"
+    },
+    "./redis": {
+      "types": "./src/redis/index.ts",
+      "default": "./dist/redis/index.js"
+    },
+    "./security": {
+      "types": "./src/security/index.ts",
+      "default": "./dist/security/index.js"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "default": "./dist/types/index.js"
+    },
+    "./validation": {
+      "types": "./src/validation/index.ts",
+      "default": "./dist/validation/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "redis": "^5.10.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.8"
+  }
+}

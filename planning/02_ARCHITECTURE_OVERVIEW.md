@@ -2,7 +2,7 @@
 
 ## System Style
 
-PulseOps uses a microservices-first architecture in a TypeScript monorepo. For MVP speed, some services may run as separate Express apps or grouped runtime processes, but each domain keeps clear ownership of APIs, data, queue contracts, and failure behavior.
+PulseOps uses a microservices-first architecture in a TypeScript monorepo. Every `po-*` runtime is deployed as its own service from the start so ingestion, workers, realtime, vault, audit, ops, and gateway load can be managed independently.
 
 ## High-Level Components
 
@@ -69,15 +69,17 @@ Each service owns its writes. Other services may read only through:
 
 No service should casually import another service's model and write its collections.
 
-## MVP Deployment Simplification
+## Independent Deployment Rule
 
-Allowed runtime grouping for early implementation:
+Runtime grouping is not allowed for the target MVP. Each service must have:
 
-- `api-gateway`, `auth-project`, `dashboard-query`, and `incident-api` can run in one Express process named `api`.
-- `event-workers`, `incident-worker`, `audit-worker`, and `ops-heartbeat` can run in one worker process.
-- `vault-service` should remain logically separate and may become its own process early because it has sensitive security rules.
+- its own Dockerfile
+- its own Compose service
+- its own environment contract
+- its own logs and health endpoint
+- its own scale unit
 
-The docs still treat them as separate services so the architecture can scale without redesign.
+Local development may start only a subset of services, but it must not merge service runtimes into one process.
 
 ## Primary Tradeoffs
 

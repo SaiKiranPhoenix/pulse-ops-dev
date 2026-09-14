@@ -1,0 +1,348 @@
+name: pulse-ops
+
+services:
+  po-ui:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-ui/Dockerfile
+    restart: unless-stopped
+    environment:
+      PULSEOPS_API_BASE_URL: ${PULSEOPS_API_BASE_URL:-http://localhost:4000}
+      PULSEOPS_REALTIME_URL: ${MONOLITH_REALTIME_URL:-http://localhost:4000}
+    ports:
+      - "3000:8080"
+    depends_on:
+      - po-backend
+
+  po-backend:
+    profiles: ["apps"]
+    build:
+      context: .
+      dockerfile: po-backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${API_GATEWAY_PORT:-4000}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
+      VAULT_MASTER_PASSWORD: ${VAULT_MASTER_PASSWORD:?Set VAULT_MASTER_PASSWORD in .env}
+      VAULT_TOKEN_PEPPER: ${VAULT_TOKEN_PEPPER:?Set VAULT_TOKEN_PEPPER in .env}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      WORKER_ID: ${WORKER_ID:-po-backend}
+      WORKER_PREFETCH: ${WORKER_PREFETCH:-10}
+      WORKER_HEARTBEAT_INTERVAL_SECONDS: ${WORKER_HEARTBEAT_INTERVAL_SECONDS:-10}
+      WORKER_HEARTBEAT_TTL_SECONDS: ${WORKER_HEARTBEAT_TTL_SECONDS:-30}
+      INCIDENT_WORKER_PREFETCH: ${INCIDENT_WORKER_PREFETCH:-10}
+      AUDIT_WORKER_PREFETCH: ${AUDIT_WORKER_PREFETCH:-10}
+      REALTIME_WORKER_PREFETCH: ${REALTIME_WORKER_PREFETCH:-10}
+    ports:
+      - "4000:4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-api-gateway:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-api-gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${API_GATEWAY_PORT:-4000}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      AUTH_PROJECT_SERVICE_URL: ${AUTH_PROJECT_SERVICE_URL:-http://po-auth-project-service:4010}
+      AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL:-http://po-audit-service:4140}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://po-ingestion-service:4100}
+      INCIDENT_SERVICE_URL: ${INCIDENT_SERVICE_URL:-http://po-incident-service:4120}
+      OPS_SERVICE_URL: ${OPS_SERVICE_URL:-http://po-ops-service:4150}
+      VAULT_SERVICE_URL: ${VAULT_SERVICE_URL:-http://po-vault-service:4200}
+    ports:
+      - "4000:4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-auth-project-service:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-auth-project-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${AUTH_PROJECT_SERVICE_PORT:-4010}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:-}
+      OAUTH_STATE_TTL_SECONDS: ${OAUTH_STATE_TTL_SECONDS:-300}
+      OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL:-http://localhost:4000}
+      OAUTH_SUCCESS_REDIRECT_URL: ${OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:3000/oauth/callback}
+      OAUTH_FAILURE_REDIRECT_URL: ${OAUTH_FAILURE_REDIRECT_URL:-http://localhost:3000/login}
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID:-}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
+      OAUTH_GITHUB_CLIENT_ID: ${OAUTH_GITHUB_CLIENT_ID:-}
+      OAUTH_GITHUB_CLIENT_SECRET: ${OAUTH_GITHUB_CLIENT_SECRET:-}
+    expose:
+      - "4010"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-ingestion-service:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-ingestion-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${INGESTION_SERVICE_PORT:-4100}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      API_KEY_PEPPER: ${API_KEY_PEPPER:?Set API_KEY_PEPPER in .env}
+    expose:
+      - "4100"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-event-workers:
+    profiles: ["microservices", "workers"]
+    build:
+      context: .
+      dockerfile: po-event-workers/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${EVENT_WORKERS_PORT:-4110}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      WORKER_ID: ${WORKER_ID:-po-event-workers}
+      WORKER_PREFETCH: ${WORKER_PREFETCH:-10}
+      WORKER_HEARTBEAT_INTERVAL_SECONDS: ${WORKER_HEARTBEAT_INTERVAL_SECONDS:-10}
+      WORKER_HEARTBEAT_TTL_SECONDS: ${WORKER_HEARTBEAT_TTL_SECONDS:-30}
+    expose:
+      - "4110"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-incident-service:
+    profiles: ["microservices", "workers"]
+    build:
+      context: .
+      dockerfile: po-incident-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${INCIDENT_SERVICE_PORT:-4120}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      INCIDENT_WORKER_PREFETCH: ${INCIDENT_WORKER_PREFETCH:-10}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4120"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-realtime-gateway:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-realtime-gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${REALTIME_GATEWAY_PORT:-4130}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      REALTIME_WORKER_PREFETCH: ${REALTIME_WORKER_PREFETCH:-10}
+    ports:
+      - "4130:4130"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-vault-service:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-vault-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${VAULT_SERVICE_PORT:-4200}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      VAULT_MASTER_PASSWORD: ${VAULT_MASTER_PASSWORD:?Set VAULT_MASTER_PASSWORD in .env}
+      VAULT_TOKEN_PEPPER: ${VAULT_TOKEN_PEPPER:?Set VAULT_TOKEN_PEPPER in .env}
+    expose:
+      - "4200"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-audit-service:
+    profiles: ["microservices", "workers"]
+    build:
+      context: .
+      dockerfile: po-audit-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${AUDIT_SERVICE_PORT:-4140}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      AUDIT_WORKER_PREFETCH: ${AUDIT_WORKER_PREFETCH:-10}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4140"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  po-ops-service:
+    profiles: ["microservices"]
+    build:
+      context: .
+      dockerfile: po-ops-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${OPS_SERVICE_PORT:-4150}
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Set RABBITMQ_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    expose:
+      - "4150"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7
+    container_name: pulseops-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - pulseops_mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pulseops-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - pulseops_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: pulseops-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Set RABBITMQ_DEFAULT_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Set RABBITMQ_DEFAULT_PASS in .env}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - pulseops_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: pulseops-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  pulseops_mongodb_data:
+  pulseops_redis_data:
+  pulseops_rabbitmq_data:

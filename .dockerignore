@@ -1,0 +1,14 @@
+.git
+.github
+.pnpm-store
+node_modules
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+planning
+docs/screenshots

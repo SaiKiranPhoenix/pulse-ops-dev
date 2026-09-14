@@ -1,0 +1,80 @@
+name: PR Review Guardrails
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-review-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review-readiness:
+    name: Review readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify branch name
+        env:
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: pnpm pr:check-branch-name
+
+      - name: Verify branch flow
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: pnpm pr:check-branch-flow
+
+      - name: Verify PR metadata
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: pnpm pr:check-metadata
+
+      - name: Verify PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: pnpm pr:check-title
+
+      - name: Verify changed file policy
+        env:
+          PR_BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: pnpm pr:check-file-policy
+
+      - name: Secret scanner
+        run: pnpm security:secrets
+
+      - name: Compose config check
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: App Compose profile check
+        run: docker compose --env-file .env.example --profile apps config --quiet

@@ -89,8 +89,8 @@ Build vertical slices that cross service boundaries early. Do not build all mode
 
 - Queue depth can be read from RabbitMQ management later; early UI may show worker-known counts.
 - Realtime can emit directly from worker before routing through a separate realtime queue.
-- Dashboard query service can initially share the API process.
-- Incident API can initially share the API process.
+- Dashboard query behavior can initially live behind the API Gateway route surface, but runtime services must remain separately deployable.
+- Incident APIs and incident workers must remain a separate deployable service.
 
 ## Must Not Be Mocked For MVP Completion
 
@@ -140,5 +140,5 @@ Then polish README, screenshots, diagrams, and tests.
 - How manual ack and DLQ prevent message loss loops.
 - How incident dedupe avoids alert storms.
 - How vault encryption differs from hashing.
-- Why service ownership matters even if MVP runs grouped processes.
+- Why service ownership and separate deployment let hot services scale independently.
 - What would change for production scale.

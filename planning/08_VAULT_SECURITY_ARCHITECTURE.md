@@ -77,12 +77,11 @@ Scopes:
 
 Endpoints:
 
-- `GET /api/v1/secrets?projectId=<id>&env=<env>`
-- `GET /api/v1/secrets/:key?projectId=<id>&env=<env>`
+- `GET /api/integrations/vault/secrets/:environment/:key`
 
 Rules:
 
-- Integration tokens can fetch decrypted values for their allowed environment.
+- Integration tokens can fetch decrypted values for their token-owned project and allowed environment.
 - Responses must not include vault metadata that helps attack encryption.
 - Audit every success and failure.
 - Rate limit token-based fetches per token and project.

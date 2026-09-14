@@ -1,0 +1,15 @@
+title = "PulseOps Gitleaks Config"
+
+[allowlist]
+description = "Allow local-only documentation and demo placeholders"
+paths = [
+  '''planning/.*''',
+  '''pnpm-lock\.yaml''',
+  '''node_modules/.*''',
+  '''dist/.*''',
+  '''coverage/.*'''
+]
+regexes = [
+  '''replace-with-local-demo-value''',
+  '''pulseops_demo_password'''
+]

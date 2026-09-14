@@ -1,0 +1,181 @@
+import { forbidden, notFound } from "@pulseops/shared";
+import { API_KEY_LIMITS } from "../config/constants.js";
+import type { ApiKeyCacheInvalidationRepository } from "../repositories/api-key-cache-invalidation.repository.js";
+import type { ApiKeyRepository, SafeApiKeyRecord } from "../repositories/api-key.repository.js";
+import type { IngestionApiKeyReadModelRepository } from "../repositories/ingestion-api-key-read-model.repository.js";
+import type { ProjectRepository } from "../repositories/project.repository.js";
+import type { OrganizationMemberRepository } from "../repositories/organization-member.repository.js";
+import type { ApiKeyHasher } from "./api-key-hasher.service.js";
+
+export type CreateApiKeyInput = {
+  readonly ownerId: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly scopes?: string[] | undefined;
+  readonly expiresAt?: Date | null | undefined;
+};
+
+export type ApiKeyDto = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly keyPrefix: string;
+  readonly scopes: string[];
+  readonly status: SafeApiKeyRecord["status"];
+  readonly lastUsedAt: string | null;
+  readonly expiresAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type CreatedApiKeyDto = {
+  readonly apiKey: ApiKeyDto;
+  readonly rawKey: string;
+};
+
+export class ApiKeyService {
+  constructor(
+    private readonly projects: ProjectRepository,
+    private readonly apiKeys: ApiKeyRepository,
+    private readonly apiKeyHasher: ApiKeyHasher,
+    private readonly ingestionApiKeys?: IngestionApiKeyReadModelRepository,
+    private readonly cacheInvalidator?: ApiKeyCacheInvalidationRepository,
+    private readonly organizationMembers?: OrganizationMemberRepository,
+  ) {}
+
+  async create(input: CreateApiKeyInput): Promise<CreatedApiKeyDto> {
+    await this.ensureProjectAccess(input.projectId, input.ownerId, "admin");
+
+    const generatedKey = this.apiKeyHasher.generate();
+    const apiKey = await this.apiKeys.create({
+      ownerId: input.ownerId,
+      projectId: input.projectId,
+      name: input.name.trim(),
+      keyPrefix: generatedKey.keyPrefix,
+      keyHash: generatedKey.keyHash,
+      scopes: normalizeScopes(input.scopes),
+      expiresAt: input.expiresAt ?? null,
+    });
+    await this.syncIngestionApiKey(apiKey);
+
+    return {
+      apiKey: toApiKeyDto(apiKey),
+      rawKey: generatedKey.rawKey,
+    };
+  }
+
+  async list(projectId: string, ownerId: string): Promise<ApiKeyDto[]> {
+    await this.ensureProjectAccess(projectId, ownerId, "read");
+    const apiKeys = await this.apiKeys.findByProject(projectId);
+    return apiKeys.map(toApiKeyDto);
+  }
+
+  async rotate(apiKeyId: string, projectId: string, ownerId: string): Promise<CreatedApiKeyDto> {
+    const existingApiKey = await this.getExistingApiKey(apiKeyId, projectId, ownerId);
+    const disabledApiKey = await this.apiKeys.disable(existingApiKey.id, projectId);
+
+    if (disabledApiKey !== null) {
+      await this.syncIngestionApiKey(disabledApiKey);
+      await this.invalidateApiKeyCache(disabledApiKey.keyHash);
+    }
+
+    return this.create({
+      ownerId,
+      projectId,
+      name: `${existingApiKey.name} rotated`,
+      scopes: existingApiKey.scopes,
+      expiresAt: existingApiKey.expiresAt,
+    });
+  }
+
+  async disable(apiKeyId: string, projectId: string, ownerId: string): Promise<ApiKeyDto> {
+    await this.getExistingApiKey(apiKeyId, projectId, ownerId);
+    const disabledApiKey = await this.apiKeys.disable(apiKeyId, projectId);
+
+    if (disabledApiKey === null) {
+      throw notFound("API key not found");
+    }
+
+    await this.syncIngestionApiKey(disabledApiKey);
+    await this.invalidateApiKeyCache(disabledApiKey.keyHash);
+
+    return toApiKeyDto(disabledApiKey);
+  }
+
+  private async syncIngestionApiKey(apiKey: SafeApiKeyRecord): Promise<void> {
+    await this.ingestionApiKeys?.sync(apiKey);
+  }
+
+  private async invalidateApiKeyCache(keyHash: string): Promise<void> {
+    await this.cacheInvalidator?.invalidate(keyHash);
+  }
+
+  private async getExistingApiKey(
+    apiKeyId: string,
+    projectId: string,
+    ownerId: string,
+  ): Promise<SafeApiKeyRecord> {
+    await this.ensureProjectAccess(projectId, ownerId, "admin");
+    const apiKey = await this.apiKeys.findByIdForProject(apiKeyId, projectId);
+
+    if (apiKey === null) {
+      throw notFound("API key not found");
+    }
+
+    return apiKey;
+  }
+
+  private async ensureProjectAccess(
+    projectId: string,
+    ownerId: string,
+    requiredAccess: "admin" | "read",
+  ): Promise<void> {
+    const project = await this.projects.findById(projectId);
+
+    if (project === null) {
+      throw notFound("Project not found");
+    }
+
+    if (project.ownerId === ownerId) {
+      return;
+    }
+
+    if (this.organizationMembers === undefined || project.organizationId === null) {
+      throw notFound("Project not found");
+    }
+
+    const membership = await this.organizationMembers.findActiveMembership(
+      project.organizationId,
+      ownerId,
+    );
+
+    if (membership === null) {
+      throw notFound("Project not found");
+    }
+
+    if (requiredAccess === "admin" && membership.role !== "owner" && membership.role !== "admin") {
+      throw forbidden("Project admin access required");
+    }
+  }
+}
+
+function normalizeScopes(scopes: string[] | undefined): string[] {
+  const fallback = [...API_KEY_LIMITS.defaultScopes];
+  const selectedScopes = scopes === undefined || scopes.length === 0 ? fallback : scopes;
+  return [...new Set(selectedScopes)].sort();
+}
+
+function toApiKeyDto(apiKey: SafeApiKeyRecord): ApiKeyDto {
+  return {
+    id: apiKey.id,
+    projectId: apiKey.projectId,
+    name: apiKey.name,
+    keyPrefix: apiKey.keyPrefix,
+    scopes: [...apiKey.scopes],
+    status: apiKey.status,
+    lastUsedAt: apiKey.lastUsedAt?.toISOString() ?? null,
+    expiresAt: apiKey.expiresAt?.toISOString() ?? null,
+    createdAt: apiKey.createdAt.toISOString(),
+    updatedAt: apiKey.updatedAt.toISOString(),
+  };
+}

@@ -72,7 +72,7 @@
 | Ingestion | `/api/ingest/logs`, `/api/ingest/errors`, `/api/ingest/metrics` |
 | Dashboard Query | `/api/dashboard/:projectId/*` |
 | Incident | `/api/incidents/:projectId`, `/api/incidents/:incidentId/*` |
-| Vault | `/api/vault/:projectId/*`, `/api/v1/secrets*` |
+| Vault | `/api/vault/*`, `/api/integrations/vault/secrets/*` |
 | Ops | `/api/health`, `/api/admin/workers`, `/api/admin/queues` |
 
 ## Scaling Strategy
@@ -98,16 +98,18 @@
 | Audit | queue lag | sensitive operation continues only if audit publish succeeds for critical vault actions |
 | Ops | RabbitMQ management unavailable | show degraded queue status |
 
-## MVP Merge Candidates
+## Deployment Boundaries
 
-Can be merged initially:
+Services must not be merged into shared runtime processes. Each service is an independent deployment and scale unit:
 
-- API Gateway + Auth/Project + Dashboard Query + Incident HTTP API.
-- Event Workers + Incident Worker + Ops heartbeat.
-- Audit worker can be part of worker runtime if it keeps separate queue and collection logic.
+- API Gateway
+- Auth/Project
+- Ingestion
+- Event Workers
+- Incident
+- Realtime Gateway
+- Vault
+- Audit
+- Ops/Worker Health
 
-Must remain separate logically:
-
-- Vault security logic from ingestion/event processing.
-- Ingestion admission path from heavy event processing.
-- RabbitMQ workers from HTTP request handling.
+This preserves separate load management for hot paths such as ingestion, queue workers, and realtime fanout.
